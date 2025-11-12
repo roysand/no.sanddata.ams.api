@@ -8,8 +8,11 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="FastEndpoints" />
+        <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
         <PackageReference Include="Scalar.AspNetCore" />
+        <ProjectReference Include="..\Features\Features.csproj" />
     </ItemGroup>
 
     <ItemGroup>
@@ -19,3 +22,4 @@
     </ItemGroup>
 
 </Project>
+

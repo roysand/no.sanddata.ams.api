@@ -1,3 +1,4 @@
+using FastEndpoints;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -5,6 +6,13 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.AddFastEndpoints(options =>
+{
+    options.Assemblies = new[] { typeof(Features.Test.CreateTest).Assembly };
+});
+
+builder.Services.AddMediatR(config =>
+    config.RegisterServicesFromAssembly(typeof(Features.Test.CreateTest).Assembly));
 
 var app = builder.Build();
 
@@ -41,6 +49,7 @@ app.MapGet("/weatherforecast", () =>
     })
     .WithName("GetWeatherForecast");
 
+app.UseFastEndpoints();
 app.Run();
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
