@@ -1,0 +1,47 @@
+# Cursor Rules for no.sanddata.ams.api
+
+This file defines rules and guidelines for Cursor AI assistant when working on the no.sanddata.ams.api project.
+## Project Structure
+
+This is a .NET 9 Clean Architecture project with vertical slices. The structure follows:
+
+- Domain/ - Core business entities and interfaces
+- Application/ - Use cases, commands, queries, and business logic
+- Infrastructure/ - External concerns (database, external APIs, etc.)
+- API/ - REST API endpoints and presentation layer
+
+## Project Overview
+- This is a .NET 9.0 ASP.NET Core Web API project
+- Solution file: `no.sanddata.ams.api.sln`
+- Main API project: `api/api.csproj`
+- Uses central package management via `Directory.Packages.props`
+- Common build properties defined in `Directory.Build.props`
+- Formatting rules in `.editorconfig`
+
+## Building Process
+- **Build Command**: Use `dotnet build` from the root directory to build the entire solution
+- **Run Command**: Use `dotnet run --project api` to start the API server
+- **Restore Packages**: Run `dotnet restore` before building if packages are missing
+- **Target Framework**: Ensure .NET 9.0 SDK is installed and used
+- **Docker Support**: Project includes Dockerfile for containerized builds
+
+## Code Standards
+- Enable nullable reference types (`<Nullable>enable</Nullable>`)
+- Use implicit usings (`<ImplicitUsings>enable</ImplicitUsings>`)
+- Follow .editorconfig formatting rules
+- Use central package versions from `Directory.Packages.props`
+- Avoid hardcoding package versions in individual project files
+
+## File Organization
+- Place new source files in appropriate directories under `api/`
+- Update `Directory.Packages.props` for new package dependencies
+- Modify `Directory.Build.props` for shared build properties
+- Keep configuration files (appsettings.json) in `api/` directory
+
+## Testing
+- Add unit tests in a separate test project if needed
+- Use `dotnet test` to run tests
+
+## Deployment
+- Use Docker for containerized deployment
+- Refer to `compose.yaml` for local development setup

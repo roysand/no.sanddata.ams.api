@@ -1,0 +1,85 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.log
+*.tmp
+*.temp
+*.tmpproj
+*.vs/
+*.swp
+*.swo
+*~
+
+# Visual Studio
+.vs/
+.vscode/settings.json
+.idea/
+
+# Rider
+.idea/
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+
+# Linux
+*~
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+project.nuget.cache
+project.assets.json
+
+# Entity Framework
+*.mdf
+*.ldf
+*.db
+
+# Test Results
+TestResults/
+*.trx
+*.testsettings
+
+# Coverage
+coverage/
+*.coverage
+*.coveragexml
+
+# Build outputs
+artifacts/
+publish/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
