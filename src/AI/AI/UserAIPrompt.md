@@ -13,8 +13,6 @@ User:
 - string LastName
 - string PasswordHash
 - EmailAddress Email
-- DateTime CreatedAt
-- DateTime UpdatedAt
 - bool IsActive
 - List<Role> Roles
 - List<Location> Locations
@@ -25,8 +23,6 @@ User:
 - string Address
 - string SerialNumber
 - string Zone
-- DateTime CreatedAt
-- DateTime UpdatedAt
 - bool IsActive
 - bool HasNorgesPriceAgreement
 - ApiKey ApiKey
@@ -40,8 +36,6 @@ User:
 - Entity Id
 - string Name
 - string Description
-- DateTime CreatedAt
-- DateTime UpdatedAt
 - bool IsActive
 - List<User> Users
 
