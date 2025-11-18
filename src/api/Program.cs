@@ -14,6 +14,8 @@ builder.Services.AddFastEndpoints(options =>
 builder.Services.AddMediatR(config =>
     config.RegisterServicesFromAssembly(typeof(Features.Test.CreateTest).Assembly));
 
+builder.Services.AddScoped<Application.DomainEvents.IDomainEventsDispatcher, Application.DomainEvents.DomainEventsDispatcher>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

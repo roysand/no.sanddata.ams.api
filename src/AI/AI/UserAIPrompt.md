@@ -12,7 +12,7 @@ User:
 - string FirstName
 - string LastName
 - string PasswordHash
-- string Email
+- EmailAddress Email
 - DateTime CreatedAt
 - DateTime UpdatedAt
 - bool IsActive

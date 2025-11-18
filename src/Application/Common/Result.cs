@@ -1,6 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-namespace Application.Common;
+﻿namespace Application.Common;
 
 public class Result
 {
@@ -45,7 +43,6 @@ public class Result<TValue> : Result
         _value = value;
     }
 
-    [NotNull]
     public TValue Value => IsSuccess
         ? _value!
         : throw new InvalidOperationException("The value of a failure result can't be accessed.");
