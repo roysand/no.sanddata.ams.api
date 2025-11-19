@@ -11,6 +11,10 @@
         <PackageReference Include="FastEndpoints" />
         <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
         <PackageReference Include="Scalar.AspNetCore" />
         <ProjectReference Include="..\Features\Features.csproj" />
         <ProjectReference Include="..\Infrastructure\Infrastructure.csproj" />

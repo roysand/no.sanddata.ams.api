@@ -1,10 +1,21 @@
 namespace Domain.Common.Entities;
 
-public class Role(Guid id, string name, string description, bool isActive) : Entity(id)
+public class Role : Entity
 {
-    public string Name { get; private set; } = name;
-    public string Description { get; private set; } = description;
-    public bool IsActive { get; private set; } = isActive;
+    public string Name { get; private set; }
+    public string Description { get; private set; }
+    public bool IsActive { get; private set; }
     private List<User> _users = new();
     public IReadOnlyCollection<User> Users => _users.AsReadOnly();
+
+    // Parameterless constructor for EF Core compatibility
+    public Role() : base() { }
+
+    public Role(Guid id, string name, string description, bool isActive)
+        : base(id)
+    {
+        Name = name;
+        Description = description;
+        IsActive = isActive;
+    }
 }

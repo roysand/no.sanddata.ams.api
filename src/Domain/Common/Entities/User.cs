@@ -2,22 +2,28 @@ using Domain.Common.ValueObjects;
 
 namespace Domain.Common.Entities;
 
-public class User(
-    Guid id,
-    string firstName,
-    string lastName,
-    string passwordHash,
-    EmailAddress email,
-    bool isActive) : Entity(id)
+public class User : Entity
 {
-    public string FirstName { get; private set; } = firstName;
-    public string LastName { get; private set; } = lastName;
-    public string PasswordHash { get; private set; } = passwordHash;
-    public EmailAddress Email { get; private set; } = email;
-    public bool IsActive { get; private set; } = isActive;
+    public required string FirstName { get; set; }
+    public required string LastName { get; set; }
+    public required string PasswordHash { get; set; }
+    public required EmailAddress Email { get; set; }
+    public bool IsActive { get; set; }
     private List<Role> _roles = new();
     public IReadOnlyCollection<Role> Roles => _roles.AsReadOnly();
-
     private List<Location> _locations = new();
     public IReadOnlyCollection<Location> Locations => _locations.AsReadOnly();
+
+    // Parameterless constructor for EF Core
+    public User() { }
+
+    public User(Guid id, string firstName, string lastName, string passwordHash, EmailAddress email, bool isActive)
+        : base(id)
+    {
+        FirstName = firstName;
+        LastName = lastName;
+        PasswordHash = passwordHash;
+        Email = email;
+        IsActive = isActive;
+    }
 }

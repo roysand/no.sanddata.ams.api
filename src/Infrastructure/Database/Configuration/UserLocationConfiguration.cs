@@ -8,7 +8,7 @@ public class UserLocationConfiguration : IEntityTypeConfiguration<UserLocation>
 {
     public void Configure(EntityTypeBuilder<UserLocation> builder)
     {
-        builder.HasKey("Id");
+        builder.HasKey(ul => new { ul.UserId, ul.LocationId });
 
         builder.Property(ul => ul.UserId).IsRequired();
         builder.Property(ul => ul.LocationId).IsRequired();

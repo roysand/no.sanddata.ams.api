@@ -1,10 +1,16 @@
 ﻿namespace Domain.Common;
 
-public abstract class Entity(Guid id)
+public abstract class Entity
 {
-    private Guid Id { get; } = id;
-    public  DateTime CreatedAt { get; set; }
+    public Guid Id { get; protected set; }
+    public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+
+    protected Entity() { }
+    protected Entity(Guid id)
+    {
+        Id = id;
+    }
 
     public override bool Equals(object? obj)
     {
