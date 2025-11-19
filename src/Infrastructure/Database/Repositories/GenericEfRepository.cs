@@ -4,11 +4,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Database.Repositories;
 
-public class GenericRepository<T> : IRepository<T> where T : class
+public class GenericEfRepository<T> : IEfRepository<T> where T : class
 {
     private readonly ApplicationDbContext _context;
 
-    public GenericRepository(ApplicationDbContext applicationDbContext)
+    public GenericEfRepository(ApplicationDbContext applicationDbContext)
     {
         _context = applicationDbContext;
     }

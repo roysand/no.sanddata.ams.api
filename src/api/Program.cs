@@ -1,7 +1,11 @@
 using FastEndpoints;
+using Infrastructure;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Add local.settings.json to configuration
+builder.Configuration.AddJsonFile("local.settings.json", optional: true, reloadOnChange: true);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -15,6 +19,9 @@ builder.Services.AddMediatR(config =>
     config.RegisterServicesFromAssembly(typeof(Features.Test.CreateTest).Assembly));
 
 builder.Services.AddScoped<Application.DomainEvents.IDomainEventsDispatcher, Application.DomainEvents.DomainEventsDispatcher>();
+
+// Add Infrastructure services (DbContext, Repositories, etc.)
+builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 

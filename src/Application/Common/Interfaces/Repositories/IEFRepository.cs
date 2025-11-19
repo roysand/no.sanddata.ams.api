@@ -2,11 +2,11 @@
 
 namespace Application.Common.Interfaces.Repositories;
 
-public interface IRepository
+public interface IEfRepository
 {
 }
 
-public interface IRepository<T> : IRepository where T : class
+public interface IEfRepository<T> : IEfRepository where T : class
 {
     T Insert(T entity);
     T Update(T entity);
