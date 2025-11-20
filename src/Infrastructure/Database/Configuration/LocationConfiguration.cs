@@ -10,10 +10,10 @@ public class LocationConfiguration : IEntityTypeConfiguration<Location>
     {
         builder.HasKey("Id");
 
-        builder.Property(l => l.Name).IsRequired();
-        builder.Property(l => l.Address).IsRequired();
-        builder.Property(l => l.SerialNumber).IsRequired();
-        builder.Property(l => l.Zone).IsRequired();
+        builder.Property(l => l.Name).IsRequired().HasMaxLength(100);
+        builder.Property(l => l.Address).IsRequired().HasMaxLength(100);
+        builder.Property(l => l.SerialNumber).IsRequired().HasMaxLength(100);
+        builder.Property(l => l.Zone).IsRequired().HasMaxLength(10);
         builder.Property(l => l.IsActive);
         builder.Property(l => l.HasNorgesPriceAgreement);
 

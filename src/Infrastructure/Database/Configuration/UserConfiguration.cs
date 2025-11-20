@@ -11,12 +11,12 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
     {
         builder.HasKey("Id");
 
-        builder.Property(u => u.FirstName).IsRequired();
-        builder.Property(u => u.LastName).IsRequired();
-        builder.Property(u => u.PasswordHash).IsRequired();
+        builder.Property(u => u.FirstName).IsRequired().HasMaxLength(100);
+        builder.Property(u => u.LastName).IsRequired().HasMaxLength(100);
+        builder.Property(u => u.PasswordHash).IsRequired().HasMaxLength(100);
         builder.OwnsOne(u => u.Email, email =>
         {
-            email.Property(e => e.Value).IsRequired();
+            email.Property(e => e.Value).IsRequired().HasMaxLength(100).HasColumnName("Email");
         }); // Email is a Value Object
         builder.Property(u => u.IsActive);
 

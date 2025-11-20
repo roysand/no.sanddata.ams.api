@@ -10,8 +10,8 @@ public class ApiKeyConfiguration : IEntityTypeConfiguration<ApiKey>
     {
         builder.HasKey("Id");
 
-        builder.Property(a => a.Key).IsRequired();
-        builder.Property(a => a.Description).IsRequired();
+        builder.Property(a => a.Key).IsRequired().HasMaxLength(100);
+        builder.Property(a => a.Description).IsRequired().HasMaxLength(100);
         builder.Property(a => a.IsActive);
         builder.Property(a => a.CreatedAt);
         builder.Property(a => a.ExpiresAt);
