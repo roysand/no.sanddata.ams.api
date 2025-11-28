@@ -13,6 +13,8 @@ public class User : Entity
     public IReadOnlyCollection<Role> Roles => _roles.AsReadOnly();
     private List<Location> _locations = new();
     public IReadOnlyCollection<Location> Locations => _locations.AsReadOnly();
+    private List<RefreshToken> _refreshTokens = new();
+    public IReadOnlyCollection<RefreshToken> RefreshTokens => _refreshTokens.AsReadOnly();
 
     // Parameterless constructor for EF Core
     public User() { }
