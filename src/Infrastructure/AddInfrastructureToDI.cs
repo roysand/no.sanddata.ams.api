@@ -71,6 +71,9 @@ public static class AddInfrastructureToDI
         // Register JWT Token Service
         services.AddScoped<IJwtTokenService, JwtTokenService>();
 
+        // Register Password Hasher
+        services.AddScoped<IPasswordHasher, PasswordHasher>();
+
         return services;
     }
 }

@@ -1,4 +1,4 @@
-using Application.Common;
+using Domain.Common;
 using Application.Common.Interfaces.Repositories;
 using Domain.Common.Entities;
 using FastEndpoints;
@@ -53,7 +53,7 @@ public static class RefreshToken
             }
 
             // Get user
-            var user = await _userRepository.GetAsync(refreshToken.UserId, cancellationToken);
+            var user = await _userRepository.GetByIdAsync(refreshToken.UserId, cancellationToken);
             if (user == null || !user.IsActive)
             {
                 return Result.Failure<RefreshTokenResponse>(

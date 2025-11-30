@@ -1,4 +1,4 @@
-using Application.Common;
+using Domain.Common;
 using Application.Common.Interfaces.Repositories;
 using Domain.Common.Entities;
 using FastEndpoints;
@@ -26,15 +26,18 @@ public static class Login
         private readonly IUserEfRepository<User> _userRepository;
         private readonly IRefreshTokenRepository _refreshTokenRepository;
         private readonly IJwtTokenService _jwtTokenService;
+        private readonly IPasswordHasher _passwordHasher;
 
         public Handler(
             IUserEfRepository<User> userRepository,
             IRefreshTokenRepository refreshTokenRepository,
-            IJwtTokenService jwtTokenService)
+            IJwtTokenService jwtTokenService,
+            IPasswordHasher passwordHasher)
         {
             _userRepository = userRepository;
             _refreshTokenRepository = refreshTokenRepository;
             _jwtTokenService = jwtTokenService;
+            _passwordHasher = passwordHasher;
         }
 
         public async Task<Result<LoginResponse>> Handle(
@@ -52,10 +55,12 @@ public static class Login
                     Error.NotFound("Auth.InvalidCredentials", "Invalid email or password"));
             }
 
-            // TODO: Implement password verification using BCrypt or similar
-            // For now, this is a placeholder - you should hash passwords and verify them properly
-            // Example: if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-            //     return Result.Failure<LoginResponse>(Error.NotFound("Auth.InvalidCredentials", "Invalid email or password"));
+            // Verify password using BCrypt
+            if (!_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
+            {
+                return Result.Failure<LoginResponse>(
+                    Error.NotFound("Auth.InvalidCredentials", "Invalid email or password"));
+            }
 
             // Generate tokens
             var accessToken = _jwtTokenService.GenerateToken(user, user.Roles);
@@ -122,7 +127,7 @@ public class LoginEndpoint : Endpoint<Login.LoginRequest, Login.LoginResponse>
         });
     }
 
-    public override async Task<Login.LoginResponse> HandleAsync(
+    public override async Task HandleAsync(
         Login.LoginRequest req,
         CancellationToken ct)
     {
@@ -131,9 +136,14 @@ public class LoginEndpoint : Endpoint<Login.LoginRequest, Login.LoginResponse>
         if (!result.IsSuccess)
         {
             AddError(result.Error.Code, result.Error.Description);
-            ThrowIfAnyErrors();
+            ThrowIfAnyErrors(result.Error.Type switch
+            {
+                ErrorType.NotFound => 401,
+                ErrorType.Validation => 400,
+                _ => 400
+            });
         }
 
-        return result.Value;
+        Response = result.Value;
     }
 }

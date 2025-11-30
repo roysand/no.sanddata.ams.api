@@ -33,7 +33,7 @@ public class GenericEfRepository<T> : IEfRepository<T> where T : class
         return count >= 1;
     }
 
-    public async virtual Task<T?> GetAsync(int id, CancellationToken cancellationToken)
+    public async virtual Task<T?> GetByIdAsync(int id, CancellationToken cancellationToken)
     {
         try
         {
@@ -46,7 +46,7 @@ public class GenericEfRepository<T> : IEfRepository<T> where T : class
         }
     }
 
-    public async virtual Task<T?> GetAsync(string id, CancellationToken cancellationToken)
+    public async virtual Task<T?> GetByIdAsync(string id, CancellationToken cancellationToken)
     {
         // Try to parse as Guid first, then fall back to string
         if (Guid.TryParse(id, out var guidId))
@@ -56,12 +56,12 @@ public class GenericEfRepository<T> : IEfRepository<T> where T : class
         return await _context.FindAsync<T>(new object[] {id}, cancellationToken);
     }
 
-    public virtual async Task<T?> GetAsync(Guid id, CancellationToken cancellationToken)
+    public virtual async Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         return await _context.FindAsync<T>(new object[] {id}, cancellationToken);
     }
 
-    public virtual async Task<T?> GetAsync(object id, CancellationToken cancellationToken)
+    public virtual async Task<T?> GetByIdAsync(object id, CancellationToken cancellationToken)
     {
         return await _context.FindAsync<T>(new object[] {id}, cancellationToken);
     }

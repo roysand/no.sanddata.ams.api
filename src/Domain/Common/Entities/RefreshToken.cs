@@ -5,7 +5,6 @@ public class RefreshToken : Entity
     public required Guid UserId { get; set; }
     public required string Token { get; set; }
     public required DateTime ExpiresAt { get; set; }
-    public required DateTime CreatedAt { get; set; }
     public DateTime? RevokedAt { get; set; }
     public string? ReplacedByToken { get; set; }
     public string? ReasonRevoked { get; set; }

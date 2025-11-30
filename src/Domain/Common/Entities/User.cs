@@ -1,4 +1,5 @@
 using Domain.Common.ValueObjects;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Domain.Common.Entities;
 
@@ -19,6 +20,7 @@ public class User : Entity
     // Parameterless constructor for EF Core
     public User() { }
 
+    [SetsRequiredMembers]
     public User(Guid id, string firstName, string lastName, string passwordHash, EmailAddress email, bool isActive)
         : base(id)
     {

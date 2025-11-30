@@ -1,4 +1,4 @@
-﻿namespace Application.Common;
+namespace Domain.Common;
 
 public record Error
 {
@@ -36,4 +36,3 @@ public record Error
     public static Error Validation(string code, string description) =>
         new(code, description, ErrorType.Validation);
 }
-
