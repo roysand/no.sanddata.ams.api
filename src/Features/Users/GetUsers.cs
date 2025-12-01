@@ -56,10 +56,12 @@ public static class GetUsers
                       u.Email.Value.Contains(request.Search)),
                 cancellationToken);
 
-            var totalCount = users.Count();
+            // Filter out nulls and get total count
+            var filteredUsers = users.OfType<User>().ToList();
+            var totalCount = filteredUsers.Count;
 
             // Apply pagination
-            var pagedUsers = users
+            var pagedUsers = filteredUsers
                 .Skip((request.PageNumber - 1) * request.PageSize)
                 .Take(request.PageSize)
                 .Select(u => new UserResponse(

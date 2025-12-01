@@ -46,7 +46,7 @@ public static class RefreshToken
 
             var refreshToken = tokens.FirstOrDefault();
 
-            if (refreshToken == null || !refreshToken.IsActive)
+            if (refreshToken is null || !refreshToken.IsActive)
             {
                 return Result.Failure<RefreshTokenResponse>(
                     Error.NotFound("Auth.InvalidRefreshToken", "Invalid or expired refresh token"));
@@ -54,7 +54,7 @@ public static class RefreshToken
 
             // Get user
             var user = await _userRepository.GetByIdAsync(refreshToken.UserId, cancellationToken);
-            if (user == null || !user.IsActive)
+            if (user is null || !user.IsActive)
             {
                 return Result.Failure<RefreshTokenResponse>(
                     Error.NotFound("Auth.UserNotFound", "User not found or inactive"));

@@ -43,7 +43,7 @@ public static class UpdateUser
         {
             var user = await _userRepository.GetByIdAsync(request.Id, cancellationToken);
 
-            if (user == null)
+            if (user is null)
             {
                 return Result.Failure<UserResponse>(
                     Error.NotFound("User.NotFound", $"User with ID {request.Id} was not found"));

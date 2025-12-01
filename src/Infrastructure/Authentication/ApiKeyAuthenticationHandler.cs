@@ -40,7 +40,7 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
             CancellationToken.None);
 
         var apiKey = apiKeys.FirstOrDefault();
-        if (apiKey == null)
+        if (apiKey is null)
         {
             return AuthenticateResult.Fail("Invalid or expired API Key");
         }

@@ -49,7 +49,7 @@ public static class Login
                 cancellationToken);
 
             var user = users.FirstOrDefault();
-            if (user == null)
+            if (user is null)
             {
                 return Result.Failure<LoginResponse>(
                     Error.NotFound("Auth.InvalidCredentials", "Invalid email or password"));
