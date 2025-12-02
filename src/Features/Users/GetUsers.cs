@@ -103,7 +103,7 @@ public static class GetUsers
     }
 }
 
-public class GetUsersEndpoint : Endpoint<GetUsers.GetUsersRequest, GetUsers.PagedUsersResponse>
+public class GetUsersEndpoint : EndpointWithoutRequest<GetUsers.PagedUsersResponse>
 {
     private readonly ISender _sender;
 
@@ -118,22 +118,30 @@ public class GetUsersEndpoint : Endpoint<GetUsers.GetUsersRequest, GetUsers.Page
         {
             s.Summary = "Get all users";
             s.Description = "Retrieve a paginated list of users with optional filtering";
-            s.ExampleRequest = new GetUsers.GetUsersRequest(
-                PageNumber: 1,
-                PageSize: 10,
-                IsActive: true,
-                Search: "john"
-            );
+            s.Params["PageNumber"] = "The page number to retrieve (default: 1, must be > 0)";
+            s.Params["PageSize"] = "Number of items per page (default: 10, max: 100)";
+            s.Params["IsActive"] = "Filter by active status (optional)";
+            s.Params["Search"] = "Search term to filter users by name or email (optional)";
             s.Response(200, "Users retrieved successfully");
             s.Response(400, "Invalid request parameters");
         });
     }
 
-    public override async Task HandleAsync(
-        GetUsers.GetUsersRequest req,
-        CancellationToken ct)
+    public override async Task HandleAsync(CancellationToken ct)
     {
-        var result = await _sender.Send(req, ct);
+        var pageNumber = Query<int>("PageNumber", isRequired: false);
+        var pageSize = Query<int>("PageSize", isRequired: false);
+        var isActive = Query<bool?>("IsActive", isRequired: false);
+        var search = Query<string?>("Search", isRequired: false);
+
+        var request = new GetUsers.GetUsersRequest(
+            PageNumber: pageNumber == 0 ? 1 : pageNumber,
+            PageSize: pageSize == 0 ? 10 : pageSize,
+            IsActive: isActive,
+            Search: search
+        );
+
+        var result = await _sender.Send(request, ct);
 
         if (!result.IsSuccess)
         {
