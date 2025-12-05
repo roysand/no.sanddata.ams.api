@@ -18,6 +18,7 @@ public sealed class ApplicationDbContext(
     public DbSet<UserLocation> UserLocation { get; set; }
     public DbSet<Role> Role { get; set; }
     public DbSet<UserRole> UserRole { get; set; }
+    public DbSet<RefreshToken> RefreshToken { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -25,6 +26,7 @@ public sealed class ApplicationDbContext(
         {
             var connectionString = Environment.GetEnvironmentVariable("ApplicationSettings:DbConnectionString") ?? throw new InvalidOperationException("Connection string not found.");
             optionsBuilder.UseSqlServer(connectionString);
+
         }
     }
 

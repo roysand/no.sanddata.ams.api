@@ -1,11 +1,15 @@
+using System.Text;
 using Application.Abstractions.Data;
 using Application.Common.Interfaces.Repositories;
 using Domain.Common.Entities;
+using Infrastructure.Authentication;
 using Infrastructure.Database;
 using Infrastructure.Database.Repositories;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.Tokens;
 
 namespace Infrastructure;
 
@@ -33,6 +37,42 @@ public static class AddInfrastructureToDI
         services.AddScoped<IRoleEfRepository<Role>, RoleEfRepository>();
         services.AddScoped<IUserLocationEfRepository<UserLocation>, UserLocationEfRepository>();
         services.AddScoped<IUserRoleEfRepository<UserRole>, UserRoleEfRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenEfRepository>();
+
+        // Register Authentication Services
+        services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        })
+        .AddJwtBearer(options =>
+        {
+            var secretKey = configuration["JwtSettings:SecretKey"]
+                ?? throw new InvalidOperationException("JWT SecretKey not configured");
+
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+                ValidateIssuer = true,
+                ValidIssuer = configuration["JwtSettings:Issuer"],
+                ValidateAudience = true,
+                ValidAudience = configuration["JwtSettings:Audience"],
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.Zero
+            };
+        })
+        .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
+            ApiKeyAuthenticationOptions.DefaultScheme,
+            options => { });
+
+        services.AddAuthorization();
+
+        // Register JWT Token Service
+        services.AddScoped<IJwtTokenService, JwtTokenService>();
+
+        // Register Password Hasher
+        services.AddScoped<IPasswordHasher, PasswordHasher>();
 
         return services;
     }

@@ -1,4 +1,5 @@
 using Domain.Common.ValueObjects;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Domain.Common.Entities;
 
@@ -13,10 +14,13 @@ public class User : Entity
     public IReadOnlyCollection<Role> Roles => _roles.AsReadOnly();
     private List<Location> _locations = new();
     public IReadOnlyCollection<Location> Locations => _locations.AsReadOnly();
+    private List<RefreshToken> _refreshTokens = new();
+    public IReadOnlyCollection<RefreshToken> RefreshTokens => _refreshTokens.AsReadOnly();
 
     // Parameterless constructor for EF Core
     public User() { }
 
+    [SetsRequiredMembers]
     public User(Guid id, string firstName, string lastName, string passwordHash, EmailAddress email, bool isActive)
         : base(id)
     {
