@@ -2,16 +2,14 @@ using FastEndpoints;
 using Infrastructure;
 using Scalar.AspNetCore;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Add local.settings.json to configuration
 builder.Configuration.AddJsonFile("local.settings.json", optional: true, reloadOnChange: true);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi(options =>
-{
-    options.AddDocumentTransformer((document, context, cancellationToken) =>
+builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document, context, cancellationToken) =>
     {
         // Add security schemes to OpenAPI document
         document.Components ??= new Microsoft.OpenApi.OpenApiComponents();
@@ -33,12 +31,10 @@ builder.Services.AddOpenApi(options =>
             }
         };
         return Task.CompletedTask;
-    });
-});
+    }));
+
 builder.Services.AddFastEndpoints(options =>
-{
-    options.Assemblies = new[] { typeof(Features.Test.CreateTest).Assembly };
-});
+    options.Assemblies = [typeof(Features.Test.CreateTest).Assembly]);
 
 builder.Services.AddMediatR(config =>
     config.RegisterServicesFromAssembly(typeof(Features.Test.CreateTest).Assembly));
@@ -48,7 +44,7 @@ builder.Services.AddScoped<Application.DomainEvents.IDomainEventsDispatcher, App
 // Add Infrastructure services (DbContext, Repositories, Authentication, etc.)
 builder.Services.AddInfrastructure(builder.Configuration);
 
-var app = builder.Build();
+WebApplication app = builder.Build();
 
 // Add Authentication and Authorization middleware
 app.UseAuthentication();
@@ -64,7 +60,7 @@ if (app.Environment.IsDevelopment())
         options.DefaultOpenAllTags = true;
         options.Authentication = new ScalarAuthenticationOptions
         {
-            PreferredSecuritySchemes = new[] { "Bearer" },
+            PreferredSecuritySchemes = ["Bearer"],
         };
     });
     app.MapOpenApi();
@@ -72,14 +68,14 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
-{
+string[] summaries =
+[
     "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+];
 
 app.MapGet("/weatherforecast", () =>
     {
-        var forecast = Enumerable.Range(1, 5).Select(index =>
+        WeatherForecast[] forecast = Enumerable.Range(1, 5).Select(index =>
                 new WeatherForecast
                 (
                     DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
@@ -94,7 +90,7 @@ app.MapGet("/weatherforecast", () =>
 app.UseFastEndpoints();
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
+internal record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {
     public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }
