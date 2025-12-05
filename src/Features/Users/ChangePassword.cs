@@ -31,7 +31,7 @@ public static class ChangePassword
             ChangePasswordRequest request,
             CancellationToken cancellationToken)
         {
-            var user = await _userRepository.GetByIdAsync(request.Id, cancellationToken);
+            User? user = await _userRepository.GetByIdAsync(request.Id, cancellationToken);
 
             if (user is null)
             {
@@ -114,7 +114,7 @@ public class ChangePasswordEndpoint : Endpoint<ChangePassword.ChangePasswordRequ
         ChangePassword.ChangePasswordRequest req,
         CancellationToken ct)
     {
-        var result = await _sender.Send(req, ct);
+        Result<bool> result = await _sender.Send(req, ct);
 
         if (!result.IsSuccess)
         {
