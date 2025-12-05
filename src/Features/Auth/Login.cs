@@ -44,11 +44,11 @@ public static class Login
             LoginRequest request,
             CancellationToken cancellationToken)
         {
-            var users = await _userRepository.FindAsync(
+            IEnumerable<User?> users = await _userRepository.FindAsync(
                 u => u.Email.Value == request.Email && u.IsActive,
                 cancellationToken);
 
-            var user = users.FirstOrDefault();
+            User? user = users.FirstOrDefault();
             if (user is null)
             {
                 return Result.Failure<LoginResponse>(
@@ -63,12 +63,12 @@ public static class Login
             }
 
             // Generate tokens
-            var accessToken = _jwtTokenService.GenerateToken(user, user.Roles);
-            var refreshToken = _jwtTokenService.GenerateRefreshToken();
+            string accessToken = _jwtTokenService.GenerateToken(user, user.Roles);
+            string refreshToken = _jwtTokenService.GenerateRefreshToken();
 
             // Store refresh token in database
-            var accessTokenExpiry = DateTime.UtcNow.AddHours(6);
-            var refreshTokenExpiry = DateTime.UtcNow.AddDays(14);
+            DateTime accessTokenExpiry = DateTime.UtcNow.AddHours(6);
+            DateTime refreshTokenExpiry = DateTime.UtcNow.AddDays(14);
 
             var refreshTokenEntity = new Domain.Common.Entities.RefreshToken
             {
@@ -81,7 +81,7 @@ public static class Login
             _refreshTokenRepository.Insert(refreshTokenEntity);
             await _refreshTokenRepository.SaveChangesAsync(cancellationToken);
 
-            var roles = user.Roles.Select(r => r.Name).ToArray();
+            string[] roles = user.Roles.Select(r => r.Name).ToArray();
 
             return Result.Success(new LoginResponse(
                 accessToken,
@@ -131,7 +131,7 @@ public class LoginEndpoint : Endpoint<Login.LoginRequest, Login.LoginResponse>
         Login.LoginRequest req,
         CancellationToken ct)
     {
-        var result = await _sender.Send(req, ct);
+        Result<Login.LoginResponse> result = await _sender.Send(req, ct);
 
         if (!result.IsSuccess)
         {
