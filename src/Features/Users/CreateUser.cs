@@ -44,7 +44,7 @@ public static class CreateUser
             CancellationToken cancellationToken)
         {
             // Check if email already exists
-            var existingUsers = await _userRepository.FindAsync(
+            IEnumerable<User?> existingUsers = await _userRepository.FindAsync(
                 u => u.Email.Value == request.Email,
                 cancellationToken);
 
@@ -55,16 +55,16 @@ public static class CreateUser
             }
 
             // Create email value object using factory pattern
-            var emailResult = EmailAddress.Create(request.Email);
+            Result<EmailAddress> emailResult = EmailAddress.Create(request.Email);
             if (emailResult.IsFailure)
             {
                 return Result.Failure<UserResponse>(emailResult.Error);
             }
 
-            var email = emailResult.Value;
+            EmailAddress email = emailResult.Value;
 
             // Hash the password using BCrypt
-            var passwordHash = _passwordHasher.HashPassword(request.Password);
+            string passwordHash = _passwordHasher.HashPassword(request.Password);
 
             // Create new user with IsActive set to true
             var user = new User(
@@ -151,7 +151,7 @@ public class CreateUserEndpoint : Endpoint<CreateUser.CreateUserRequest, CreateU
         CreateUser.CreateUserRequest req,
         CancellationToken ct)
     {
-        var result = await _sender.Send(req, ct);
+        Result<CreateUser.UserResponse> result = await _sender.Send(req, ct);
 
         if (!result.IsSuccess)
         {

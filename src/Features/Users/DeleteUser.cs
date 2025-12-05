@@ -14,16 +14,13 @@ public static class DeleteUser
     {
         private readonly IUserEfRepository<User> _userRepository;
 
-        public Handler(IUserEfRepository<User> userRepository)
-        {
-            _userRepository = userRepository;
-        }
+        public Handler(IUserEfRepository<User> userRepository) => _userRepository = userRepository;
 
         public async Task<Result<bool>> Handle(
             DeleteUserRequest request,
             CancellationToken cancellationToken)
         {
-            var user = await _userRepository.GetByIdAsync(request.Id, cancellationToken);
+            User? user = await _userRepository.GetByIdAsync(request.Id, cancellationToken);
 
             if (user is null)
             {
@@ -31,14 +28,8 @@ public static class DeleteUser
                     Error.NotFound("User.NotFound", $"User with ID {request.Id} was not found"));
             }
 
-            // Soft delete - set IsActive to false
-            user.IsActive = false;
-            _userRepository.Update(user);
+            _userRepository.Delete(user);
             await _userRepository.SaveChangesAsync(cancellationToken);
-
-            // For hard delete, use:
-            // _userRepository.Delete(user);
-            // await _userRepository.SaveChangesAsync(cancellationToken);
 
             return Result.Success(true);
         }
@@ -67,9 +58,9 @@ public class DeleteUserEndpoint : EndpointWithoutRequest
 
     public override async Task HandleAsync(CancellationToken ct)
     {
-        var id = Route<Guid>("id");
+        Guid id = Route<Guid>("id");
         var request = new DeleteUser.DeleteUserRequest(id);
-        var result = await _sender.Send(request, ct);
+        Result<bool> result = await _sender.Send(request, ct);
 
         if (!result.IsSuccess)
         {
