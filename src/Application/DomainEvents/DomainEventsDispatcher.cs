@@ -55,10 +55,8 @@ public sealed class DomainEventsDispatcher(IServiceScopeFactory scopeFactory) : 
     {
         private readonly IDomainEventHandler<T> _handler = (IDomainEventHandler<T>)handler;
 
-        public override async Task Handle(IDomainEvent domainEvent, CancellationToken cancellationToken)
-        {
-            await _handler.Handle((T)domainEvent, cancellationToken);
-        }
+        public override async Task Handle(IDomainEvent domainEvent, CancellationToken cancellationToken) 
+            => await _handler.Handle((T)domainEvent, cancellationToken);
     }
 }
 

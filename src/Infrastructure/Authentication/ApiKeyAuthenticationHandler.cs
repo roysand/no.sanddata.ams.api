@@ -5,6 +5,7 @@ using Domain.Common.Entities;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Primitives;
 
 namespace Infrastructure.Authentication;
 
@@ -17,35 +18,34 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
         ILoggerFactory logger,
         UrlEncoder encoder,
         IApiKeyEfRepository<ApiKey> apiKeyRepository)
-        : base(options, logger, encoder)
-    {
+        : base(options, logger, encoder) =>
         _apiKeyRepository = apiKeyRepository;
-    }
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        if (!Request.Headers.TryGetValue(Options.ApiKeyHeaderName, out var apiKeyHeaderValues))
+        if (!Request.Headers.TryGetValue(Options.ApiKeyHeaderName, 
+                out StringValues apiKeyHeaderValues))
         {
             return AuthenticateResult.NoResult();
         }
 
-        var providedApiKey = apiKeyHeaderValues.FirstOrDefault();
+        string? providedApiKey = apiKeyHeaderValues.FirstOrDefault();
         if (string.IsNullOrWhiteSpace(providedApiKey))
         {
             return AuthenticateResult.Fail("Invalid API Key");
         }
 
-        var apiKeys = await _apiKeyRepository.FindAsync(
+        IEnumerable<ApiKey?> apiKeys = await _apiKeyRepository.FindAsync(
             k => k.Key == providedApiKey && k.IsActive && k.ExpiresAt > DateTime.UtcNow,
             CancellationToken.None);
 
-        var apiKey = apiKeys.FirstOrDefault();
+        ApiKey? apiKey = apiKeys.FirstOrDefault();
         if (apiKey is null)
         {
             return AuthenticateResult.Fail("Invalid or expired API Key");
         }
 
-        var claims = new[]
+        Claim[] claims = new[]
         {
             new Claim("ApiKey", apiKey.Key),
             new Claim(ClaimTypes.Name, "ApiKeyUser"),

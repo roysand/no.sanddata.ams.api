@@ -24,16 +24,13 @@ public static class GetUser
     {
         private readonly IUserEfRepository<User> _userRepository;
 
-        public Handler(IUserEfRepository<User> userRepository)
-        {
-            _userRepository = userRepository;
-        }
+        public Handler(IUserEfRepository<User> userRepository) => _userRepository = userRepository;
 
         public async Task<Result<UserResponse>> Handle(
             GetUserRequest request,
             CancellationToken cancellationToken)
         {
-            var user = await _userRepository.GetByIdAsync(request.Id, cancellationToken);
+            User? user = await _userRepository.GetByIdAsync(request.Id, cancellationToken);
 
             if (user is null)
             {
@@ -80,7 +77,7 @@ public class GetUserEndpoint : Endpoint<GetUser.GetUserRequest, GetUser.UserResp
         GetUser.GetUserRequest req,
         CancellationToken ct)
     {
-        var result = await _sender.Send(req, ct);
+        Result<GetUser.UserResponse> result = await _sender.Send(req, ct);
 
         if (!result.IsSuccess)
         {

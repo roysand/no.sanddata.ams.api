@@ -38,17 +38,14 @@ public static class GetUsers
     {
         private readonly IUserEfRepository<User> _userRepository;
 
-        public Handler(IUserEfRepository<User> userRepository)
-        {
-            _userRepository = userRepository;
-        }
+        public Handler(IUserEfRepository<User> userRepository) => _userRepository = userRepository;
 
         public async Task<Result<PagedUsersResponse>> Handle(
             GetUsersRequest request,
             CancellationToken cancellationToken)
         {
             // Build the filter predicate
-            var users = await _userRepository.FindAsync(
+            IEnumerable<User?> users = await _userRepository.FindAsync(
                 u => (request.IsActive == null || u.IsActive == request.IsActive) &&
                      (string.IsNullOrEmpty(request.Search) ||
                       u.FirstName.Contains(request.Search) ||
@@ -58,10 +55,10 @@ public static class GetUsers
 
             // Filter out nulls and get total count
             var filteredUsers = users.OfType<User>().ToList();
-            var totalCount = filteredUsers.Count;
+            int totalCount = filteredUsers.Count;
 
             // Apply pagination
-            var pagedUsers = filteredUsers
+            UserResponse[] pagedUsers = filteredUsers
                 .Skip((request.PageNumber - 1) * request.PageSize)
                 .Take(request.PageSize)
                 .Select(u => new UserResponse(
@@ -75,7 +72,7 @@ public static class GetUsers
                 ))
                 .ToArray();
 
-            var totalPages = (int)Math.Ceiling(totalCount / (double)request.PageSize);
+            int totalPages = (int)Math.Ceiling(totalCount / (double)request.PageSize);
 
             var response = new PagedUsersResponse(
                 pagedUsers,
@@ -129,10 +126,10 @@ public class GetUsersEndpoint : EndpointWithoutRequest<GetUsers.PagedUsersRespon
 
     public override async Task HandleAsync(CancellationToken ct)
     {
-        var pageNumber = Query<int>("PageNumber", isRequired: false);
-        var pageSize = Query<int>("PageSize", isRequired: false);
-        var isActive = Query<bool?>("IsActive", isRequired: false);
-        var search = Query<string?>("Search", isRequired: false);
+        int pageNumber = Query<int>("PageNumber", isRequired: false);
+        int pageSize = Query<int>("PageSize", isRequired: false);
+        bool? isActive = Query<bool?>("IsActive", isRequired: false);
+        string? search = Query<string?>("Search", isRequired: false);
 
         var request = new GetUsers.GetUsersRequest(
             PageNumber: pageNumber == 0 ? 1 : pageNumber,
@@ -141,7 +138,7 @@ public class GetUsersEndpoint : EndpointWithoutRequest<GetUsers.PagedUsersRespon
             Search: search
         );
 
-        var result = await _sender.Send(request, ct);
+        Result<GetUsers.PagedUsersResponse> result = await _sender.Send(request, ct);
 
         if (!result.IsSuccess)
         {

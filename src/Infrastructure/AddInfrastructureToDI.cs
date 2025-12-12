@@ -19,9 +19,9 @@ public static class AddInfrastructureToDI
     {
         // Get connection string from configuration
         // Priority: 1. ConnectionStrings:DefaultConnection, 2. ApplicationSettings:DbConnectionString
-        var connectionString = configuration.GetConnectionString("DefaultConnection")
-                               ?? configuration["ApplicationSettings:DbConnectionString"]
-                               ?? throw new InvalidOperationException("Connection string not found. Please configure 'ConnectionStrings:DefaultConnection' or 'ApplicationSettings:DbConnectionString'.");
+        string connectionString = configuration.GetConnectionString("DefaultConnection")
+                                  ?? configuration["ApplicationSettings:DbConnectionString"]
+                                  ?? throw new InvalidOperationException("Connection string not found. Please configure 'ConnectionStrings:DefaultConnection' or 'ApplicationSettings:DbConnectionString'.");
 
         // Register DbContext with SQL Server
         services.AddDbContext<ApplicationDbContext>(options =>
@@ -47,8 +47,8 @@ public static class AddInfrastructureToDI
         })
         .AddJwtBearer(options =>
         {
-            var secretKey = configuration["JwtSettings:SecretKey"]
-                ?? throw new InvalidOperationException("JWT SecretKey not configured");
+            string secretKey = configuration["JwtSettings:SecretKey"]
+                               ?? throw new InvalidOperationException("JWT SecretKey not configured");
 
             options.TokenValidationParameters = new TokenValidationParameters
             {

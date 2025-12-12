@@ -1,4 +1,5 @@
 ﻿using System.Linq.Expressions;
+using System.Linq;
 using Application.Common.Interfaces.Repositories;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,28 +9,20 @@ public class GenericEfRepository<T> : IEfRepository<T> where T : class
 {
     private readonly ApplicationDbContext _context;
 
-    public GenericEfRepository(ApplicationDbContext applicationDbContext)
-    {
-        _context = applicationDbContext;
-    }
-     public virtual T Insert(T entity)
-    {
-        return _context
-            .Add(entity)
-            .Entity;
-    }
+    public GenericEfRepository(ApplicationDbContext applicationDbContext) => _context = applicationDbContext;
 
-    public virtual T Update(T entity)
-    {
-        return _context.Update(entity)
-            .Entity;
-    }
+    public virtual T Insert(T entity) => _context
+        .Add(entity)
+        .Entity;
+
+    public virtual T Update(T entity) => _context.Update(entity)
+        .Entity;
 
     public virtual bool Delete(T entity)
     {
         _context.Remove(entity);
 
-        var count = _context.SaveChanges();
+        int count = _context.SaveChanges();
         return count >= 1;
     }
 
@@ -49,30 +42,26 @@ public class GenericEfRepository<T> : IEfRepository<T> where T : class
     public async virtual Task<T?> GetByIdAsync(string id, CancellationToken cancellationToken)
     {
         // Try to parse as Guid first, then fall back to string
-        if (Guid.TryParse(id, out var guidId))
+        if (Guid.TryParse(id, out Guid guidId))
         {
             return await _context.FindAsync<T>(new object[] {guidId}, cancellationToken);
         }
         return await _context.FindAsync<T>(new object[] {id}, cancellationToken);
     }
 
-    public virtual async Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
-    {
-        return await _context.FindAsync<T>(new object[] {id}, cancellationToken);
-    }
+    public virtual async Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
+        await _context.FindAsync<T>(new object[] {id}, cancellationToken);
 
-    public virtual async Task<T?> GetByIdAsync(object id, CancellationToken cancellationToken)
-    {
-        return await _context.FindAsync<T>(new object[] {id}, cancellationToken);
-    }
+    public virtual async Task<T?> GetByIdAsync(object id, CancellationToken cancellationToken) =>
+        await _context.FindAsync<T>(new object[] {id}, cancellationToken);
 
     public virtual async Task<IEnumerable<T?>> FindAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken, bool noTrack = false)
     {
-        var query = _context.Set<T>()
+        IQueryable<T> query = _context.Set<T>()
             .AsQueryable()
             .Where(predicate);
 
-        if(noTrack)
+        if (noTrack)
         {
             query = query.AsNoTracking();
         }
@@ -80,24 +69,15 @@ public class GenericEfRepository<T> : IEfRepository<T> where T : class
         return await query.ToListAsync(cancellationToken);
     }
 
-    public async Task<IEnumerable<T?>> AllAsync(CancellationToken cancellationToken)
-    {
-        return await _context.Set<T>().ToListAsync(cancellationToken);
-    }
+    public async Task<IEnumerable<T?>> AllAsync(CancellationToken cancellationToken) =>
+        await _context.Set<T>().ToListAsync(cancellationToken);
 
-    public async Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken)
-    {
-        var result = await _context.Set<T>()
+    public async Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken) =>
+        await _context.Set<T>()
             .AsQueryable()
             .Where(predicate)
-            .CountAsync(cancellationToken);
+            .AnyAsync(cancellationToken);
 
-        return result > 0;
-    }
-
-    public virtual async Task<int> SaveChangesAsync(CancellationToken cancellationToken)
-    {
-        return await _context.SaveChangesAsync(cancellationToken);
-
-    }
+    public virtual async Task<int> SaveChangesAsync(CancellationToken cancellationToken) =>
+        await _context.SaveChangesAsync(cancellationToken);
 }

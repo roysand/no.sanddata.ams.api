@@ -40,11 +40,11 @@ public static class RefreshToken
             CancellationToken cancellationToken)
         {
             // Find refresh token
-            var tokens = await _refreshTokenRepository.FindAsync(
+            IEnumerable<Domain.Common.Entities.RefreshToken?> tokens = await _refreshTokenRepository.FindAsync(
                 rt => rt.Token == request.RefreshToken,
                 cancellationToken);
 
-            var refreshToken = tokens.FirstOrDefault();
+            Domain.Common.Entities.RefreshToken? refreshToken = tokens.FirstOrDefault();
 
             if (refreshToken is null || !refreshToken.IsActive)
             {
@@ -53,7 +53,7 @@ public static class RefreshToken
             }
 
             // Get user
-            var user = await _userRepository.GetByIdAsync(refreshToken.UserId, cancellationToken);
+            User? user = await _userRepository.GetByIdAsync(refreshToken.UserId, cancellationToken);
             if (user is null || !user.IsActive)
             {
                 return Result.Failure<RefreshTokenResponse>(
@@ -61,11 +61,11 @@ public static class RefreshToken
             }
 
             // Generate new tokens
-            var newAccessToken = _jwtTokenService.GenerateToken(user, user.Roles);
-            var newRefreshToken = _jwtTokenService.GenerateRefreshToken();
+            string newAccessToken = _jwtTokenService.GenerateToken(user, user.Roles);
+            string newRefreshToken = _jwtTokenService.GenerateRefreshToken();
 
-            var accessTokenExpiry = DateTime.UtcNow.AddHours(6);
-            var refreshTokenExpiry = DateTime.UtcNow.AddDays(14);
+            DateTime accessTokenExpiry = DateTime.UtcNow.AddHours(6);
+            DateTime refreshTokenExpiry = DateTime.UtcNow.AddDays(14);
 
             // Revoke old refresh token (token rotation)
             refreshToken.RevokedAt = DateTime.UtcNow;
@@ -95,11 +95,9 @@ public static class RefreshToken
 
     public class RefreshTokenValidator : Validator<RefreshTokenRequest>
     {
-        public RefreshTokenValidator()
-        {
+        public RefreshTokenValidator() =>
             RuleFor(x => x.RefreshToken)
                 .NotEmpty().WithMessage("Refresh token is required");
-        }
     }
 }
 
@@ -125,7 +123,7 @@ public class RefreshTokenEndpoint : Endpoint<RefreshToken.RefreshTokenRequest, R
         RefreshToken.RefreshTokenRequest req,
         CancellationToken ct)
     {
-        var result = await _sender.Send(req, ct);
+        Result<RefreshToken.RefreshTokenResponse> result = await _sender.Send(req, ct);
 
         if (!result.IsSuccess)
         {
