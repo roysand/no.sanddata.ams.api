@@ -12,10 +12,7 @@ public class JwtTokenService : IJwtTokenService
 {
     private readonly IConfiguration _configuration;
 
-    public JwtTokenService(IConfiguration configuration)
-    {
-        _configuration = configuration;
-    }
+    public JwtTokenService(IConfiguration configuration) => _configuration = configuration;
 
     public string GenerateToken(User user, IEnumerable<Role> roles)
     {
@@ -26,7 +23,7 @@ public class JwtTokenService : IJwtTokenService
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
         // Get user ID using reflection since it's private
-        var userId = user.GetType().GetProperty("Id",
+        string userId = user.GetType().GetProperty("Id",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
             ?.GetValue(user)?.ToString() ?? string.Empty;
 
@@ -39,7 +36,7 @@ public class JwtTokenService : IJwtTokenService
             new("LastName", user.LastName)
         };
 
-        foreach (var role in roles)
+        foreach (Role role in roles)
         {
             claims.Add(new Claim(ClaimTypes.Role, role.Name));
         }
@@ -56,7 +53,7 @@ public class JwtTokenService : IJwtTokenService
 
     public string GenerateRefreshToken()
     {
-        var randomNumber = new byte[64];
+        byte[] randomNumber = new byte[64];
         using var rng = RandomNumberGenerator.Create();
         rng.GetBytes(randomNumber);
         return Convert.ToBase64String(randomNumber);
@@ -65,12 +62,12 @@ public class JwtTokenService : IJwtTokenService
     public ClaimsPrincipal? ValidateToken(string token)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.UTF8.GetBytes(_configuration["JwtSettings:SecretKey"]
-            ?? throw new InvalidOperationException("JWT SecretKey not configured"));
+        byte[] key = Encoding.UTF8.GetBytes(_configuration["JwtSettings:SecretKey"]
+                                            ?? throw new InvalidOperationException("JWT SecretKey not configured"));
 
         try
         {
-            var principal = tokenHandler.ValidateToken(token, new TokenValidationParameters
+            ClaimsPrincipal? principal = tokenHandler.ValidateToken(token, new TokenValidationParameters
             {
                 ValidateIssuerSigningKey = true,
                 IssuerSigningKey = new SymmetricSecurityKey(key),

@@ -17,7 +17,7 @@ public static class CreateTest
     {
         public async Task<Result<CreateTestResponse>> Handle(CreateTestRequest request, CancellationToken cancellationToken)
         {
-            var responseMessage = $"Test created for {request.FirstName} {request.LastName} with email {request.Email}.";
+            string responseMessage = $"Test created for {request.FirstName} {request.LastName} with email {request.Email}.";
             return Result.Success<CreateTestResponse>(new CreateTestResponse(responseMessage));
         }
     }
@@ -43,7 +43,7 @@ public class CreateTestEndpoint(ISender sender) : FastEndpoints.Endpoint<CreateT
 
     public override async Task<CreateTest.CreateTestResponse> HandleAsync(CreateTest.CreateTestRequest req, CancellationToken ct)
     {
-        var response = await sender.Send(req, ct);
+        Result<CreateTest.CreateTestResponse> response = await sender.Send(req, ct);
 
         if (!response.IsSuccess)
         {

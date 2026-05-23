@@ -9,11 +9,11 @@ This is a .NET 10 ASP.NET Core Web API project following Clean Architecture with
 **Key Stack:**
 - Framework: ASP.NET Core 10
 - REST: FastEndpoints
-- CQRS: Custom implementation (no external dependencies)
+- CQRS: Custom implementation (no external CQRS framework dependencies)
 - Database: Entity Framework Core with SQL Server
 - Authentication: JWT Bearer + API Key
 - Password Security: BCrypt.Net-Next
-- Validation: FluentValidation
+- Validation: FluentValidation (integrated with FastEndpoints pipeline)
 - Mapping: Manual mappers (static classes per feature)
 - Documentation: Scalar (OpenAPI/Swagger)
 
@@ -25,23 +25,215 @@ This is a .NET 10 ASP.NET Core Web API project following Clean Architecture with
 |---------|---------|
 | `src/api/Api.csproj` | REST API entry point and endpoints (FastEndpoints) |
 | `src/Domain/Domain.csproj` | Core business entities, value objects, and domain logic |
-| `src/Application/Application.csproj` | Use cases, commands, queries, business rules, interfaces |
-| `src/Infrastructure/Infrastructure.csproj` | Database, repositories, authentication, external services |
+| `src/Application/Application.csproj` | Use cases, commands, queries, business rules, interfaces, CQRS abstractions |
+| `src/Infrastructure/Infrastructure.csproj` | Database, repositories, authentication, external services, DI registration |
 | `src/Features/Features.csproj` | Vertical slices (Auth, Users, Test) with handlers and endpoints |
 | `src/AI/AI/AI.csproj` | AI-related functionality |
 
+### Clean Architecture Layer Rules
+
+- **Domain** (innermost): No dependencies on other layers. Pure business logic.
+- **Application**: Depends only on Domain. Defines CQRS interfaces, business rules, error types.
+- **Infrastructure**: Depends on Application & Domain. Implements repositories, database, authentication.
+- **Features**: Depends on Application, Infrastructure, Domain. Implements specific use cases.
+- **API** (outermost): Depends on all layers. HTTP entry point and configuration.
+
 ### Architecture Pattern
 
-**Vertical Slices**: Each feature (Auth, Users, Test) contains:
-- **Commands/Queries**: Request/Response DTOs implementing `ICommand<TResult>` or `IQuery<TResult>`
-- **Handler**: Business logic implementing `ICommandHandler<TCommand, TResult>` or `IQueryHandler<TQuery, TResult>`
-- **Endpoint**: FastEndpoints HTTP handler that routes requests to the custom dispatcher
-- **Mappers**: Static mapper classes for DTO ↔ Entity conversions
-- **Validator**: FluentValidation rules
+**Vertical Slices**: Each feature (Auth, Users, Test) is self-contained and organized as:
 
-Example flow: HTTP request → FastEndpoint → Dispatcher → Handler → Domain logic → EF Repository → Database
+```
+Features/YourFeature/
+  Commands/
+    CreateUserCommand.cs
+    UpdateUserCommand.cs
+  Queries/
+    GetUserQuery.cs
+    GetUsersQuery.cs
+  Handlers/
+    CreateUserCommandHandler.cs
+    UpdateUserCommandHandler.cs
+    GetUserQueryHandler.cs
+    GetUsersQueryHandler.cs
+  Endpoints/
+    CreateUserEndpoint.cs
+    UpdateUserEndpoint.cs
+    GetUserEndpoint.cs
+    GetUsersEndpoint.cs
+  Mappers/
+    UserMapper.cs           // CreateUserRequest → CreateUserCommand, User → UserResponse
+  Validators/
+    CreateUserValidator.cs
+    UpdateUserValidator.cs
+    GetUserValidator.cs
+  YourFeature.csproj
+```
 
-**Custom CQRS Dispatcher**: Located at `Application/CQRS/Dispatcher.cs`, handles command/query routing via dependency injection. No external CQRS framework—lightweight and explicit.
+**Request Flow**: HTTP request → FastEndpoint → FluentValidation Pipeline → Handler (if valid) → Domain logic → EF Repository → Database
+
+**Custom CQRS Pattern**: Located in `Application/CQRS/`, provides lightweight abstractions:
+- `ICommand<TResult>`: Interface for mutation commands
+- `ICommandHandler<TCommand, TResult>`: Interface for command handlers
+- `IQuery<TResult>`: Interface for read queries
+- `IQueryHandler<TQuery, TResult>`: Interface for query handlers
+- `IDispatcher`: Resolves and executes handlers via dependency injection
+
+## Getting Started
+
+### First Time Setup
+
+```bash
+# 1. Clone and restore packages
+git clone <repo-url>
+cd no.sanddata.ams.api
+dotnet restore
+
+# 2. Configure local settings
+# Create src/api/local.settings.json with your database connection and JWT secret
+# Template provided in Configuration section below
+
+# 3. Apply database migrations
+dotnet ef database update \
+  --project src/Infrastructure/Infrastructure.csproj \
+  --startup-project src/api/api.csproj
+
+# 4. Build and run
+dotnet build
+dotnet run --project src/api/api.csproj
+
+# 5. Access API documentation
+# Open http://localhost:5231/scalar/v1 in your browser (HTTP)
+# Or https://localhost:7130/scalar/v1 (HTTPS)
+```
+
+### Quick Feature Creation Checklist
+
+Follow this checklist when adding a new feature to `Features/YourFeature/`:
+
+**1. Create Command** (`Features/YourFeature/Commands/CreateUserCommand.cs`)
+```csharp
+namespace Features.YourFeature.Commands;
+
+public record CreateUserCommand(string Email, string Name) : ICommand<Result<CreateUserResponse>>;
+public record CreateUserResponse(Guid Id, string Email);
+```
+
+**2. Create Handler** (`Features/YourFeature/Handlers/CreateUserCommandHandler.cs`)
+```csharp
+namespace Features.YourFeature.Handlers;
+
+public class CreateUserCommandHandler : ICommandHandler<CreateUserCommand, Result<CreateUserResponse>>
+{
+    private readonly IRepository<User> _userRepository;
+    
+    public CreateUserCommandHandler(IRepository<User> userRepository)
+    {
+        _userRepository = userRepository;
+    }
+    
+    public async Task<Result<CreateUserResponse>> Handle(CreateUserCommand command, CancellationToken ct)
+    {
+        // Handler only executes if validation passed in FastEndpoints pipeline
+        var user = new User(command.Email, command.Name);
+        await _userRepository.Insert(user);
+        await _userRepository.SaveChangesAsync(ct);
+        
+        return Result.Success(new CreateUserResponse(user.Id, user.Email.Value));
+    }
+}
+```
+
+**3. Create Validator** (`Features/YourFeature/Validators/CreateUserValidator.cs`)
+```csharp
+namespace Features.YourFeature.Validators;
+
+public class CreateUserValidator : Validator<CreateUserCommand>
+{
+    public CreateUserValidator()
+    {
+        RuleFor(x => x.Email)
+            .NotEmpty().WithMessage("Email is required")
+            .EmailAddress().WithMessage("Email must be valid");
+        
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Name is required")
+            .MinimumLength(2).WithMessage("Name must be at least 2 characters");
+    }
+}
+```
+
+**4. Create Mapper** (`Features/YourFeature/Mappers/UserMapper.cs`)
+```csharp
+namespace Features.YourFeature.Mappers;
+
+public static class UserMapper
+{
+    public static CreateUserCommand ToCommand(CreateUserRequest request) =>
+        new CreateUserCommand(request.Email, request.Name);
+    
+    public static CreateUserResponse ToResponse(User user) =>
+        new CreateUserResponse(user.Id, user.Email.Value);
+}
+```
+
+**5. Create Endpoint** (`Features/YourFeature/Endpoints/CreateUserEndpoint.cs`)
+```csharp
+namespace Features.YourFeature.Endpoints;
+
+public class CreateUserEndpoint : Endpoint<CreateUserRequest, CreateUserResponse>
+{
+    private readonly IDispatcher _dispatcher;
+    
+    public CreateUserEndpoint(IDispatcher dispatcher)
+    {
+        _dispatcher = dispatcher;
+    }
+    
+    public override void Configure()
+    {
+        Post("/api/users");
+        AuthSchemes(JwtBearerDefaults.AuthenticationScheme);
+    }
+    
+    public override async Task HandleAsync(CreateUserRequest req, CancellationToken ct)
+    {
+        // Validation already executed by FastEndpoints before this method
+        var command = UserMapper.ToCommand(req);
+        var result = await _dispatcher.Send(command, ct);
+        
+        // Handle failure result
+        if (!result.IsSuccess)
+        {
+            AddError(result.Error.Code, result.Error.Description);
+            ThrowIfAnyErrors();
+        }
+        
+        await SendOkAsync(UserMapper.ToResponse(result.Value), cancellation: ct);
+    }
+}
+```
+
+**6. Register Handler in DI** (`Infrastructure/AddInfrastructureToDI.cs`)
+```csharp
+public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+{
+    // ... existing registrations ...
+    
+    // Register CQRS handlers
+    services.AddScoped<ICommandHandler<CreateUserCommand, Result<CreateUserResponse>>, CreateUserCommandHandler>();
+    services.AddScoped<IQueryHandler<GetUserQuery, Result<UserResponse>>, GetUserQueryHandler>();
+    
+    return services;
+}
+```
+
+**7. Update Program.cs** to register the validator
+```csharp
+builder.Services.AddFastEndpoints(options =>
+    options.Assemblies = [typeof(Features.YourFeature.CreateUserCommand).Assembly]);
+
+// FastEndpoints will auto-discover validators implementing Validator<T>
+```
 
 ## Common Development Commands
 
@@ -51,24 +243,13 @@ Example flow: HTTP request → FastEndpoint → Dispatcher → Handler → Domai
 # Build the entire solution
 dotnet build
 
-# Run the API server (starts on HTTPS port 5231 by default)
+# Run the API server
+# HTTP:  http://localhost:5231
+# HTTPS: https://localhost:7130
 dotnet run --project src/api/api.csproj
 
 # Build in release mode
 dotnet build --configuration Release
-```
-
-### Testing & Verification
-
-```bash
-# Run all tests in solution
-dotnet test
-
-# Run specific test project
-dotnet test src/Tests/Tests.csproj
-
-# Run with coverage
-dotnet test /p:CollectCoverage=true
 ```
 
 ### Database & Migrations
@@ -101,55 +282,24 @@ dotnet ef migrations script \
 ### Code Quality
 
 ```bash
-# Run code analysis
-dotnet analyzers [project]
-
 # Check .editorconfig compliance
 dotnet format --verify-no-changes
 
 # Apply formatting according to .editorconfig
 dotnet format
+
+# Build solution (includes analyzer warnings)
+dotnet build
 ```
 
 ### Package Management
 
 ```bash
-# Restore packages (needed if Directory.Packages.props changes)
+# Restore packages
 dotnet restore
 
 # Add a new package (updates Directory.Packages.props)
 dotnet add package PackageName --project [project-path]
-
-# List outdated packages
-dotnet outdated [project]
-```
-
-## API Documentation & Testing
-
-**OpenAPI/Swagger URL** (development only):
-- http://localhost:5231/scalar/v1 (Scalar - modern interactive docs)
-- http://localhost:5231/openapi/v1.json (OpenAPI specification)
-
-**Authentication in API docs:**
-- JWT: Click the lock icon, select "Bearer", paste your token
-- API Key: Click the lock icon, select "ApiKey", paste your API key value
-
-**Local testing commands:**
-
-```bash
-# Login and get JWT token
-curl -X POST http://localhost:5231/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","password":"password123"}'
-
-# Use token in subsequent requests
-TOKEN="your-jwt-token-here"
-curl -X GET http://localhost:5231/api/users/profile \
-  -H "Authorization: Bearer $TOKEN"
-
-# Test API Key authentication
-curl -X GET http://localhost:5231/api/external/data \
-  -H "X-API-Key: your-api-key-here"
 ```
 
 ## Configuration
@@ -163,7 +313,6 @@ curl -X GET http://localhost:5231/api/external/data \
 | `Directory.Packages.props` | Central NuGet package version management |
 | `Directory.Build.props` | Shared project properties (nullable refs, implicit usings) |
 | `.editorconfig` | Code formatting and style rules |
-| `.cursorrules` | Cursor AI assistant guidelines |
 
 ### Environment Variables
 
@@ -173,29 +322,89 @@ Configuration loads in this order (last wins):
 3. `local.settings.json`
 4. Environment variables
 
-**Critical settings in `local.settings.json`:**
+### Critical Settings Template
 
+**`local.settings.json`** (git-ignored):
 ```json
 {
   "ApplicationSettings": {
-    "DbConnectionString": "Server=localhost;Database=AmsDb;..."
+    "DbConnectionString": "Server=localhost;Database=AmsDb;Trusted_Connection=true;TrustServerCertificate=true;"
   },
   "JwtSettings": {
-    "SecretKey": "your-secret-key-at-least-32-chars-long"
+    "SecretKey": "your-secret-key-must-be-at-least-32-characters-long",
+    "Issuer": "AmsApi",
+    "Audience": "AmsApiClients",
+    "AccessTokenExpirationHours": 6
   }
 }
 ```
 
-## Authentication Deep Dive
+## Validation & Error Handling
+
+### Validation Pipeline
+
+FastEndpoints handles validation **before** the handler executes:
+
+1. **Request reaches endpoint** → FastEndpoints validates using `Validator<TRequest>`
+2. **If validation fails** → FastEndpoints returns 400 Bad Request with errors
+3. **If validation passes** → Handler executes, can assume input is valid
+
+**Never validate twice** - no redundant checks in handlers.
+
+### Error Handling Pattern
+
+Handlers return `Result<T>` for domain/business errors:
+
+```csharp
+public async Task<Result<UserResponse>> Handle(GetUserQuery query, CancellationToken ct)
+{
+    var user = await _userRepository.GetAsync(query.Id, ct);
+    
+    if (user is null)
+    {
+        // Domain error - return Result.Failure, don't throw
+        return Result.Failure<UserResponse>(
+            Error.NotFound("User.NotFound", "User not found"));
+    }
+    
+    return Result.Success(new UserResponse(user.Id, user.Email.Value));
+}
+```
+
+**In Endpoint**, check result and communicate to client:
+```csharp
+var result = await _dispatcher.Send(query, ct);
+
+if (!result.IsSuccess)
+{
+    AddError(result.Error.Code, result.Error.Description);
+    ThrowIfAnyErrors();  // Sends error response to client
+}
+
+await SendOkAsync(result.Value, cancellation: ct);
+```
+
+### Error Type Examples
+
+```csharp
+Error.NotFound("User.NotFound", "User not found")
+Error.Conflict("User.EmailExists", "Email already in use")
+Error.Unauthorized("Auth.InvalidCredentials", "Invalid email or password")
+Error.BadRequest("Validation.InvalidInput", "Input validation failed")
+Error.InternalServerError("System.Exception", "An unexpected error occurred")
+```
+
+## Authentication
 
 ### Two Authentication Schemes
 
-1. **JWT Bearer Token**: User login, role-based access
+1. **JWT Bearer Token** - User login with role-based access
    - Endpoint: `POST /api/auth/login`
    - Header: `Authorization: Bearer <token>`
-   - Expires: 8 hours by default
+   - Expires: 6 hours by default
+   - Claims: NameIdentifier, Email, Name, FirstName, LastName, Role (multiple)
 
-2. **API Key**: External system integration
+2. **API Key** - External system integration
    - Header: `X-API-Key: <api-key>`
    - Stored in database, can have expiration
 
@@ -203,38 +412,28 @@ Configuration loads in this order (last wins):
 
 ```csharp
 // Open to anyone
-public class PublicEndpoint : Endpoint<Request, Response>
+public override void Configure()
 {
-    public override void Configure()
-    {
-        Get("/api/public");
-        AllowAnonymous();
-    }
+    Get("/api/public");
+    AllowAnonymous();
 }
 
 // Requires valid JWT
-public class SecureEndpoint : Endpoint<Request, Response>
+public override void Configure()
 {
-    public override void Configure()
-    {
-        Get("/api/secure");
-        AuthSchemes(JwtBearerDefaults.AuthenticationScheme);
-    }
+    Get("/api/secure");
+    AuthSchemes(JwtBearerDefaults.AuthenticationScheme);
 }
 
 // Requires Admin role
-public class AdminEndpoint : Endpoint<Request, Response>
+public override void Configure()
 {
-    public override void Configure()
-    {
-        Delete("/api/users/{id}");
-        AuthSchemes(JwtBearerDefaults.AuthenticationScheme);
-        Roles("Admin");
-    }
+    Delete("/api/users/{id}");
+    AuthSchemes(JwtBearerDefaults.AuthenticationScheme);
+    Roles("Admin");
 }
 
 // Multiple roles (any match)
-AuthSchemes(JwtBearerDefaults.AuthenticationScheme);
 Roles("Admin", "Manager");
 
 // Accepts JWT OR API Key
@@ -244,21 +443,28 @@ AuthSchemes(JwtBearerDefaults.AuthenticationScheme, "ApiKey");
 ### Accessing User Info in Handlers
 
 ```csharp
-// In command/query handler via IHttpContextAccessor
-private readonly IHttpContextAccessor _httpContextAccessor;
-
-public async Task<Result<Response>> Handle(MyCommand command, CancellationToken ct)
+public class MyCommandHandler : ICommandHandler<MyCommand, Result<MyResponse>>
 {
-    var user = _httpContextAccessor.HttpContext?.User;
-    var userId = user?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-    var userEmail = user?.FindFirst(ClaimTypes.Email)?.Value;
-    var roles = user?.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+    private readonly IHttpContextAccessor _httpContextAccessor;
     
-    var isAdmin = user?.IsInRole("Admin") ?? false;
+    public MyCommandHandler(IHttpContextAccessor httpContextAccessor)
+    {
+        _httpContextAccessor = httpContextAccessor;
+    }
+    
+    public async Task<Result<MyResponse>> Handle(MyCommand command, CancellationToken ct)
+    {
+        var user = _httpContextAccessor.HttpContext?.User;
+        var userId = user?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userEmail = user?.FindFirst(ClaimTypes.Email)?.Value;
+        var isAdmin = user?.IsInRole("Admin") ?? false;
+        
+        // Use user context...
+    }
 }
 ```
 
-## CQRS Implementation
+## CQRS Implementation Details
 
 ### Custom CQRS Interfaces
 
@@ -275,7 +481,7 @@ public interface ICommandHandler<in TCommand, TResult> where TCommand : ICommand
     Task<TResult> Handle(TCommand command, CancellationToken cancellationToken);
 }
 
-// Query: Reads state, returns result
+// Query: Reads state, returns result (no side effects)
 public interface IQuery<out TResult>
 {
 }
@@ -288,97 +494,88 @@ public interface IQueryHandler<in TQuery, TResult> where TQuery : IQuery<TResult
 
 ### Custom Dispatcher
 
-The dispatcher at `Application/CQRS/Dispatcher.cs` resolves and invokes handlers:
-
 ```csharp
+// Application/CQRS/IDispatcher.cs
 public interface IDispatcher
 {
     Task<TResult> Send<TResult>(ICommand<TResult> command, CancellationToken cancellationToken);
     Task<TResult> Send<TResult>(IQuery<TResult> query, CancellationToken cancellationToken);
 }
 
-// Usage in endpoints:
-public class CreateUserEndpoint : Endpoint<CreateUserRequest, CreateUserResponse>
+// Application/CQRS/Dispatcher.cs
+public class Dispatcher : IDispatcher
 {
-    private readonly IDispatcher _dispatcher;
+    private readonly IServiceProvider _serviceProvider;
     
-    public override async Task HandleAsync(CreateUserRequest req, CancellationToken ct)
+    public Dispatcher(IServiceProvider serviceProvider)
     {
-        var command = new CreateUserCommand(req.Email, req.Name);
-        var result = await _dispatcher.Send(command, ct);
-        // Handle result...
+        _serviceProvider = serviceProvider;
+    }
+    
+    public async Task<TResult> Send<TResult>(ICommand<TResult> command, CancellationToken cancellationToken)
+    {
+        var handlerType = typeof(ICommandHandler<,>).MakeGenericType(command.GetType(), typeof(TResult));
+        var handler = _serviceProvider.GetService(handlerType);
+        
+        if (handler is null)
+            throw new InvalidOperationException($"No handler registered for {command.GetType().Name}");
+        
+        var handleMethod = handlerType.GetMethod("Handle");
+        return await (Task<TResult>)handleMethod!.Invoke(handler, [command, cancellationToken])!;
+    }
+    
+    public async Task<TResult> Send<TResult>(IQuery<TResult> query, CancellationToken cancellationToken)
+    {
+        var handlerType = typeof(IQueryHandler<,>).MakeGenericType(query.GetType(), typeof(TResult));
+        var handler = _serviceProvider.GetService(handlerType);
+        
+        if (handler is null)
+            throw new InvalidOperationException($"No handler registered for {query.GetType().Name}");
+        
+        var handleMethod = handlerType.GetMethod("Handle");
+        return await (Task<TResult>)handleMethod!.Invoke(handler, [query, cancellationToken])!;
     }
 }
-```
 
-### Feature Folder Structure
-
-Each feature is organized as a vertical slice:
-
-```
-Features/
-  Auth/
-    Commands/
-      LoginCommand.cs
-      RegisterCommand.cs
-    Handlers/
-      LoginCommandHandler.cs
-      RegisterCommandHandler.cs
-    Mappers/
-      LoginMapper.cs          // Static mapper: LoginCommand -> User
-      LoginResponseMapper.cs  // Static mapper: User -> LoginResponse
-    Endpoints/
-      LoginEndpoint.cs
-      RegisterEndpoint.cs
-    Validators/
-      LoginValidator.cs
-    Auth.csproj
-  Users/
-    Commands/
-    Queries/
-    Handlers/
-    Mappers/
-    Endpoints/
-    Validators/
-    Users.csproj
-  Test/
-    Commands/
-    Queries/
-    Handlers/
-    Mappers/
-    Endpoints/
-    Validators/
-    Test.csproj
+// Register in Program.cs
+builder.Services.AddScoped<IDispatcher, Dispatcher>();
 ```
 
 ### Manual Mappers
 
-Mappers are static classes kept within each feature for simplicity and locality:
+Mappers are static classes within each feature folder, converting between DTOs and domain entities:
 
 ```csharp
-// Features/Auth/Mappers/LoginMapper.cs
-namespace Features.Auth.Mappers;
+// Features/YourFeature/Mappers/UserMapper.cs
+namespace Features.YourFeature.Mappers;
 
-public static class LoginMapper
+public static class UserMapper
 {
-    public static LoginCommand ToCommand(LoginRequest request) =>
-        new LoginCommand(request.Email, request.Password);
+    // Request → Command
+    public static CreateUserCommand ToCreateCommand(CreateUserRequest request) =>
+        new CreateUserCommand(request.Email, request.Name);
     
-    public static LoginResponse ToResponse(User user, string token) =>
-        new LoginResponse(user.Email.Value, token, user.Roles.Select(r => r.Name).ToList());
+    public static UpdateUserCommand ToUpdateCommand(string id, UpdateUserRequest request) =>
+        new UpdateUserCommand(Guid.Parse(id), request.Email, request.Name);
+    
+    // Domain Entity → Response
+    public static UserResponse ToResponse(User user) =>
+        new UserResponse(
+            Id: user.Id,
+            Email: user.Email.Value,
+            Name: user.Name,
+            Roles: user.Roles.Select(r => r.Name).ToList());
+    
+    public static UserListResponse ToListResponse(User user) =>
+        new UserListResponse(user.Id, user.Email.Value, user.Name);
 }
-
-// Usage in handler:
-var command = LoginMapper.ToCommand(request);
-var result = await _dispatcher.Send(command, ct);
-var response = LoginMapper.ToResponse(result.User, result.Token);
 ```
 
 **Mapper Guidelines:**
-- Keep mappers as static classes within the feature folder
-- Simple, focused conversion logic
-- Use extension methods for complex entity transformations
-- Name by the types being converted: `<SourceType>To<TargetType>` or `ToCommand`, `ToResponse`
+- Keep mappers simple and focused on conversion only
+- Place in `Mappers/` folder within the feature
+- Use extension methods for complex transformations
+- Name clearly: `To<TargetType>` or `<SourceType>To<TargetType>`
 
 ## Entity Framework Core Patterns
 
@@ -388,14 +585,40 @@ Generic repository at `Infrastructure/Database/Repositories/GenericEfRepository.
 
 ```csharp
 // Inject IRepository<Entity> in handlers
-var entity = await _repository.GetAsync(id, cancellationToken);
-await _repository.Insert(entity);
-await _repository.SaveChangesAsync(cancellationToken);
+public class GetUserQueryHandler : IQueryHandler<GetUserQuery, Result<UserResponse>>
+{
+    private readonly IRepository<User> _userRepository;
+    
+    public GetUserQueryHandler(IRepository<User> userRepository)
+    {
+        _userRepository = userRepository;
+    }
+    
+    public async Task<Result<UserResponse>> Handle(GetUserQuery query, CancellationToken ct)
+    {
+        var user = await _userRepository.GetAsync(query.Id, ct);
+        if (user is null)
+            return Result.Failure<UserResponse>(Error.NotFound("User.NotFound", "User not found"));
+        
+        return Result.Success(UserMapper.ToResponse(user));
+    }
+}
 ```
 
 ### DbContext Location
 
-`Infrastructure/Database/ApplicationDbContext.cs` - Defines all entity mappings and configurations.
+`Infrastructure/Database/ApplicationDbContext.cs` - Defines all entity mappings, configurations, and DbSets.
+
+### Migrations
+
+Migrations live in `Infrastructure/Database/Migrations/`. Create migrations after entity changes:
+
+```bash
+dotnet ef migrations add DescriptiveName \
+  --project src/Infrastructure/Infrastructure.csproj \
+  --startup-project src/api/api.csproj \
+  --output-dir Database/Migrations
+```
 
 ### Value Objects
 
@@ -403,6 +626,22 @@ Domain uses value objects (e.g., `EmailAddress`) that encapsulate validation:
 - Located in `Domain/Common/ValueObjects/`
 - Implement equality and validation logic
 - Used in entities to enforce domain rules
+
+```csharp
+// Domain/Common/ValueObjects/EmailAddress.cs
+public class EmailAddress : ValueObject
+{
+    public string Value { get; }
+    
+    public EmailAddress(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || !value.Contains("@"))
+            throw new DomainException("Invalid email address");
+        
+        Value = value;
+    }
+}
+```
 
 ## Code Standards
 
@@ -414,23 +653,22 @@ These are enforced by `.editorconfig`:
 - **Indentation**: 4 spaces (not tabs)
 - **Line length**: Soft limit 120 characters
 
-When adding dependencies: Always update `Directory.Packages.props` with the version, NOT individual `.csproj` files.
+**Central Package Management**: Always update `Directory.Packages.props` with new package versions, NOT individual `.csproj` files.
 
 ## Important Patterns & Conventions
 
 ### Result Pattern
 
-Handlers return `Result<T>` or `Result` for operation outcomes:
+All handlers return `Result<T>` for explicit, testable error handling:
 
 ```csharp
 // Success
 return Result.Success(data);
 
-// Failure with error details
-return Result.Failure<T>(
-    Error.NotFound("User.NotFound", "User not found"));
+// Domain/business error
+return Result.Failure<T>(Error.NotFound("User.NotFound", "User not found"));
 
-// In endpoint, check result
+// In endpoint, check and respond
 if (!result.IsSuccess)
 {
     AddError(result.Error.Code, result.Error.Description);
@@ -438,29 +676,14 @@ if (!result.IsSuccess)
 }
 ```
 
+**Never throw exceptions for expected business errors** - use Result pattern instead. This keeps error flows explicit and testable.
+
 ### Domain Events
 
-Entities can raise domain events via `DomainEventsDispatcher`:
-- Implement `IDomainEvent` interface
-- Call `RaiseDomainEvent()` from entity
-- Events dispatched after entity operations complete
-
-### FastEndpoints vs Custom CQRS
-
-**FastEndpoints (Endpoints):** HTTP routing, request validation, authentication/authorization configuration, request/response mapping
-
-**Custom CQRS (Commands/Queries + Handlers):** Core business logic, database operations, domain rules
-
-Endpoint delegates to handler via `IDispatcher.Send()` with explicit command or query object.
-
-## Compiler Warnings & Code Quality
-
-The project uses strict compiler settings:
-- Warning as errors enabled
-- Nullable reference types enforced
-- Unused variable detection
-
-The `.editorconfig` file enforces consistent code style across the team. Run `dotnet format` to auto-fix style issues.
+Entities can raise domain events via `IDomainEventsDispatcher`:
+- Implement `IDomainEvent` interface on events
+- Call `RaiseDomainEvent(domainEvent)` from entity
+- Events are dispatched and handled after entity operations complete
 
 ## Docker & Deployment
 
@@ -468,8 +691,8 @@ The `.editorconfig` file enforces consistent code style across the team. Run `do
 # Build docker image
 docker build -t ams-api:latest -f Dockerfile .
 
-# Run with compose.yaml (includes database setup)
-docker-compose -f compose.yaml up
+# Run with docker compose (v2)
+docker compose -f compose.yaml up
 
 # Push to registry
 docker tag ams-api:latest myregistry/ams-api:latest
@@ -479,45 +702,26 @@ docker push myregistry/ams-api:latest
 ## Key Concepts & Gotchas
 
 ### Vertical Slices
-Each feature is self-contained with its own request/response types. This reduces cross-cutting concerns but means changing a shared type requires updates in multiple features.
+Each feature is self-contained with its own commands, queries, handlers, endpoints, validators, and mappers. Changing a shared type requires updates in multiple features—this is by design to maximize feature independence.
 
-### Package Management
-Versions are defined centrally in `Directory.Packages.props`. If you see a version error, check there first. Never hardcode package versions in individual `.csproj` files.
+### Commands vs Queries
+- **Commands**: Mutate state (Create, Update, Delete). Always return `Result<T>`.
+- **Queries**: Read-only. No side effects. Always return `Result<T>`.
 
-### Database Migrations
-Always test migrations in a development environment before applying to production. Use `--idempotent` flag for production scripts so they're safe to run multiple times.
-
-### Authentication Claims
-JWT tokens include: `NameIdentifier` (userId), `Email`, `Name`, `FirstName`, `LastName`, `Role` (multiple).
-API Key stores user info in database; lookup by key to get user context.
-
-### Result Pattern vs Exceptions
-
-Handlers return `Result<T>` or `Result` for operation outcomes:
-
+### Handler Registration
+Every handler must be manually registered in `Infrastructure/AddInfrastructureToDI.cs`:
 ```csharp
-// Command handler example
-public class CreateUserCommandHandler : ICommandHandler<CreateUserCommand, Result<User>>
-{
-    public async Task<Result<User>> Handle(CreateUserCommand command, CancellationToken ct)
-    {
-        var existingUser = await _repository.GetByEmailAsync(command.Email, ct);
-        if (existingUser != null)
-        {
-            return Result.Failure<User>(
-                Error.Conflict("User.EmailExists", "Email already in use"));
-        }
-        
-        var user = new User(command.Email, command.Name);
-        await _repository.Insert(user);
-        await _repository.SaveChangesAsync(ct);
-        
-        return Result.Success(user);
-    }
-}
+services.AddScoped<ICommandHandler<CreateUserCommand, Result<CreateUserResponse>>, CreateUserCommandHandler>();
 ```
 
-Business rule violations return `Result.Failure`, not exceptions. This keeps error flows explicit and testable.
+### Package Management
+Versions are defined centrally in `Directory.Packages.props`. Never hardcode versions in individual `.csproj` files.
+
+### Database Migrations
+Always test migrations in development before production. Use `--idempotent` flag for production scripts so they're safe to run multiple times.
+
+### Validation Before Handler Execution
+FastEndpoints validates requests using `Validator<TRequest>` **before** the handler is invoked. Never validate again inside the handler—assume input is valid if execution reaches that point.
 
 ## References
 
@@ -526,6 +730,7 @@ Business rule violations return `Result.Failure`, not exceptions. This keeps err
 - **ASP.NET Core Authentication**: https://learn.microsoft.com/en-us/aspnet/core/security/authentication/
 - **JWT Best Practices**: https://tools.ietf.org/html/rfc8725
 - **CQRS Pattern**: https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs
+- **Clean Architecture**: https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html
 
 ## Feature Documentation
 

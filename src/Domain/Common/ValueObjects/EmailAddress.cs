@@ -7,10 +7,7 @@ public sealed class EmailAddress : ValueObject
     public string Value { get; private set; }
 
     // Private constructor - prevents direct instantiation
-    private EmailAddress(string value)
-    {
-        Value = value;
-    }
+    private EmailAddress(string value) => Value = value;
 
     // Factory method returning Result<EmailAddress>
     public static Result<EmailAddress> Create(string? value)
@@ -25,7 +22,7 @@ public sealed class EmailAddress : ValueObject
         }
 
         // Normalize: trim and lowercase
-        var normalizedValue = value.Trim().ToLowerInvariant();
+        string normalizedValue = value.Trim().ToLowerInvariant();
 
         // Validation: format
         if (!IsValidEmail(normalizedValue))

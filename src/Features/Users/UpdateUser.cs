@@ -32,16 +32,13 @@ public static class UpdateUser
     {
         private readonly IUserEfRepository<User> _userRepository;
 
-        public Handler(IUserEfRepository<User> userRepository)
-        {
-            _userRepository = userRepository;
-        }
+        public Handler(IUserEfRepository<User> userRepository) => _userRepository = userRepository;
 
         public async Task<Result<UserResponse>> Handle(
             UpdateUserRequest request,
             CancellationToken cancellationToken)
         {
-            var user = await _userRepository.GetByIdAsync(request.Id, cancellationToken);
+            User? user = await _userRepository.GetByIdAsync(request.Id, cancellationToken);
 
             if (user is null)
             {
@@ -52,7 +49,7 @@ public static class UpdateUser
             // Check if email is being changed and if it's already taken by another user
             if (user.Email.Value != request.Email)
             {
-                var existingUsers = await _userRepository.FindAsync(
+                IEnumerable<User?> existingUsers = await _userRepository.FindAsync(
                     u => u.Email.Value == request.Email && u.Id != request.Id,
                     cancellationToken);
 
@@ -63,7 +60,7 @@ public static class UpdateUser
                 }
 
                 // Create new email value object using factory pattern
-                var emailResult = EmailAddress.Create(request.Email);
+                Result<EmailAddress> emailResult = EmailAddress.Create(request.Email);
                 if (emailResult.IsFailure)
                 {
                     return Result.Failure<UserResponse>(emailResult.Error);
@@ -150,7 +147,7 @@ public class UpdateUserEndpoint : Endpoint<UpdateUser.UpdateUserRequest, UpdateU
         UpdateUser.UpdateUserRequest req,
         CancellationToken ct)
     {
-        var result = await _sender.Send(req, ct);
+        Result<UpdateUser.UserResponse> result = await _sender.Send(req, ct);
 
         if (!result.IsSuccess)
         {
