@@ -24,7 +24,7 @@ public sealed class ApplicationDbContext(
     {
         if (!optionsBuilder.IsConfigured)
         {
-            var connectionString = Environment.GetEnvironmentVariable("ApplicationSettings:DbConnectionString") ?? throw new InvalidOperationException("Connection string not found.");
+            string connectionString = Environment.GetEnvironmentVariable("ApplicationSettings:DbConnectionString") ?? throw new InvalidOperationException("Connection string not found.");
             optionsBuilder.UseSqlServer(connectionString);
 
         }
@@ -81,8 +81,8 @@ public sealed class ApplicationDbContext(
     private void UpdateSystemColumns()
     {
         const string timeZoneId = "Europe/Oslo";
-        TimeZoneInfo timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-        var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone);
+        var timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+        DateTime now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone);
 
         foreach (EntityEntry<Entity> entry in ChangeTracker
                      .Entries<Entity>())

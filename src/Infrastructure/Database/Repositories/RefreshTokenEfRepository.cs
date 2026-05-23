@@ -4,22 +4,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Database.Repositories;
 
-public class RefreshTokenEfRepository : GenericEfRepository<RefreshToken>, IRefreshTokenRepository
+public class RefreshTokenEfRepository(ApplicationDbContext context)
+    : GenericEfRepository<RefreshToken>(context), IRefreshTokenRepository
 {
-    private readonly ApplicationDbContext _context;
-
-    public RefreshTokenEfRepository(ApplicationDbContext context) : base(context)
-    {
-        _context = context;
-    }
+    private readonly ApplicationDbContext _context = context;
 
     public async Task RevokeAllUserTokensAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        var tokens = await _context.Set<RefreshToken>()
+        List<RefreshToken> tokens = await _context.Set<RefreshToken>()
             .Where(rt => rt.UserId == userId && rt.RevokedAt == null)
             .ToListAsync(cancellationToken);
 
-        foreach (var token in tokens)
+        foreach (RefreshToken token in tokens)
         {
             token.RevokedAt = DateTime.UtcNow;
             token.ReasonRevoked = "All tokens revoked";
