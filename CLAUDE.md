@@ -723,6 +723,58 @@ Always test migrations in development before production. Use `--idempotent` flag
 ### Validation Before Handler Execution
 FastEndpoints validates requests using `Validator<TRequest>` **before** the handler is invoked. Never validate again inside the handler—assume input is valid if execution reaches that point.
 
+## Logging with LogMessages
+
+We prefer structured, high-performance logging using the LoggerMessage pattern and centralized message definitions.
+
+Why
+- Avoids repeated allocation of log message templates at runtime.
+- Keeps log template strings, event ids and levels in one place for consistency.
+- Encourages structured property names (easy querying in observability systems).
+- Centralizes translation of domain/feature events to log messages.
+
+Rule (how to use)
+- Create static `LogMessages` classes per feature (or a single centralized class for cross-cutting messages).
+  - Suggested path for feature-scoped messages: `Features/<FeatureName>/Logging/LogMessages.cs`.
+  - Suggested path for cross-cutting messages: `Infrastructure/Logging/LogMessages.cs`.
+- Use `LoggerMessage.Define` (or `Define<T1,T2>(...)`) to create static delegates.
+- Use `ILogger<T>` injected into services/handlers/endpoints and call the compiled delegate.
+- Use event ids (`EventId`) and consistent message templates. Avoid logging secrets (passwords, tokens).
+- Prefer structured property names (e.g. "UserId", "Email") instead of embedding them in message strings.
+
+Request / Response logging
+- We provide a lightweight middleware for request/response logging. It logs a fixed set of known attributes (Method, Path, QueryString, UserAgent, RemoteIp, Claims) in a structured way.
+- Attributes to log fully are configured in `appsettings.json` / `local.settings.json` under `RequestLogging:AttributesToLog` (an array of attribute names). Any known attribute not listed there will still be present in the log but with its value replaced by the mask (default "***").
+- Configuration keys (example):
+
+```json
+"RequestLogging": {
+  "AttributesToLog": [ "Path", "Method", "UserId", "Email" ],
+  "MaskValue": "***",
+  "LogRequestBody": false,
+  "LogResponseBody": false
+}
+```
+
+- Known attribute names: `Path`, `Method`, `QueryString`, `UserAgent`, `RemoteIp`, `UserId`, `Email`, `Headers`.
+- For performance and privacy, request/response bodies are only read when `LogRequestBody` / `LogResponseBody` are enabled; prefer `false` in production or when bodies contain sensitive data.
+
+Implementation notes
+- Provide `Infrastructure/Logging/LogMessages.cs` with compiled logger delegates for request/response lifecycle events.
+- Provide `Infrastructure/Middleware/RequestResponseLoggingMiddleware.cs` which reads `RequestLogging` configuration and emits structured logs using the `LogMessages` helpers.
+- Masking rule: any known attribute not included in `AttributesToLog` will appear in the structured attributes map with the configured `MaskValue` (default `"***"`).
+
+Do not
+- Log passwords, secrets, or PII that you are not permitted to store.
+- Build message strings with concatenation — use structured templates and the compiled delegates.
+
+Guidance on EventId allocation
+- Keep a short mapping block in the repo (maybe document ranges in `CLAUDE.md`) so teams avoid collisions:
+  - Users: 1000-1099
+  - Auth: 1100-1199
+  - Test: 1200-1299
+  - Infra/Logging: 2000-2099
+
 ## References
 
 - **FastEndpoints**: https://fast-endpoints.com/

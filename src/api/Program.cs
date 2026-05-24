@@ -3,6 +3,7 @@ using Domain.Common;
 using FastEndpoints;
 using Features;
 using Infrastructure;
+using Infrastructure.Logging;
 using Infrastructure.Middleware;
 using Scalar.AspNetCore;
 
@@ -46,10 +47,16 @@ builder.Services.AddFeatures();
 // Add Infrastructure services (DbContext, Repositories, Authentication, etc.)
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// Bind request logging options from configuration
+builder.Services.Configure<RequestLoggingOptions>(
+    builder.Configuration.GetSection("RequestLogging"));
+
 WebApplication app = builder.Build();
 
 // Add Authentication and Authorization middleware
 app.UseAuthentication();
+// Request/response logging middleware needs authentication to populate claims
+app.UseMiddleware<RequestResponseLoggingMiddleware>();
 app.UseAuthorization();
 
 // Add exception handling middleware
