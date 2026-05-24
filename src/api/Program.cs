@@ -1,5 +1,9 @@
+using Application;
+using Domain.Common;
 using FastEndpoints;
+using Features;
 using Infrastructure;
+using Infrastructure.Middleware;
 using Scalar.AspNetCore;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -34,12 +38,10 @@ builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document,
     }));
 
 builder.Services.AddFastEndpoints(options =>
-    options.Assemblies = [typeof(Features.Test.CreateTest).Assembly]);
+    options.Assemblies = [typeof(Features.Users.Endpoints.CreateUserEndpoint).Assembly]);
 
-builder.Services.AddMediatR(config =>
-    config.RegisterServicesFromAssembly(typeof(Features.Test.CreateTest).Assembly));
-
-builder.Services.AddScoped<Application.DomainEvents.IDomainEventsDispatcher, Application.DomainEvents.DomainEventsDispatcher>();
+// Add application services (CQRS handlers, etc.)
+builder.Services.AddFeatures();
 
 // Add Infrastructure services (DbContext, Repositories, Authentication, etc.)
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -49,6 +51,9 @@ WebApplication app = builder.Build();
 // Add Authentication and Authorization middleware
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Add exception handling middleware
+app.UseExceptionHandling();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

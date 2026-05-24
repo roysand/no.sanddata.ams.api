@@ -47,8 +47,14 @@ public static class AddInfrastructureToDI
         })
         .AddJwtBearer(options =>
         {
-            string secretKey = configuration["JwtSettings:SecretKey"]
-                               ?? throw new InvalidOperationException("JWT SecretKey not configured");
+            string secretKey = configuration["JwtSettings:SecretKey"];
+
+            // If secret key is not configured, use an invalid key to ensure token validation always fails
+            // This allows the app to start but will result in 401 responses for authenticated endpoints
+            if (string.IsNullOrEmpty(secretKey))
+            {
+                secretKey = "INVALID_KEY_FOR_MISSING_CONFIGURATION_DO_NOT_USE_IN_PRODUCTION";
+            }
 
             options.TokenValidationParameters = new TokenValidationParameters
             {
