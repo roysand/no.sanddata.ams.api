@@ -4,6 +4,8 @@ using Domain.Common;
 using Domain.Common.Entities;
 using Features.Auth.Commands;
 using Infrastructure.Authentication;
+using Microsoft.Extensions.Logging;
+using Features.Auth.Logging;
 
 namespace Features.Auth.Handlers;
 
@@ -13,17 +15,20 @@ public class LoginCommandHandler : ICommandHandler<LoginCommand, Result<LoginRes
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IJwtTokenService _jwtTokenService;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly ILogger<LoginCommandHandler> _logger;
 
     public LoginCommandHandler(
         IUserEfRepository<User> userRepository,
         IRefreshTokenRepository refreshTokenRepository,
         IJwtTokenService jwtTokenService,
-        IPasswordHasher passwordHasher)
+        IPasswordHasher passwordHasher,
+        ILogger<LoginCommandHandler> logger)
     {
         _userRepository = userRepository;
         _refreshTokenRepository = refreshTokenRepository;
         _jwtTokenService = jwtTokenService;
         _passwordHasher = passwordHasher;
+        _logger = logger;
     }
 
     public async Task<Result<LoginResponse>> Handle(LoginCommand command, CancellationToken cancellationToken)
@@ -35,6 +40,9 @@ public class LoginCommandHandler : ICommandHandler<LoginCommand, Result<LoginRes
         User? user = users.FirstOrDefault();
         if (user is null)
         {
+            // Log failure with reason code and numeric id
+            LogMessages.LoginFailed(_logger, command.Email, FailureReasons.NoSuchUser, FailureReasons.NoSuchUserCode);
+
             return Result.Failure<LoginResponse>(
                 Error.NotFound("Auth.InvalidCredentials", "Invalid email or password"));
         }
@@ -42,6 +50,9 @@ public class LoginCommandHandler : ICommandHandler<LoginCommand, Result<LoginRes
         // Verify password using BCrypt
         if (!_passwordHasher.VerifyPassword(command.Password, user.PasswordHash))
         {
+            // Log failure with reason code and numeric id
+            LogMessages.LoginFailed(_logger, command.Email, FailureReasons.BadCredentials, FailureReasons.BadCredentialsCode);
+
             return Result.Failure<LoginResponse>(
                 Error.NotFound("Auth.InvalidCredentials", "Invalid email or password"));
         }

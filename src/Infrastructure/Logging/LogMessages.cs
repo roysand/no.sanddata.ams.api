@@ -18,10 +18,19 @@ internal static class LogMessages
             new EventId(2001, nameof(ResponseSent)),
             "Response {StatusCode} {Attributes}");
 
+    // Error-level response message for failed requests
+    private static readonly Action<ILogger, int, string, string, Exception?> _responseError =
+        LoggerMessage.Define<int, string, string>(
+            LogLevel.Error,
+            new EventId(2002, nameof(ResponseError)),
+            "Response error {StatusCode} {Attributes} {ResponseBody}");
+
     public static void RequestReceived(ILogger logger, string method, string path, string attributesJson)
         => _requestReceived(logger, method, path, attributesJson, null);
 
     public static void ResponseSent(ILogger logger, int statusCode, string attributesJson)
         => _responseSent(logger, statusCode, attributesJson, null);
-}
 
+    public static void ResponseError(ILogger logger, int statusCode, string attributesJson, string responseBody)
+        => _responseError(logger, statusCode, attributesJson, responseBody ?? string.Empty, null);
+}

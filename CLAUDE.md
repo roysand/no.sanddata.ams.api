@@ -759,6 +759,37 @@ Request / Response logging
 - Known attribute names: `Path`, `Method`, `QueryString`, `UserAgent`, `RemoteIp`, `UserId`, `Email`, `Headers`.
 - For performance and privacy, request/response bodies are only read when `LogRequestBody` / `LogResponseBody` are enabled; prefer `false` in production or when bodies contain sensitive data.
 
+### Standard failure reason codes
+
+When emitting failure events (for example `LoginFailed`, `UserCreateFailed`, or `ResponseError`) use a short, machine-friendly reason code to indicate why the operation failed. Document the codes in this file so consumers (alerts, dashboards, support teams) can reliably interpret logs.
+
+Guidelines
+- Use short, ASCII-only, CamelCase or PascalCase tokens (e.g. `InvalidPassword`, `UserNotFound`).
+- Keep codes stable — treat them as part of the public contract for logs/alerts.
+- Prefer semantic codes (why) rather than implementation details (stack traces).
+- Update this table when you add new codes.
+
+Common reason codes (suggested)
+
+| Reason Code | Description | Suggested event / usage |
+|-------------|-------------|-------------------------|
+| UserNotFound | No user exists with the supplied identifier (email, username) | LoginFailed |
+| InvalidPassword | Supplied password does not match the stored hash | LoginFailed |
+| AccountLocked | Account locked due to repeated failed attempts or admin action | LoginFailed |
+| AccountDisabled | Account disabled by administrator or system policy | LoginFailed |
+| InvalidCredentials | Generic authentication failure (avoid exposing details) | LoginFailed |
+| TwoFactorRequired | User requires two-factor authentication to proceed | LoginFailed / Auth flow |
+| PasswordTooWeak | Password does not meet strength policy (on create/change) | CreateUser / ChangePassword |
+| EmailAlreadyExists | Attempted to create a user with an email that already exists | CreateUser |
+| InvalidToken | JWT or API token is invalid (signature, format) | Token validation / Auth middleware |
+| ExpiredToken | JWT has expired | Token validation / Refresh flow |
+| InvalidRefreshToken | Refresh token not found, revoked or malformed | RefreshToken flow |
+| RefreshTokenExpired | Refresh token is expired | RefreshToken flow |
+| RateLimited | Request or operation blocked due to rate limiting | Any endpoint |
+| SystemError | Unexpected server-side error; use sparingly and accompany with diagnostics id | Any endpoint / ResponseError |
+
+You can extend this list per feature; prefer adding new codes rather than overloading an existing one with multiple meanings.
+
 Implementation notes
 - Provide `Infrastructure/Logging/LogMessages.cs` with compiled logger delegates for request/response lifecycle events.
 - Provide `Infrastructure/Middleware/RequestResponseLoggingMiddleware.cs` which reads `RequestLogging` configuration and emits structured logs using the `LogMessages` helpers.

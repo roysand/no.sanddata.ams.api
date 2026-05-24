@@ -66,11 +66,30 @@ public class RequestResponseLoggingMiddleware
                 attributesJson = JsonSerializer.Serialize(attributes);
             }
 
-            LogMessages.ResponseSent(_logger, context.Response.StatusCode, attributesJson);
+            // If response indicates failure, log as error with more detail
+            if (context.Response.StatusCode >= 400)
+            {
+                LogMessages.ResponseError(_logger, context.Response.StatusCode, attributesJson, responseText ?? string.Empty);
+            }
+            else
+            {
+                LogMessages.ResponseSent(_logger, context.Response.StatusCode, attributesJson);
+            }
 
             // copy response back to original stream
             context.Response.Body.Seek(0, SeekOrigin.Begin);
             await context.Response.Body.CopyToAsync(originalBodyStream);
+        }
+        catch (Exception ex)
+        {
+            // Log exception details and rethrow
+            attributes["ExceptionType"] = ex.GetType().FullName;
+            attributes["ExceptionMessage"] = MaskOrValue("ExceptionMessage", ex.Message);
+            attributesJson = JsonSerializer.Serialize(attributes);
+
+            LogMessages.ResponseError(_logger, 500, attributesJson, string.Empty);
+
+            throw;
         }
         finally
         {
