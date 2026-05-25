@@ -24,12 +24,24 @@ internal static class LogMessages
             new EventId(1002, nameof(UserUpdated)),
             "User updated: {UserId} {Changes}");
 
+    private static readonly Action<ILogger, Guid, Exception?> _userNotFound =
+        LoggerMessage.Define<Guid>(
+            LogLevel.Warning,
+            new EventId(1004, nameof(UserNotFound)),
+            "User not found: {UserId}");
+
+    private static readonly Action<ILogger, string, string, int, Exception?> _userUpdateFailed =
+        LoggerMessage.Define<string, string, int>(
+            LogLevel.Warning,
+            new EventId(1005, nameof(UserUpdateFailed)),
+            "User update failed for: {Email} Reason: {Reason} ReasonId: {ReasonId}");
+
     // User creation/update failures
-    private static readonly Action<ILogger, string, string, Exception?> _userCreateFailed =
-        LoggerMessage.Define<string, string>(
+    private static readonly Action<ILogger, string, string, int, Exception?> _userCreateFailed =
+        LoggerMessage.Define<string, string, int>(
             LogLevel.Warning,
             new EventId(1003, nameof(UserCreated)),
-            "User creation failed for: {Email} Reason: {Reason}");
+            "User creation failed for: {Email} Reason: {Reason} ReasonId: {ReasonId}");
 
     public static void UserCreated(ILogger logger, Guid userId, string email)
         => _userCreated(logger, userId, email, null);
@@ -41,5 +53,14 @@ internal static class LogMessages
         => _userUpdated(logger, userId, changes, null);
 
     public static void UserCreateFailed(ILogger logger, string email, string reason)
-        => _userCreateFailed(logger, email, reason, null);
+        => _userCreateFailed(logger, email, reason ?? string.Empty, 0, null);
+
+    public static void UserCreateFailed(ILogger logger, string email, string reason, int reasonId)
+        => _userCreateFailed(logger, email, reason ?? string.Empty, reasonId, null);
+
+    public static void UserNotFound(ILogger logger, Guid userId)
+        => _userNotFound(logger, userId, null);
+
+    public static void UserUpdateFailed(ILogger logger, string email, string reason, int reasonId)
+        => _userUpdateFailed(logger, email ?? string.Empty, reason ?? string.Empty, reasonId, null);
 }

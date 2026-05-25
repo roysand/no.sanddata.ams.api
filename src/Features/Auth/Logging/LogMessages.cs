@@ -31,6 +31,12 @@ internal static class LogMessages
             new EventId(1102, nameof(TokenRefreshed)),
             "Token refreshed for: {UserId}");
 
+    private static readonly Action<ILogger, string, string, int, Exception?> _refreshTokenFailed =
+        LoggerMessage.Define<string, string, int>(
+            LogLevel.Warning,
+            new EventId(1104, nameof(RefreshTokenFailed)),
+            "Refresh token failed for: {RefreshToken} Reason: {ReasonCode} ReasonId: {ReasonId}");
+
     public static void UserLoggedIn(ILogger logger, string email)
         => _userLoggedIn(logger, email, null);
 
@@ -45,4 +51,7 @@ internal static class LogMessages
 
     public static void TokenRefreshed(ILogger logger, Guid userId)
         => _tokenRefreshed(logger, userId, null);
+
+    public static void RefreshTokenFailed(ILogger logger, string refreshToken, string reasonCode, int reasonId)
+        => _refreshTokenFailed(logger, refreshToken ?? string.Empty, reasonCode ?? string.Empty, reasonId, null);
 }

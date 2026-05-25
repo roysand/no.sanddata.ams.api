@@ -4,14 +4,18 @@ using Domain.Common;
 using Domain.Common.Entities;
 using Domain.Common.ValueObjects;
 using Features.Users.Commands;
+using Microsoft.Extensions.Logging;
+using Features.Users.Logging;
+using Infrastructure.Logging;
 
 namespace Features.Users.Handlers;
 
 public class UpdateUserCommandHandler : ICommandHandler<UpdateUserCommand, Result<UpdateUserResponse>>
 {
     private readonly IUserEfRepository<User> _userRepository;
+    private readonly ILogger<UpdateUserCommandHandler> _logger;
 
-    public UpdateUserCommandHandler(IUserEfRepository<User> userRepository) => _userRepository = userRepository;
+    public UpdateUserCommandHandler(IUserEfRepository<User> userRepository, ILogger<UpdateUserCommandHandler> logger) => (_userRepository, _logger) = (userRepository, logger);
 
     public async Task<Result<UpdateUserResponse>> Handle(UpdateUserCommand command, CancellationToken cancellationToken)
     {
@@ -19,6 +23,8 @@ public class UpdateUserCommandHandler : ICommandHandler<UpdateUserCommand, Resul
 
         if (user is null)
         {
+            LogMessages.UserNotFound(_logger, command.Id);
+
             return Result.Failure<UpdateUserResponse>(
                 Error.NotFound("User.NotFound", $"User with ID {command.Id} was not found"));
         }
@@ -32,6 +38,9 @@ public class UpdateUserCommandHandler : ICommandHandler<UpdateUserCommand, Resul
 
             if (existingUsers.Any())
             {
+                // Log update failure due to email conflict
+                LogMessages.UserUpdateFailed(_logger, command.Email, FailureReasons.EmailAlreadyExists, FailureReasons.EmailAlreadyExistsCode);
+
                 return Result.Failure<UpdateUserResponse>(
                     Error.Conflict("User.EmailExists", "A user with this email already exists"));
             }

@@ -5,6 +5,7 @@ using Domain.Common.Entities;
 using Features.Auth.Commands;
 using Infrastructure.Authentication;
 using Microsoft.Extensions.Logging;
+using Infrastructure.Logging;
 using Features.Auth.Logging;
 
 namespace Features.Auth.Handlers;
@@ -41,7 +42,7 @@ public class LoginCommandHandler : ICommandHandler<LoginCommand, Result<LoginRes
         if (user is null)
         {
             // Log failure with reason code and numeric id
-            LogMessages.LoginFailed(_logger, command.Email, FailureReasons.NoSuchUser, FailureReasons.NoSuchUserCode);
+            LogMessages.LoginFailed(_logger, command.Email, Infrastructure.Logging.FailureReasons.NoSuchUser, Infrastructure.Logging.FailureReasons.NoSuchUserCode);
 
             return Result.Failure<LoginResponse>(
                 Error.NotFound("Auth.InvalidCredentials", "Invalid email or password"));
@@ -51,7 +52,7 @@ public class LoginCommandHandler : ICommandHandler<LoginCommand, Result<LoginRes
         if (!_passwordHasher.VerifyPassword(command.Password, user.PasswordHash))
         {
             // Log failure with reason code and numeric id
-            LogMessages.LoginFailed(_logger, command.Email, FailureReasons.BadCredentials, FailureReasons.BadCredentialsCode);
+            LogMessages.LoginFailed(_logger, command.Email, Infrastructure.Logging.FailureReasons.BadCredentials, Infrastructure.Logging.FailureReasons.BadCredentialsCode);
 
             return Result.Failure<LoginResponse>(
                 Error.NotFound("Auth.InvalidCredentials", "Invalid email or password"));
