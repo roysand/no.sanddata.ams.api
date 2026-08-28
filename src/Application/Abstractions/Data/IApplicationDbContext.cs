@@ -11,6 +11,8 @@ public interface IApplicationDbContext
     DbSet<UserLocation> UserLocation { get; }
     DbSet<Role> Role { get; }
     DbSet<UserRole> UserRole { get; }
+    DbSet<Measurement> Measurement { get; }
+    DbSet<Meter> Meter { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

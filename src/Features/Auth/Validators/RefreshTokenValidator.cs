@@ -1,10 +1,10 @@
 using FastEndpoints;
-using Features.Auth.Commands;
+using Features.Auth.Endpoints;
 using FluentValidation;
 
 namespace Features.Auth.Validators;
 
-public class RefreshTokenValidator : Validator<RefreshTokenCommand>
+public class RefreshTokenValidator : Validator<RefreshTokenRequest>
 {
     public RefreshTokenValidator() =>
         RuleFor(x => x.RefreshToken)

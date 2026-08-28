@@ -1,10 +1,10 @@
 using FastEndpoints;
-using Features.Users.Commands;
+using Features.Users.Endpoints;
 using FluentValidation;
 
 namespace Features.Users.Validators;
 
-public class CreateUserValidator : Validator<CreateUserCommand>
+public class CreateUserValidator : Validator<CreateUserRequest>
 {
     public CreateUserValidator()
     {

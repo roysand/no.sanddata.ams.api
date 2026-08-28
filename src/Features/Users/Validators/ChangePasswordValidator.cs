@@ -1,10 +1,10 @@
 using FastEndpoints;
-using Features.Users.Commands;
+using Features.Users.Endpoints;
 using FluentValidation;
 
 namespace Features.Users.Validators;
 
-public class ChangePasswordValidator : Validator<ChangePasswordCommand>
+public class ChangePasswordValidator : Validator<ChangePasswordRequest>
 {
     public ChangePasswordValidator()
     {

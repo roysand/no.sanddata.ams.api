@@ -1,10 +1,10 @@
 using FastEndpoints;
-using Features.Auth.Commands;
+using Features.Auth.Endpoints;
 using FluentValidation;
 
 namespace Features.Auth.Validators;
 
-public class LoginValidator : Validator<LoginCommand>
+public class LoginValidator : Validator<LoginRequest>
 {
     public LoginValidator()
     {
