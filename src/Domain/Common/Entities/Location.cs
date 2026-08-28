@@ -11,6 +11,8 @@ public class Location : Entity
     public ApiKey ApiKey { get; private set; } = null!;
     private List<User> _users = new();
     public IReadOnlyCollection<User> Users => _users.AsReadOnly();
+    private List<Meter> _meters = new();
+    public IReadOnlyCollection<Meter> Meters => _meters.AsReadOnly();
 
     public Location(Guid id, string name, string address, string serialNumber, string zone, bool isActive, bool hasNorgesPriceAgreement)
         : base(id)

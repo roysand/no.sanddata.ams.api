@@ -39,6 +39,7 @@ public static class AddInfrastructureToDI
         services.AddScoped<IUserRoleEfRepository<UserRole>, UserRoleEfRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenEfRepository>();
         services.AddScoped<IMeasurementEfRepository<Measurement>, MeasurementEfRepository>();
+        services.AddScoped<IMeterEfRepository<Meter>, MeterEfRepository>();
 
         // Register Authentication Services
         services.AddAuthentication(options =>

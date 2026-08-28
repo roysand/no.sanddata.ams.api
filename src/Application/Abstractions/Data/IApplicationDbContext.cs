@@ -12,6 +12,7 @@ public interface IApplicationDbContext
     DbSet<Role> Role { get; }
     DbSet<UserRole> UserRole { get; }
     DbSet<Measurement> Measurement { get; }
+    DbSet<Meter> Meter { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

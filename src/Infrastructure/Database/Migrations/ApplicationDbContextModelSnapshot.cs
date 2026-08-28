@@ -129,21 +129,11 @@ namespace Infrastructure.Database.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("DeviceId")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
                     b.Property<Guid>("LocationId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("MeterId")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("MeterType")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                    b.Property<Guid>("MeterId")
+                        .HasColumnType("uuid");
 
                     b.Property<int>("PowerWatts")
                         .HasColumnType("integer");
@@ -158,7 +148,52 @@ namespace Infrastructure.Database.Migrations
 
                     b.HasIndex("LocationId", "Timestamp");
 
+                    b.HasIndex("MeterId", "Timestamp");
+
                     b.ToTable("Measurement", "public");
+                });
+
+            modelBuilder.Entity("Domain.Common.Entities.Meter", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MeterId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("MeterType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LocationId", "DeviceId")
+                        .IsUnique();
+
+                    b.ToTable("Meter", "public");
                 });
 
             modelBuilder.Entity("Domain.Common.Entities.RefreshToken", b =>
@@ -335,6 +370,26 @@ namespace Infrastructure.Database.Migrations
                     b.Navigation("ApiKey");
                 });
 
+            modelBuilder.Entity("Domain.Common.Entities.Measurement", b =>
+                {
+                    b.HasOne("Domain.Common.Entities.Meter", null)
+                        .WithMany()
+                        .HasForeignKey("MeterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Domain.Common.Entities.Meter", b =>
+                {
+                    b.HasOne("Domain.Common.Entities.Location", "Location")
+                        .WithMany("Meters")
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Location");
+                });
+
             modelBuilder.Entity("Domain.Common.Entities.RefreshToken", b =>
                 {
                     b.HasOne("Domain.Common.Entities.User", "User")
@@ -405,6 +460,11 @@ namespace Infrastructure.Database.Migrations
                 {
                     b.Navigation("Location")
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Domain.Common.Entities.Location", b =>
+                {
+                    b.Navigation("Meters");
                 });
 
             modelBuilder.Entity("Domain.Common.Entities.User", b =>
