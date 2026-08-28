@@ -23,9 +23,9 @@ public static class AddInfrastructureToDI
                                   ?? configuration["ApplicationSettings:DbConnectionString"]
                                   ?? throw new InvalidOperationException("Connection string not found. Please configure 'ConnectionStrings:DefaultConnection' or 'ApplicationSettings:DbConnectionString'.");
 
-        // Register DbContext with SQL Server
+        // Register DbContext with PostgreSQL
         services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseSqlServer(connectionString));
+            options.UseNpgsql(connectionString));
 
         // Register DbContext interface
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
