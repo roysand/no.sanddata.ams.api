@@ -86,7 +86,10 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+if (app.Urls.Any(url => url.StartsWith("https", StringComparison.OrdinalIgnoreCase)))
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseFastEndpoints();
 app.Run();
