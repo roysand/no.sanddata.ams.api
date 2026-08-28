@@ -51,9 +51,17 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.Configure<RequestLoggingOptions>(
     builder.Configuration.GetSection("RequestLogging"));
 
+const string FrontendCorsPolicy = "Frontend";
+builder.Services.AddCors(options =>
+    options.AddPolicy(FrontendCorsPolicy, policy =>
+        policy.WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [])
+            .AllowAnyHeader()
+            .AllowAnyMethod()));
+
 WebApplication app = builder.Build();
 
 // Add Authentication and Authorization middleware
+app.UseCors(FrontendCorsPolicy);
 app.UseAuthentication();
 // Request/response logging middleware needs authentication to populate claims
 app.UseMiddleware<RequestResponseLoggingMiddleware>();

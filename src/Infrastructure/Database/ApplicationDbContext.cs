@@ -80,9 +80,7 @@ public sealed class ApplicationDbContext(
 
     private void UpdateSystemColumns()
     {
-        const string timeZoneId = "Europe/Oslo";
-        var timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-        DateTime now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone);
+        DateTime now = DateTime.UtcNow;
 
         foreach (EntityEntry<Entity> entry in ChangeTracker
                      .Entries<Entity>())
