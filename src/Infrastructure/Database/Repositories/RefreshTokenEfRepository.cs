@@ -7,8 +7,6 @@ namespace Infrastructure.Database.Repositories;
 public class RefreshTokenEfRepository(ApplicationDbContext context)
     : GenericEfRepository<RefreshToken>(context), IRefreshTokenRepository
 {
-    private readonly ApplicationDbContext _context = context;
-
     public async Task RevokeAllUserTokensAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         List<RefreshToken> tokens = await _context.Set<RefreshToken>()

@@ -19,6 +19,7 @@ public sealed class ApplicationDbContext(
     public DbSet<Role> Role { get; set; }
     public DbSet<UserRole> UserRole { get; set; }
     public DbSet<RefreshToken> RefreshToken { get; set; }
+    public DbSet<Measurement> Measurement { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

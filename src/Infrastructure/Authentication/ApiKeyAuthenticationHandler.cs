@@ -34,11 +34,7 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
             return AuthenticateResult.Fail("Invalid API Key");
         }
 
-        IEnumerable<ApiKey?> apiKeys = await _apiKeyRepository.FindAsync(
-            k => k.Key == providedApiKey && k.IsActive && k.ExpiresAt > DateTime.UtcNow,
-            CancellationToken.None);
-
-        ApiKey? apiKey = apiKeys.FirstOrDefault();
+        ApiKey? apiKey = await _apiKeyRepository.FindActiveByKeyAsync(providedApiKey, CancellationToken.None);
         if (apiKey is null)
         {
             return AuthenticateResult.Fail("Invalid or expired API Key");
@@ -48,7 +44,8 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
         {
             new Claim("ApiKey", apiKey.Key),
             new Claim(ClaimTypes.Name, "ApiKeyUser"),
-            new Claim("ApiKeyId", apiKey.GetType().GetProperty("Id")?.GetValue(apiKey)?.ToString() ?? string.Empty)
+            new Claim("ApiKeyId", apiKey.GetType().GetProperty("Id")?.GetValue(apiKey)?.ToString() ?? string.Empty),
+            new Claim("LocationId", apiKey.Location.Id.ToString())
         };
 
         var identity = new ClaimsIdentity(claims, Scheme.Name);

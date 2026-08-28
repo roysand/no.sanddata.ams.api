@@ -6,7 +6,7 @@ namespace Infrastructure.Database.Repositories;
 
 public class GenericEfRepository<T> : IEfRepository<T> where T : class
 {
-    private readonly ApplicationDbContext _context;
+    protected readonly ApplicationDbContext _context;
 
     public GenericEfRepository(ApplicationDbContext applicationDbContext) => _context = applicationDbContext;
 
