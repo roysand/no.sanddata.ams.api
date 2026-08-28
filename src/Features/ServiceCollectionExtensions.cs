@@ -1,13 +1,6 @@
-using Application.Common;
-using Application.CQRS;
 using Application.DomainEvents;
-using Features.Auth.Commands;
-using Features.Auth.Handlers;
-using Features.Users.Commands;
-using Features.Users.Handlers;
-using Features.Users.Queries;
+using Features.Generated;
 using Microsoft.Extensions.DependencyInjection;
-using Domain.Common;
 
 namespace Features;
 
@@ -23,26 +16,13 @@ public static class ServiceCollectionExtensions
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddFeatures(this IServiceCollection services)
     {
-        // Register custom CQRS Dispatcher
-        services.AddScoped<IDispatcher, Dispatcher>();
-
-        // Register CQRS handlers (use full namespace to avoid conflict with FastEndpoints.ICommandHandler)
-        // Users - Commands
-        services.AddScoped<Application.CQRS.ICommandHandler<CreateUserCommand, Result<CreateUserResponse>>, CreateUserCommandHandler>();
-        services.AddScoped<Application.CQRS.ICommandHandler<UpdateUserCommand, Result<UpdateUserResponse>>, UpdateUserCommandHandler>();
-        services.AddScoped<Application.CQRS.ICommandHandler<DeleteUserCommand, Result<DeleteUserResponse>>, DeleteUserCommandHandler>();
-        services.AddScoped<Application.CQRS.ICommandHandler<ChangePasswordCommand, Result<ChangePasswordResponse>>, ChangePasswordCommandHandler>();
-
-        // Users - Queries
-        services.AddScoped<Application.CQRS.IQueryHandler<GetUserQuery, Result<GetUserResponse>>, GetUserQueryHandler>();
-        services.AddScoped<Application.CQRS.IQueryHandler<GetUsersQuery, Result<PagedUsersResponse>>, GetUsersQueryHandler>();
-
-        // Auth - Commands
-        services.AddScoped<Application.CQRS.ICommandHandler<LoginCommand, Result<LoginResponse>>, LoginCommandHandler>();
-        services.AddScoped<Application.CQRS.ICommandHandler<RefreshTokenCommand, Result<RefreshTokenResponse>>, RefreshTokenCommandHandler>();
+        // Registers the generated CQRS dispatcher plus every ICommandHandler/IQueryHandler implementation
+        // discovered at compile time. See Cqrs.SourceGenerator and Features.Generated.GeneratedDispatcher -
+        // new handlers are picked up automatically on the next build, no manual registration needed here.
+        services.AddGeneratedCqrsHandlers();
 
         // Domain Events
-        services.AddScoped<Application.DomainEvents.IDomainEventsDispatcher, Application.DomainEvents.DomainEventsDispatcher>();
+        services.AddScoped<IDomainEventsDispatcher, DomainEventsDispatcher>();
 
         return services;
     }

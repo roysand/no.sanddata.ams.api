@@ -237,7 +237,7 @@ GET /api/users?pageNumber=1&pageSize=10&isActive=true&search=john
 All endpoints follow the same architectural pattern:
 
 1. **Request/Response DTOs** - Strongly typed request and response models
-2. **MediatR Handler** - Business logic implementation with Result pattern
+2. **CQRS Handler** - Business logic implementation with Result pattern
 3. **FluentValidation Validator** - Input validation rules
 4. **FastEndpoints Endpoint** - HTTP endpoint configuration and routing
 

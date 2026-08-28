@@ -1,6 +1,6 @@
 # User CRUD Operations
 
-This folder contains all User CRUD endpoints following the FastEndpoints + MediatR + Result pattern.
+This folder contains all User CRUD endpoints following the FastEndpoints + CQRS + Result pattern.
 
 ## Quick Reference
 
