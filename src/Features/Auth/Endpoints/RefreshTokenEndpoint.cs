@@ -30,7 +30,7 @@ public class RefreshTokenEndpoint : Endpoint<RefreshTokenRequest, RefreshTokenRe
 
         if (!result.IsSuccess)
         {
-            AddError(result.Error.Code, result.Error.Description);
+            AddError(result.Error.Description, result.Error.Code);
             ThrowIfAnyErrors();
         }
 

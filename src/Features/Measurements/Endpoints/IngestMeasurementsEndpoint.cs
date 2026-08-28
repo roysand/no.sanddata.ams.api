@@ -39,7 +39,7 @@ public class IngestMeasurementsEndpoint : Endpoint<IngestMeasurementsRequest, In
 
         if (!result.IsSuccess)
         {
-            AddError(result.Error.Code, result.Error.Description);
+            AddError(result.Error.Description, result.Error.Code);
             ThrowIfAnyErrors(result.Error.Type switch
             {
                 ErrorType.NotFound => 404,

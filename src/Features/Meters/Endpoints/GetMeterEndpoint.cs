@@ -31,7 +31,7 @@ public class GetMeterEndpoint : Endpoint<GetMeterRequest, MeterResponse>
 
         if (!result.IsSuccess)
         {
-            AddError(result.Error.Code, result.Error.Description);
+            AddError(result.Error.Description, result.Error.Code);
             ThrowIfAnyErrors(404);
         }
 

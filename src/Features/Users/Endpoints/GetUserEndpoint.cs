@@ -32,7 +32,7 @@ public class GetUserEndpoint : Endpoint<GetUserRequest, GetUserResponse>
 
         if (!result.IsSuccess)
         {
-            AddError(result.Error.Code, result.Error.Description);
+            AddError(result.Error.Description, result.Error.Code);
             ThrowIfAnyErrors(404);
         }
 

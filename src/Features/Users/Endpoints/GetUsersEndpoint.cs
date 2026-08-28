@@ -41,7 +41,7 @@ public class GetUsersEndpoint : Endpoint<GetUsersRequest, PagedUsersResponse>
 
         if (!result.IsSuccess)
         {
-            AddError(result.Error.Code, result.Error.Description);
+            AddError(result.Error.Description, result.Error.Code);
             ThrowIfAnyErrors(400);
         }
 
