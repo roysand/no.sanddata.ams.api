@@ -1,10 +1,10 @@
 using FastEndpoints;
-using Features.Users.Queries;
+using Features.Users.Endpoints;
 using FluentValidation;
 
 namespace Features.Users.Validators;
 
-public class GetUsersValidator : Validator<GetUsersQuery>
+public class GetUsersValidator : Validator<GetUsersRequest>
 {
     public GetUsersValidator()
     {
