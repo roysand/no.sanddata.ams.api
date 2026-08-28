@@ -227,3 +227,4 @@ docker push myregistry/ams-api:latest
 - [AuthenticationGuide.md](AuthenticationGuide.md) — auth system details, security practices, testing
 - [DatabaseMigrations.md](DatabaseMigrations.md) — EF Core migration commands and best practices
 - [UserCrudEndpoints.md](UserCrudEndpoints.md) — user management API endpoints
+- [AzureDeployment.md](AzureDeployment.md) — Azure CLI commands to provision the API's Azure infrastructure

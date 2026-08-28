@@ -21,10 +21,10 @@ dotnet tool update --global dotnet-ef
 
 ## Project Structure
 
-- **DbContext Location**: `Src/Infrastructure/Database/ApplicationDbContext.cs`
-- **Migrations Folder**: `Src/Infrastructure/Database/Migrations/`
-- **Startup Project**: `Src/Api/Api.csproj`
-- **Infrastructure Project**: `Src/Infrastructure/Infrastructure.csproj`
+- **DbContext Location**: `src/Infrastructure/Database/ApplicationDbContext.cs`
+- **Migrations Folder**: `src/Infrastructure/Database/Migrations/`
+- **Startup Project**: `src/api/api.csproj`
+- **Infrastructure Project**: `src/Infrastructure/Infrastructure.csproj`
 
 ## Common Migration Commands
 
@@ -35,13 +35,13 @@ Creates the first migration based on your current entity models:
 ```bash
 # Run from solution root directory
 dotnet ef migrations add InitialCreate \
-  --project Src/Infrastructure/Infrastructure.csproj \
-  --startup-project Src/Api/Api.csproj \
+  --project src/Infrastructure/Infrastructure.csproj \
+  --startup-project src/api/api.csproj \
   --output-dir Database/Migrations
 ```
 
 **What this does:**
-- Creates migration files in `Src/Infrastructure/Database/Migrations/`
+- Creates migration files in `src/Infrastructure/Database/Migrations/`
 - Generates `{timestamp}_InitialCreate.cs` (migration file)
 - Generates `{timestamp}_InitialCreate.Designer.cs` (designer metadata)
 - Creates `ApplicationDbContextModelSnapshot.cs` (current model snapshot)
@@ -52,8 +52,8 @@ After making changes to your entities, create a new migration:
 
 ```bash
 dotnet ef migrations add YourMigrationName \
-  --project Src/Infrastructure/Infrastructure.csproj \
-  --startup-project Src/Api/Api.csproj \
+  --project src/Infrastructure/Infrastructure.csproj \
+  --startup-project src/api/api.csproj \
   --output-dir Database/Migrations
 ```
 
@@ -68,8 +68,8 @@ Apply all pending migrations to your database:
 
 ```bash
 dotnet ef database update \
-  --project Src/Infrastructure/Infrastructure.csproj \
-  --startup-project Src/Api/Api.csproj
+  --project src/Infrastructure/Infrastructure.csproj \
+  --startup-project src/api/api.csproj
 ```
 
 ### 4. Apply Specific Migration
@@ -79,13 +79,13 @@ Roll back or forward to a specific migration:
 ```bash
 # Roll back to a specific migration
 dotnet ef database update YourMigrationName \
-  --project Src/Infrastructure/Infrastructure.csproj \
-  --startup-project Src/Api/Api.csproj
+  --project src/Infrastructure/Infrastructure.csproj \
+  --startup-project src/api/api.csproj
 
 # Roll back all migrations (empty database)
 dotnet ef database update 0 \
-  --project Src/Infrastructure/Infrastructure.csproj \
-  --startup-project Src/Api/Api.csproj
+  --project src/Infrastructure/Infrastructure.csproj \
+  --startup-project src/api/api.csproj
 ```
 
 ### 5. List All Migrations
@@ -94,8 +94,8 @@ View all migrations and their status:
 
 ```bash
 dotnet ef migrations list \
-  --project Src/Infrastructure/Infrastructure.csproj \
-  --startup-project Src/Api/Api.csproj
+  --project src/Infrastructure/Infrastructure.csproj \
+  --startup-project src/api/api.csproj
 ```
 
 ### 6. Remove Last Migration
@@ -104,8 +104,8 @@ Remove the most recent migration (only if not applied to database):
 
 ```bash
 dotnet ef migrations remove \
-  --project Src/Infrastructure/Infrastructure.csproj \
-  --startup-project Src/Api/Api.csproj
+  --project src/Infrastructure/Infrastructure.csproj \
+  --startup-project src/api/api.csproj
 ```
 
 **Warning:** Only use this if the migration hasn't been applied to any database yet!
@@ -117,20 +117,20 @@ Generate SQL script for migrations without applying them:
 ```bash
 # Generate script for all migrations
 dotnet ef migrations script \
-  --project Src/Infrastructure/Infrastructure.csproj \
-  --startup-project Src/Api/Api.csproj \
+  --project src/Infrastructure/Infrastructure.csproj \
+  --startup-project src/api/api.csproj \
   --output migration.sql
 
 # Generate script from one migration to another
 dotnet ef migrations script FromMigration ToMigration \
-  --project Src/Infrastructure/Infrastructure.csproj \
-  --startup-project Src/Api/Api.csproj \
+  --project src/Infrastructure/Infrastructure.csproj \
+  --startup-project src/api/api.csproj \
   --output migration.sql
 
 # Generate idempotent script (safe to run multiple times)
 dotnet ef migrations script \
-  --project Src/Infrastructure/Infrastructure.csproj \
-  --startup-project Src/Api/Api.csproj \
+  --project src/Infrastructure/Infrastructure.csproj \
+  --startup-project src/api/api.csproj \
   --idempotent \
   --output migration.sql
 ```
@@ -141,8 +141,8 @@ Drop the database (use with caution!):
 
 ```bash
 dotnet ef database drop \
-  --project Src/Infrastructure/Infrastructure.csproj \
-  --startup-project Src/Api/Api.csproj \
+  --project src/Infrastructure/Infrastructure.csproj \
+  --startup-project src/api/api.csproj \
   --force
 ```
 
@@ -239,13 +239,13 @@ dotnet build
 
 ```bash
 # Most common workflow
-dotnet ef migrations add MigrationName --project Src/Infrastructure/Infrastructure.csproj --startup-project Src/Api/Api.csproj --output-dir Database/Migrations
-dotnet ef database update --project Src/Infrastructure/Infrastructure.csproj --startup-project Src/Api/Api.csproj
+dotnet ef migrations add MigrationName --project src/Infrastructure/Infrastructure.csproj --startup-project src/api/api.csproj --output-dir Database/Migrations
+dotnet ef database update --project src/Infrastructure/Infrastructure.csproj --startup-project src/api/api.csproj
 
 # Short aliases (create these in your shell profile)
-alias efm='dotnet ef migrations add $1 --project Src/Infrastructure/Infrastructure.csproj --startup-project Src/Api/Api.csproj --output-dir Database/Migrations'
-alias efu='dotnet ef database update --project Src/Infrastructure/Infrastructure.csproj --startup-project Src/Api/Api.csproj'
-alias efl='dotnet ef migrations list --project Src/Infrastructure/Infrastructure.csproj --startup-project Src/Api/Api.csproj'
+alias efm='dotnet ef migrations add $1 --project src/Infrastructure/Infrastructure.csproj --startup-project src/api/api.csproj --output-dir Database/Migrations'
+alias efu='dotnet ef database update --project src/Infrastructure/Infrastructure.csproj --startup-project src/api/api.csproj'
+alias efl='dotnet ef migrations list --project src/Infrastructure/Infrastructure.csproj --startup-project src/api/api.csproj'
 ```
 
 ## Additional Resources

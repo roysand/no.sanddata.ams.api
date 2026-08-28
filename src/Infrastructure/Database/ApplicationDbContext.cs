@@ -25,7 +25,7 @@ public sealed class ApplicationDbContext(
         if (!optionsBuilder.IsConfigured)
         {
             string connectionString = Environment.GetEnvironmentVariable("ApplicationSettings:DbConnectionString") ?? throw new InvalidOperationException("Connection string not found.");
-            optionsBuilder.UseSqlServer(connectionString);
+            optionsBuilder.UseNpgsql(connectionString);
 
         }
     }
