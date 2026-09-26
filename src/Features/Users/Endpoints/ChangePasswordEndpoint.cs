@@ -2,6 +2,7 @@ using Application.CQRS;
 using Domain.Common;
 using FastEndpoints;
 using Features.Users.Commands;
+using Microsoft.AspNetCore.Http;
 
 namespace Features.Users.Endpoints;
 
@@ -14,6 +15,8 @@ public class ChangePasswordEndpoint : Endpoint<ChangePasswordRequest>
     public override void Configure()
     {
         Put("/api/users/{id}/password");
+        Tags("Users");
+        Description(b => b.WithTags("Users"));
         AllowAnonymous();
         Summary(s =>
         {

@@ -22,14 +22,9 @@ public class JwtTokenService : IJwtTokenService
 
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
-        // Get user ID using reflection since it's private
-        string userId = user.GetType().GetProperty("Id",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-            ?.GetValue(user)?.ToString() ?? string.Empty;
-
         var claims = new List<Claim>
         {
-            new(ClaimTypes.NameIdentifier, userId),
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Email, user.Email.Value),
             new(ClaimTypes.Name, $"{user.FirstName} {user.LastName}"),
             new("FirstName", user.FirstName),

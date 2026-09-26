@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using FastEndpoints;
+using Microsoft.AspNetCore.Http;
 
 namespace Features.Auth.Endpoints;
 
@@ -8,6 +9,8 @@ public class MeEndpoint : EndpointWithoutRequest<MeResponse>
     public override void Configure()
     {
         Get("/api/auth/me");
+        Tags("Auth");
+        Description(b => b.WithTags("Auth"));
         Summary(s =>
         {
             s.Summary = "Get current user";

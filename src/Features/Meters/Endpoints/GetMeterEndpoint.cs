@@ -4,6 +4,7 @@ using FastEndpoints;
 using Features.Meters.Commands;
 using Features.Meters.Queries;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
 
 namespace Features.Meters.Endpoints;
 
@@ -16,6 +17,8 @@ public class GetMeterEndpoint : Endpoint<GetMeterRequest, MeterResponse>
     public override void Configure()
     {
         Get("/api/meters/{id}");
+        Tags("Meters");
+        Description(b => b.WithTags("Meters"));
         AuthSchemes(JwtBearerDefaults.AuthenticationScheme);
         Summary(s =>
         {

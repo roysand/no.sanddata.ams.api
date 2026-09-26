@@ -2,6 +2,7 @@ using Application.CQRS;
 using Domain.Common;
 using FastEndpoints;
 using Features.Auth.Commands;
+using Microsoft.AspNetCore.Http;
 
 namespace Features.Auth.Endpoints;
 
@@ -14,6 +15,8 @@ public class LoginEndpoint : Endpoint<LoginRequest, LoginResponse>
     public override void Configure()
     {
         Post("/api/auth/login");
+        Tags("Auth");
+        Description(b => b.WithTags("Auth"));
         AllowAnonymous();
         Summary(s =>
         {
