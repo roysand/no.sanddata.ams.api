@@ -3,7 +3,7 @@ using Domain.Common.Entities;
 
 namespace Infrastructure.Database.Repositories;
 
-public class UserLocationEfRepository : GenericEfRepository<UserLocation>, IUserLocationEfRepository<UserLocation>
+public class UserLocationEfRepository : GenericEfRepository<UserLocation>, IUserLocationRepository<UserLocation>
 {
     public UserLocationEfRepository(ApplicationDbContext applicationDbContext) : base(applicationDbContext)
     {

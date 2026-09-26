@@ -9,12 +9,12 @@ namespace Features.Meters.Handlers;
 
 public class CreateMeterCommandHandler : ICommandHandler<CreateMeterCommand, Result<MeterResponse>>
 {
-    private readonly IMeterEfRepository<Meter> _meterRepository;
-    private readonly ILocationEfRepository<Location> _locationRepository;
+    private readonly IMeterRepository<Meter> _meterRepository;
+    private readonly ILocationRepository<Location> _locationRepository;
 
     public CreateMeterCommandHandler(
-        IMeterEfRepository<Meter> meterRepository,
-        ILocationEfRepository<Location> locationRepository)
+        IMeterRepository<Meter> meterRepository,
+        ILocationRepository<Location> locationRepository)
     {
         _meterRepository = meterRepository;
         _locationRepository = locationRepository;

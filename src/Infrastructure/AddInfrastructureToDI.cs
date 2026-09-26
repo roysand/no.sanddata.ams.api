@@ -31,15 +31,15 @@ public static class AddInfrastructureToDI
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
 
         // Register Repositories
-        services.AddScoped<IApiKeyEfRepository<ApiKey>, ApiKeyEfRepository>();
-        services.AddScoped<IUserEfRepository<User>, UserEfRepository>();
-        services.AddScoped<ILocationEfRepository<Location>, LocationEfRepository>();
-        services.AddScoped<IRoleEfRepository<Role>, RoleEfRepository>();
-        services.AddScoped<IUserLocationEfRepository<UserLocation>, UserLocationEfRepository>();
-        services.AddScoped<IUserRoleEfRepository<UserRole>, UserRoleEfRepository>();
+        services.AddScoped<IApiKeyRepository<ApiKey>, ApiKeyEfRepository>();
+        services.AddScoped<IUserRepository<User>, UserEfRepository>();
+        services.AddScoped<ILocationRepository<Location>, LocationEfRepository>();
+        services.AddScoped<IRoleRepository<Role>, RoleEfRepository>();
+        services.AddScoped<IUserLocationRepository<UserLocation>, UserLocationEfRepository>();
+        services.AddScoped<IUserRoleRepository<UserRole>, UserRoleEfRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenEfRepository>();
-        services.AddScoped<IMeasurementEfRepository<Measurement>, MeasurementEfRepository>();
-        services.AddScoped<IMeterEfRepository<Meter>, MeterEfRepository>();
+        services.AddScoped<IMeasurementRepository<Measurement>, MeasurementEfRepository>();
+        services.AddScoped<IMeterRepository<Meter>, MeterEfRepository>();
 
         // Register Authentication Services
         services.AddAuthentication(options =>

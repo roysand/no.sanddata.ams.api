@@ -10,10 +10,10 @@ namespace Features.Users.Handlers;
 
 public class CreateUserCommandHandler : ICommandHandler<CreateUserCommand, Result<CreateUserResponse>>
 {
-    private readonly IUserEfRepository<User> _userRepository;
+    private readonly IUserRepository<User> _userRepository;
     private readonly IPasswordHasher _passwordHasher;
 
-    public CreateUserCommandHandler(IUserEfRepository<User> userRepository, IPasswordHasher passwordHasher)
+    public CreateUserCommandHandler(IUserRepository<User> userRepository, IPasswordHasher passwordHasher)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;

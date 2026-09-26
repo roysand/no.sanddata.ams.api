@@ -8,9 +8,9 @@ namespace Features.Users.Handlers;
 
 public class DeleteUserCommandHandler : ICommandHandler<DeleteUserCommand, Result<DeleteUserResponse>>
 {
-    private readonly IUserEfRepository<User> _userRepository;
+    private readonly IUserRepository<User> _userRepository;
 
-    public DeleteUserCommandHandler(IUserEfRepository<User> userRepository) => _userRepository = userRepository;
+    public DeleteUserCommandHandler(IUserRepository<User> userRepository) => _userRepository = userRepository;
 
     public async Task<Result<DeleteUserResponse>> Handle(DeleteUserCommand command, CancellationToken cancellationToken)
     {

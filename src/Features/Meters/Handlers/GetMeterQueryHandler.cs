@@ -10,9 +10,9 @@ namespace Features.Meters.Handlers;
 
 public class GetMeterQueryHandler : IQueryHandler<GetMeterQuery, Result<MeterResponse>>
 {
-    private readonly IMeterEfRepository<Meter> _meterRepository;
+    private readonly IMeterRepository<Meter> _meterRepository;
 
-    public GetMeterQueryHandler(IMeterEfRepository<Meter> meterRepository) => _meterRepository = meterRepository;
+    public GetMeterQueryHandler(IMeterRepository<Meter> meterRepository) => _meterRepository = meterRepository;
 
     public async Task<Result<MeterResponse>> Handle(GetMeterQuery query, CancellationToken ct)
     {

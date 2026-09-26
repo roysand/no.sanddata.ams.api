@@ -8,12 +8,12 @@ namespace Features.Measurements.Handlers;
 
 public class IngestMeasurementsCommandHandler : ICommandHandler<IngestMeasurementsCommand, Result<IngestMeasurementsResponse>>
 {
-    private readonly IMeasurementEfRepository<Measurement> _measurementRepository;
-    private readonly IMeterEfRepository<Meter> _meterRepository;
+    private readonly IMeasurementRepository<Measurement> _measurementRepository;
+    private readonly IMeterRepository<Meter> _meterRepository;
 
     public IngestMeasurementsCommandHandler(
-        IMeasurementEfRepository<Measurement> measurementRepository,
-        IMeterEfRepository<Meter> meterRepository)
+        IMeasurementRepository<Measurement> measurementRepository,
+        IMeterRepository<Meter> meterRepository)
     {
         _measurementRepository = measurementRepository;
         _meterRepository = meterRepository;

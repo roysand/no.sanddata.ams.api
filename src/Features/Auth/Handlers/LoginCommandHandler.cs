@@ -11,14 +11,14 @@ namespace Features.Auth.Handlers;
 
 public class LoginCommandHandler : ICommandHandler<LoginCommand, Result<LoginResponse>>
 {
-    private readonly IUserEfRepository<User> _userRepository;
+    private readonly IUserRepository<User> _userRepository;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IJwtTokenService _jwtTokenService;
     private readonly IPasswordHasher _passwordHasher;
     private readonly ILogger<LoginCommandHandler> _logger;
 
     public LoginCommandHandler(
-        IUserEfRepository<User> userRepository,
+        IUserRepository<User> userRepository,
         IRefreshTokenRepository refreshTokenRepository,
         IJwtTokenService jwtTokenService,
         IPasswordHasher passwordHasher,

@@ -11,13 +11,13 @@ namespace Infrastructure.Authentication;
 
 public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthenticationOptions>
 {
-    private readonly IApiKeyEfRepository<ApiKey> _apiKeyRepository;
+    private readonly IApiKeyRepository<ApiKey> _apiKeyRepository;
 
     public ApiKeyAuthenticationHandler(
         IOptionsMonitor<ApiKeyAuthenticationOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
-        IApiKeyEfRepository<ApiKey> apiKeyRepository)
+        IApiKeyRepository<ApiKey> apiKeyRepository)
         : base(options, logger, encoder) =>
         _apiKeyRepository = apiKeyRepository;
 

@@ -9,9 +9,9 @@ namespace Features.Users.Handlers;
 
 public class UpdateUserCommandHandler : ICommandHandler<UpdateUserCommand, Result<UpdateUserResponse>>
 {
-    private readonly IUserEfRepository<User> _userRepository;
+    private readonly IUserRepository<User> _userRepository;
 
-    public UpdateUserCommandHandler(IUserEfRepository<User> userRepository) => _userRepository = userRepository;
+    public UpdateUserCommandHandler(IUserRepository<User> userRepository) => _userRepository = userRepository;
 
     public async Task<Result<UpdateUserResponse>> Handle(UpdateUserCommand command, CancellationToken cancellationToken)
     {

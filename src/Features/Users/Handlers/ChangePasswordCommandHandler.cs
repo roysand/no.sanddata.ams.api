@@ -9,10 +9,10 @@ namespace Features.Users.Handlers;
 
 public class ChangePasswordCommandHandler : ICommandHandler<ChangePasswordCommand, Result<ChangePasswordResponse>>
 {
-    private readonly IUserEfRepository<User> _userRepository;
+    private readonly IUserRepository<User> _userRepository;
     private readonly IPasswordHasher _passwordHasher;
 
-    public ChangePasswordCommandHandler(IUserEfRepository<User> userRepository, IPasswordHasher passwordHasher)
+    public ChangePasswordCommandHandler(IUserRepository<User> userRepository, IPasswordHasher passwordHasher)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
