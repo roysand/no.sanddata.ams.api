@@ -11,6 +11,11 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 // Add local.settings.json to configuration
 builder.Configuration.AddJsonFile("local.settings.json", optional: true, reloadOnChange: true);
 
+// Configures console log timestamps (Logging:Console:FormatterOptions in appsettings.json).
+builder.Logging.AddSimpleConsole(options => options.SingleLine = true);
+builder.Services.Configure<Microsoft.Extensions.Logging.Console.SimpleConsoleFormatterOptions>(
+    builder.Configuration.GetSection("Logging:Console:FormatterOptions"));
+
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi(options =>
