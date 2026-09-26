@@ -1,5 +1,4 @@
-using Application;
-using Domain.Common;
+using Api.OpenApi;
 using FastEndpoints;
 using Features;
 using Infrastructure;
@@ -14,7 +13,9 @@ builder.Configuration.AddJsonFile("local.settings.json", optional: true, reloadO
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document, context, cancellationToken) =>
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer((document, context, cancellationToken) =>
     {
         // Add security schemes to OpenAPI document
         document.Components ??= new Microsoft.OpenApi.OpenApiComponents();
@@ -36,7 +37,9 @@ builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document,
             }
         };
         return Task.CompletedTask;
-    }));
+    });
+    options.AddOperationTransformer<FastEndpointsQueryParameterTransformer>();
+});
 
 builder.Services.AddFastEndpoints(options =>
     options.Assemblies = [typeof(Features.Users.Endpoints.CreateUserEndpoint).Assembly]);
