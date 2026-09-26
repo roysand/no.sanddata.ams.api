@@ -3,6 +3,7 @@ using Domain.Common;
 using FastEndpoints;
 using Features.Measurements.Commands;
 using Features.Measurements.Mappers;
+using Microsoft.AspNetCore.Http;
 
 namespace Features.Measurements.Endpoints;
 
@@ -15,6 +16,8 @@ public class IngestMeasurementsEndpoint : Endpoint<IngestMeasurementsRequest, In
     public override void Configure()
     {
         Post("/api/measurements");
+        Tags("Measurements");
+        Description(b => b.WithTags("Measurements"));
         AuthSchemes("ApiKey");
         Summary(s =>
         {

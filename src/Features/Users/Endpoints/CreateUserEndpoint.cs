@@ -1,10 +1,9 @@
 using Application.CQRS;
 using Domain.Common;
-using Domain.Common.Entities;
 using FastEndpoints;
 using Features.Users.Commands;
 using Features.Users.Mappers;
-using Features.Users.Queries;
+using Microsoft.AspNetCore.Http;
 
 namespace Features.Users.Endpoints;
 
@@ -17,6 +16,8 @@ public class CreateUserEndpoint : Endpoint<CreateUserRequest, CreateUserResponse
     public override void Configure()
     {
         Post("/api/users");
+        Tags("Users");
+        Description(b => b.WithTags("Users"));
         AllowAnonymous();
         Summary(s =>
         {

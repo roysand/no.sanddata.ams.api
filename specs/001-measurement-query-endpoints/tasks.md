@@ -24,7 +24,7 @@ and testing of each story.
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirm `FastEndpoints`, `FluentValidation`, and `Npgsql.EntityFrameworkCore.PostgreSQL` are already present in `Directory.Packages.props` — no new package versions needed for this feature (verify only, no edit expected)
+- [X] T001 Confirm `FastEndpoints`, `FluentValidation`, and `Npgsql.EntityFrameworkCore.PostgreSQL` are already present in `Directory.Packages.props` — no new package versions needed for this feature (verify only, no edit expected)
 
 ---
 
@@ -33,10 +33,10 @@ and testing of each story.
 **Purpose**: Repository-layer capabilities every user story query depends on. No user story
 endpoint can be implemented until this phase is done.
 
-- [ ] T002 [P] Add `IsUserAssociatedAsync(Guid userId, Guid locationId, CancellationToken ct)` and `GetForUserAsync(Guid userId, CancellationToken ct)` to `ILocationEfRepository<T>` in `src/Application/Common/Interfaces/Repositories/ILocationEfRepository.cs`
-- [ ] T003 [P] Implement `IsUserAssociatedAsync` and `GetForUserAsync` (eager-load `Meters`) in `src/Infrastructure/Database/Repositories/LocationEfRepository.cs` (depends on T002)
-- [ ] T004 [P] Add `GetPagedAsync(Guid locationId, Guid? meterId, DateTime from, DateTime to, int page, int pageSize, CancellationToken ct)` and `GetLatestAsync(Guid locationId, Guid? meterId, CancellationToken ct)` to `IMeasurementEfRepository<T>` in `src/Application/Common/Interfaces/Repositories/IMeasurementEfRepository.cs`
-- [ ] T005 [P] Implement `GetPagedAsync` (ordered by `Timestamp` ascending, paged) and `GetLatestAsync` (ordered by `Timestamp` descending, first-or-default) in `src/Infrastructure/Database/Repositories/MeasurementEfRepository.cs` (depends on T004)
+- [X] T002 [P] Add `IsUserAssociatedAsync(Guid userId, Guid locationId, CancellationToken ct)` and `GetForUserAsync(Guid userId, CancellationToken ct)` to `ILocationEfRepository<T>` in `src/Application/Common/Interfaces/Repositories/ILocationEfRepository.cs`
+- [X] T003 [P] Implement `IsUserAssociatedAsync` and `GetForUserAsync` (eager-load `Meters`) in `src/Infrastructure/Database/Repositories/LocationEfRepository.cs` (depends on T002)
+- [X] T004 [P] Add `GetPagedAsync(Guid locationId, Guid? meterId, DateTime from, DateTime to, int page, int pageSize, CancellationToken ct)` and `GetLatestAsync(Guid locationId, Guid? meterId, CancellationToken ct)` to `IMeasurementEfRepository<T>` in `src/Application/Common/Interfaces/Repositories/IMeasurementEfRepository.cs`
+- [X] T005 [P] Implement `GetPagedAsync` (ordered by `Timestamp` ascending, paged) and `GetLatestAsync` (ordered by `Timestamp` descending, first-or-default) in `src/Infrastructure/Database/Repositories/MeasurementEfRepository.cs` (depends on T004)
 
 **Checkpoint**: Repository layer ready — user story implementation can begin.
 
@@ -54,15 +54,15 @@ confirm the single most recent reading (or `204`) returns.
 
 ### Implementation for User Story 1
 
-- [ ] T006 [P] [US1] Create `GetMeasurementsQuery`, `MeasurementResponse`, `PagedMeasurementsResponse` records in `src/Features/Measurements/Queries/GetMeasurementsQuery.cs`
-- [ ] T007 [P] [US1] Create `GetLatestMeasurementQuery` record in `src/Features/Measurements/Queries/GetLatestMeasurementQuery.cs`
-- [ ] T008 [US1] Implement `GetMeasurementsQueryHandler` in `src/Features/Measurements/Handlers/GetMeasurementsQueryHandler.cs` — call `IsUserAssociatedAsync` first and return `Error.NotFound("Location.NotFound", ...)` if false (same error whether the location is missing or not the caller's, per FR-001/research.md §3); when `from`/`to` are omitted, default to the last 24 hours (research.md §2); call `GetPagedAsync`; map via `MeasurementMapper` (depends on T003, T005, T006)
-- [ ] T009 [US1] Implement `GetLatestMeasurementQueryHandler` in `src/Features/Measurements/Handlers/GetLatestMeasurementQueryHandler.cs` — same authorization check as T008; call `GetLatestAsync`; return a `Result` the endpoint can map to `204` when null (depends on T003, T005, T007)
-- [ ] T010 [P] [US1] Extend `MeasurementMapper` with `ToResponse(Measurement)` and `ToPagedResponse(...)` in `src/Features/Measurements/Mappers/MeasurementMapper.cs`
-- [ ] T011 [US1] Create `GetMeasurementsRequest` and `GetMeasurementsEndpoint` (`GET /api/measurements`, `AuthSchemes(JwtBearerDefaults.AuthenticationScheme)`, reads `UserId` from `ClaimTypes.NameIdentifier`) in `src/Features/Measurements/Endpoints/GetMeasurementsEndpoint.cs` (depends on T008, T010)
-- [ ] T012 [US1] Create `GetLatestMeasurementRequest` and `GetLatestMeasurementEndpoint` (`GET /api/measurements/latest`, JWT auth, `200` with body or `204` when nothing found) in `src/Features/Measurements/Endpoints/GetLatestMeasurementEndpoint.cs` (depends on T009, T010)
-- [ ] T013 [US1] Create `src/Features/Measurements/Logging/LogMessages.cs` claiming EventId range `1300-1399` (e.g. `MeasurementsQueried` = 1300, `LatestMeasurementQueried` = 1301, `LocationAccessDenied` = 1302) and call the compiled delegates from both handlers (depends on T008, T009)
-- [ ] T014 [US1] Create `GetMeasurementsValidator : Validator<GetMeasurementsRequest>` (bounds: `page >= 1`, `1 <= pageSize <= 2000`) in `src/Features/Measurements/Validators/GetMeasurementsValidator.cs` — **must** target `GetMeasurementsRequest` (the endpoint's request DTO), not the query record; FastEndpoints binds validators by the endpoint's exact `TRequest` type, and a validator typed to the wrong class silently never runs (this exact bug was previously found and fixed in this codebase for the Auth/Users validators) (depends on T011)
+- [X] T006 [P] [US1] Create `GetMeasurementsQuery`, `MeasurementResponse`, `PagedMeasurementsResponse` records in `src/Features/Measurements/Queries/GetMeasurementsQuery.cs`
+- [X] T007 [P] [US1] Create `GetLatestMeasurementQuery` record in `src/Features/Measurements/Queries/GetLatestMeasurementQuery.cs`
+- [X] T008 [US1] Implement `GetMeasurementsQueryHandler` in `src/Features/Measurements/Handlers/GetMeasurementsQueryHandler.cs` — call `IsUserAssociatedAsync` first and return `Error.NotFound("Location.NotFound", ...)` if false (same error whether the location is missing or not the caller's, per FR-001/research.md §3); when `from`/`to` are omitted, default to the last 24 hours (research.md §2); call `GetPagedAsync`; map via `MeasurementMapper` (depends on T003, T005, T006)
+- [X] T009 [US1] Implement `GetLatestMeasurementQueryHandler` in `src/Features/Measurements/Handlers/GetLatestMeasurementQueryHandler.cs` — same authorization check as T008; call `GetLatestAsync`; return a `Result` the endpoint can map to `204` when null (depends on T003, T005, T007)
+- [X] T010 [P] [US1] Extend `MeasurementMapper` with `ToResponse(Measurement)` and `ToPagedResponse(...)` in `src/Features/Measurements/Mappers/MeasurementMapper.cs`
+- [X] T011 [US1] Create `GetMeasurementsRequest` and `GetMeasurementsEndpoint` (`GET /api/measurements`, `AuthSchemes(JwtBearerDefaults.AuthenticationScheme)`, reads `UserId` from `ClaimTypes.NameIdentifier`) in `src/Features/Measurements/Endpoints/GetMeasurementsEndpoint.cs` (depends on T008, T010)
+- [X] T012 [US1] Create `GetLatestMeasurementRequest` and `GetLatestMeasurementEndpoint` (`GET /api/measurements/latest`, JWT auth, `200` with body or `204` when nothing found) in `src/Features/Measurements/Endpoints/GetLatestMeasurementEndpoint.cs` (depends on T009, T010)
+- [X] T013 [US1] Create `src/Features/Measurements/Logging/LogMessages.cs` claiming EventId range `1300-1399` (e.g. `MeasurementsQueried` = 1300, `LatestMeasurementQueried` = 1301, `LocationAccessDenied` = 1302) and call the compiled delegates from both handlers (depends on T008, T009)
+- [X] T014 [US1] Create `GetMeasurementsValidator : Validator<GetMeasurementsRequest>` (bounds: `page >= 1`, `1 <= pageSize <= 2000`) in `src/Features/Measurements/Validators/GetMeasurementsValidator.cs` — **must** target `GetMeasurementsRequest` (the endpoint's request DTO), not the query record; FastEndpoints binds validators by the endpoint's exact `TRequest` type, and a validator typed to the wrong class silently never runs (this exact bug was previously found and fixed in this codebase for the Auth/Users validators) (depends on T011)
 
 **Checkpoint**: User Story 1 is fully functional and independently testable via `quickstart.md`'s US1 and FR-009 scenarios.
 
@@ -79,8 +79,8 @@ and confirm a `400 Validation.InvalidRange`.
 
 ### Implementation for User Story 2
 
-- [ ] T015 [US2] Add a `to >= from` rule to `GetMeasurementsValidator` (only enforced when both `from` and `to` are supplied), producing `Validation.InvalidRange`, in `src/Features/Measurements/Validators/GetMeasurementsValidator.cs` (depends on T014)
-- [ ] T016 [US2] Update `GetMeasurementsQueryHandler`'s range logic to also fill a *partial* range — only `from` given → `to` defaults to now; only `to` given → `from` defaults to `to` minus 24 hours (research.md §2) — in `src/Features/Measurements/Handlers/GetMeasurementsQueryHandler.cs` (depends on T008)
+- [X] T015 [US2] Add a `to >= from` rule to `GetMeasurementsValidator` (only enforced when both `from` and `to` are supplied), producing `Validation.InvalidRange`, in `src/Features/Measurements/Validators/GetMeasurementsValidator.cs` (depends on T014)
+- [X] T016 [US2] Update `GetMeasurementsQueryHandler`'s range logic to also fill a *partial* range — only `from` given → `to` defaults to now; only `to` given → `from` defaults to `to` minus 24 hours (research.md §2) — in `src/Features/Measurements/Handlers/GetMeasurementsQueryHandler.cs` (depends on T008)
 
 **Checkpoint**: User Stories 1 and 2 both work independently via `quickstart.md`.
 
@@ -97,11 +97,11 @@ none belonging to other users.
 
 ### Implementation for User Story 3
 
-- [ ] T017 [P] [US3] Create `GetMyLocationsQuery`, `LocationSummaryResponse`, `MeterSummaryResponse` records in `src/Features/Locations/Queries/GetMyLocationsQuery.cs`
-- [ ] T018 [US3] Implement `GetMyLocationsQueryHandler` in `src/Features/Locations/Handlers/GetMyLocationsQueryHandler.cs` — call `GetForUserAsync`, map via `LocationMapper` (depends on T003, T017)
-- [ ] T019 [P] [US3] Create `LocationMapper` in `src/Features/Locations/Mappers/LocationMapper.cs`
-- [ ] T020 [US3] Create `GetLocationsEndpoint` (`GET /api/locations`, JWT auth) in `src/Features/Locations/Endpoints/GetLocationsEndpoint.cs` (depends on T018, T019)
-- [ ] T021 [US3] Create `src/Features/Locations/Logging/LogMessages.cs` claiming EventId range `1400-1499` (e.g. `LocationsListed` = 1400) and call it from the handler (depends on T018)
+- [X] T017 [P] [US3] Create `GetMyLocationsQuery`, `LocationSummaryResponse`, `MeterSummaryResponse` records in `src/Features/Locations/Queries/GetMyLocationsQuery.cs`
+- [X] T018 [US3] Implement `GetMyLocationsQueryHandler` in `src/Features/Locations/Handlers/GetMyLocationsQueryHandler.cs` — call `GetForUserAsync`, map via `LocationMapper` (depends on T003, T017)
+- [X] T019 [P] [US3] Create `LocationMapper` in `src/Features/Locations/Mappers/LocationMapper.cs`
+- [X] T020 [US3] Create `GetLocationsEndpoint` (`GET /api/locations`, JWT auth) in `src/Features/Locations/Endpoints/GetLocationsEndpoint.cs` (depends on T018, T019)
+- [X] T021 [US3] Create `src/Features/Locations/Logging/LogMessages.cs` claiming EventId range `1400-1499` (e.g. `LocationsListed` = 1400) and call it from the handler (depends on T018)
 
 **Checkpoint**: All three user stories work independently via `quickstart.md`.
 
@@ -109,10 +109,10 @@ none belonging to other users.
 
 ## Final Phase: Polish & Cross-Cutting Concerns
 
-- [ ] T022 [P] Update the EventId allocation table in `CLAUDE.md` and `DevelopmentGuide.md` to add `1300-1399` (Measurements) and `1400-1499` (Locations) — required by the constitution's logging principle whenever a new range is claimed
-- [ ] T023 [P] Fix `DevelopmentGuide.md`'s "Adding a New Feature" checklist step 6 ("Register Handler in DI... Handlers are not auto-discovered"), which contradicts that same file's "Custom Dispatcher" section stating `Cqrs.SourceGenerator` registers handlers automatically via `AddGeneratedCqrsHandlers()` — confirm the actual (generator) behavior and correct the stale step so a future feature isn't built around the wrong instructions
-- [ ] T024 Run `dotnet format --verify-no-changes` and `dotnet build` from the repo root and confirm no new warnings
-- [ ] T025 Execute every scenario in `specs/001-measurement-query-endpoints/quickstart.md` against local dev and confirm the documented status codes/payloads
+- [X] T022 [P] Update the EventId allocation table in `CLAUDE.md` and `DevelopmentGuide.md` to add `1300-1399` (Measurements) and `1400-1499` (Locations) — required by the constitution's logging principle whenever a new range is claimed
+- [X] T023 [P] Fix `DevelopmentGuide.md`'s "Adding a New Feature" checklist step 6 ("Register Handler in DI... Handlers are not auto-discovered"), which contradicts that same file's "Custom Dispatcher" section stating `Cqrs.SourceGenerator` registers handlers automatically via `AddGeneratedCqrsHandlers()` — confirm the actual (generator) behavior and correct the stale step so a future feature isn't built around the wrong instructions
+- [X] T024 Run `dotnet format --verify-no-changes` and `dotnet build` from the repo root and confirm no new warnings
+- [X] T025 Execute every scenario in `specs/001-measurement-query-endpoints/quickstart.md` against local dev and confirm the documented status codes/payloads
 
 ---
 

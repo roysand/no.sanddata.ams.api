@@ -93,7 +93,7 @@ dotnet run --project src/api/api.csproj
 # http://localhost:5231/scalar/v1 (HTTP) or https://localhost:7130/scalar/v1 (HTTPS)
 ```
 
-**Adding a new feature?** See [DevelopmentGuide.md](DevelopmentGuide.md) for the full step-by-step checklist with code templates. Handlers are **not** auto-discovered — every handler must be manually registered in `Infrastructure/AddInfrastructureToDI.cs`.
+**Adding a new feature?** See [DevelopmentGuide.md](DevelopmentGuide.md) for the full step-by-step checklist with code templates. Handlers are auto-discovered at compile time by `Cqrs.SourceGenerator` — no manual registration in `Infrastructure/AddInfrastructureToDI.cs` needed.
 
 ## Common Development Commands
 
@@ -199,6 +199,8 @@ EventId ranges (keep in sync as features are added):
 | 1000-1099 | Users |
 | 1100-1199 | Auth |
 | 1200-1299 | Test |
+| 1300-1399 | Measurements |
+| 1400-1499 | Locations |
 | 2000-2099 | Infra/Logging |
 
 Full guide (why, request/response logging config, reason-code table): [DevelopmentGuide.md](DevelopmentGuide.md#logging-with-logmessages).

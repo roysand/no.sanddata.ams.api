@@ -2,6 +2,7 @@ using Application.CQRS;
 using Domain.Common;
 using FastEndpoints;
 using Features.Users.Queries;
+using Microsoft.AspNetCore.Http;
 
 namespace Features.Users.Endpoints;
 
@@ -14,6 +15,8 @@ public class GetUsersEndpoint : Endpoint<GetUsersRequest, PagedUsersResponse>
     public override void Configure()
     {
         Get("/api/users");
+        Tags("Users");
+        Description(b => b.WithTags("Users"));
         AllowAnonymous();
         Summary(s =>
         {

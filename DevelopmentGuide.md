@@ -88,6 +88,8 @@ public class CreateUserEndpoint : Endpoint<CreateUserRequest, CreateUserResponse
     public override void Configure()
     {
         Post("/api/users");
+        Tags("Users");
+        Description(b => b.WithTags("Users"));
         AuthSchemes(JwtBearerDefaults.AuthenticationScheme);
     }
 
@@ -109,20 +111,23 @@ public class CreateUserEndpoint : Endpoint<CreateUserRequest, CreateUserResponse
 }
 ```
 
-**6. Register Handler in DI** (`Infrastructure/AddInfrastructureToDI.cs`)
-```csharp
-public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
-{
-    // ... existing registrations ...
+**Grouping endpoints in Scalar:** this project uses .NET's native `Microsoft.AspNetCore.OpenApi`
+(`AddOpenApi()`), not `FastEndpoints.Swagger` (not installed). FastEndpoints' own `Tags(...)`
+config method only feeds its own Swagger generator, so on its own it does **not** group anything
+in Scalar — an endpoint with only `Tags(...)` silently falls into a default "Api" bucket instead.
+The call that actually reaches the OpenAPI document Scalar renders is
+`Description(b => b.WithTags("YourFeature"));` (needs `using Microsoft.AspNetCore.Http;` for the
+`WithTags` extension). Add both calls to every new endpoint's `Configure()` — `Tags(...)` costs
+nothing and keeps FastEndpoints' own metadata consistent in case `FastEndpoints.Swagger` is ever
+added later.
 
-    // Register CQRS handlers
-    services.AddScoped<ICommandHandler<CreateUserCommand, Result<CreateUserResponse>>, CreateUserCommandHandler>();
-    services.AddScoped<IQueryHandler<GetUserQuery, Result<UserResponse>>, GetUserQueryHandler>();
+**6. Handler registration is automatic** — nothing to do here.
 
-    return services;
-}
-```
-> Handlers are **not** auto-discovered — forgetting this step is the most common cause of a "No handler registered" runtime error.
+`Cqrs.SourceGenerator` discovers every `ICommandHandler`/`IQueryHandler` in `Features` at compile
+time and generates both the `IDispatcher` implementation and its DI registration (see
+[Custom Dispatcher](#custom-dispatcher) below). There is no `AddScoped<...>()` line to add in
+`Infrastructure/AddInfrastructureToDI.cs` for a CQRS handler — that file is only for
+infrastructure services (repositories, auth, etc.).
 
 **7. Update Program.cs** to register the validator
 ```csharp
@@ -432,4 +437,6 @@ Keep this mapping in sync as new features are added, to avoid EventId collisions
 | 1000-1099 | Users |
 | 1100-1199 | Auth |
 | 1200-1299 | Test |
+| 1300-1399 | Measurements |
+| 1400-1499 | Locations |
 | 2000-2099 | Infra/Logging |
