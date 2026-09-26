@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Database.Repositories;
 
-public class MeterEfRepository : GenericEfRepository<Meter>, IMeterEfRepository<Meter>
+public class MeterEfRepository : GenericEfRepository<Meter>, IMeterRepository<Meter>
 {
     public MeterEfRepository(ApplicationDbContext applicationDbContext) : base(applicationDbContext)
     {

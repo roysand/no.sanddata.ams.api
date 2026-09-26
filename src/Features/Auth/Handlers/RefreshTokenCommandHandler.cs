@@ -10,12 +10,12 @@ namespace Features.Auth.Handlers;
 public class RefreshTokenCommandHandler : ICommandHandler<RefreshTokenCommand, Result<RefreshTokenResponse>>
 {
     private readonly IRefreshTokenRepository _refreshTokenRepository;
-    private readonly IUserEfRepository<User> _userRepository;
+    private readonly IUserRepository<User> _userRepository;
     private readonly IJwtTokenService _jwtTokenService;
 
     public RefreshTokenCommandHandler(
         IRefreshTokenRepository refreshTokenRepository,
-        IUserEfRepository<User> userRepository,
+        IUserRepository<User> userRepository,
         IJwtTokenService jwtTokenService)
     {
         _refreshTokenRepository = refreshTokenRepository;

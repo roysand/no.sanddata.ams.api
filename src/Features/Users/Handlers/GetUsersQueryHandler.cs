@@ -8,9 +8,9 @@ namespace Features.Users.Handlers;
 
 public class GetUsersQueryHandler : IQueryHandler<GetUsersQuery, Result<PagedUsersResponse>>
 {
-    private readonly IUserEfRepository<User> _userRepository;
+    private readonly IUserRepository<User> _userRepository;
 
-    public GetUsersQueryHandler(IUserEfRepository<User> userRepository) 
+    public GetUsersQueryHandler(IUserRepository<User> userRepository) 
         => _userRepository = userRepository;
 
     public async Task<Result<PagedUsersResponse>> Handle(GetUsersQuery request, CancellationToken cancellationToken)

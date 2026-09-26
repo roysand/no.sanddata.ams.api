@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Database.Repositories;
 
-public class GenericEfRepository<T> : IEfRepository<T> where T : class
+public class GenericEfRepository<T> : IRepository<T> where T : class
 {
     protected readonly ApplicationDbContext _context;
 

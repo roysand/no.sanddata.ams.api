@@ -3,7 +3,7 @@ using Domain.Common.Entities;
 
 namespace Infrastructure.Database.Repositories;
 
-public class RoleEfRepository : GenericEfRepository<Role>, IRoleEfRepository<Role>
+public class RoleEfRepository : GenericEfRepository<Role>, IRoleRepository<Role>
 {
     public RoleEfRepository(ApplicationDbContext applicationDbContext) : base(applicationDbContext)
     {

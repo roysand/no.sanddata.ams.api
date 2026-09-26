@@ -3,7 +3,7 @@ using Domain.Common.Entities;
 
 namespace Infrastructure.Database.Repositories;
 
-public class UserRoleEfRepository : GenericEfRepository<UserRole>, IUserRoleEfRepository<UserRole>
+public class UserRoleEfRepository : GenericEfRepository<UserRole>, IUserRoleRepository<UserRole>
 {
     public UserRoleEfRepository(ApplicationDbContext applicationDbContext) : base(applicationDbContext)
     {
