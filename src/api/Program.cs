@@ -1,5 +1,4 @@
-using Application;
-using Domain.Common;
+using Api.OpenApi;
 using FastEndpoints;
 using Features;
 using Infrastructure;
@@ -12,9 +11,16 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 // Add local.settings.json to configuration
 builder.Configuration.AddJsonFile("local.settings.json", optional: true, reloadOnChange: true);
 
+// Configures console log timestamps (Logging:Console:FormatterOptions in appsettings.json).
+builder.Logging.AddSimpleConsole(options => options.SingleLine = true);
+builder.Services.Configure<Microsoft.Extensions.Logging.Console.SimpleConsoleFormatterOptions>(
+    builder.Configuration.GetSection("Logging:Console:FormatterOptions"));
+
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document, context, cancellationToken) =>
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer((document, context, cancellationToken) =>
     {
         // Add security schemes to OpenAPI document
         document.Components ??= new Microsoft.OpenApi.OpenApiComponents();
@@ -36,7 +42,9 @@ builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document,
             }
         };
         return Task.CompletedTask;
-    }));
+    });
+    options.AddOperationTransformer<FastEndpointsQueryParameterTransformer>();
+});
 
 builder.Services.AddFastEndpoints(options =>
     options.Assemblies = [typeof(Features.Users.Endpoints.CreateUserEndpoint).Assembly]);
