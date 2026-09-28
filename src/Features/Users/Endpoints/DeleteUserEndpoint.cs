@@ -5,7 +5,7 @@ using Features.Users.Commands;
 
 namespace Features.Users.Endpoints;
 
-public class DeleteUserEndpoint : EndpointWithoutRequest
+public class DeleteUserEndpoint : Endpoint<DeleteUserRequest>
 {
     private readonly IDispatcher _dispatcher;
 
@@ -15,6 +15,9 @@ public class DeleteUserEndpoint : EndpointWithoutRequest
     {
         Delete("/api/users/{id}");
         AllowAnonymous();
+        // DELETE has no body; restrict binding to the route so a stray "Content-Type: application/json"
+        // header with an empty body (sent by some clients, e.g. Scalar) doesn't fail JSON deserialization.
+        RequestBinder(new RequestBinder<DeleteUserRequest>(BindingSource.RouteValues));
         Summary(s =>
         {
             s.Summary = "Delete user";
@@ -24,10 +27,9 @@ public class DeleteUserEndpoint : EndpointWithoutRequest
         });
     }
 
-    public override async Task HandleAsync(CancellationToken ct)
+    public override async Task HandleAsync(DeleteUserRequest req, CancellationToken ct)
     {
-        Guid id = Route<Guid>("id");
-        var command = new DeleteUserCommand(id);
+        var command = new DeleteUserCommand(req.Id);
         Result<DeleteUserResponse> result = await _dispatcher.Send(command, ct);
 
         if (!result.IsSuccess)
@@ -40,3 +42,5 @@ public class DeleteUserEndpoint : EndpointWithoutRequest
         HttpContext.Response.StatusCode = 204;
     }
 }
+
+public record DeleteUserRequest([property: RouteParam] Guid Id);

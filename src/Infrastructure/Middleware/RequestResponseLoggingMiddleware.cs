@@ -16,6 +16,12 @@ namespace Infrastructure.Middleware;
 
 public class RequestResponseLoggingMiddleware
 {
+    private static readonly HashSet<string> SensitiveHeaders = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Authorization",
+        "X-API-Key",
+    };
+
     private readonly RequestDelegate _next;
     private readonly ILogger<RequestResponseLoggingMiddleware> _logger;
     private readonly RequestLoggingOptions _options;
@@ -42,7 +48,7 @@ public class RequestResponseLoggingMiddleware
             using var reader = new StreamReader(context.Request.Body, Encoding.UTF8, leaveOpen: true);
             requestBody = await reader.ReadToEndAsync();
             context.Request.Body.Position = 0;
-            attributes["RequestBody"] = MaskOrValue("RequestBody", requestBody);
+            attributes["RequestBody"] = requestBody;
             attributesJson = JsonSerializer.Serialize(attributes);
         }
 
@@ -62,7 +68,7 @@ public class RequestResponseLoggingMiddleware
                 using var sr = new StreamReader(context.Response.Body, Encoding.UTF8, leaveOpen: true);
                 responseText = await sr.ReadToEndAsync();
                 context.Response.Body.Seek(0, SeekOrigin.Begin);
-                attributes["ResponseBody"] = MaskOrValue("ResponseBody", responseText);
+                attributes["ResponseBody"] = responseText;
                 attributesJson = JsonSerializer.Serialize(attributes);
             }
 
@@ -84,7 +90,7 @@ public class RequestResponseLoggingMiddleware
         {
             // Log exception details and rethrow
             attributes["ExceptionType"] = ex.GetType().FullName;
-            attributes["ExceptionMessage"] = MaskOrValue("ExceptionMessage", ex.Message);
+            attributes["ExceptionMessage"] = ex.Message;
             attributesJson = JsonSerializer.Serialize(attributes);
 
             LogMessages.ResponseError(_logger, 500, attributesJson, string.Empty);
@@ -99,14 +105,16 @@ public class RequestResponseLoggingMiddleware
 
     private IDictionary<string, object?> BuildAttributeMap(HttpContext context)
     {
-        var known = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+        var attributes = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
         {
             ["Path"] = context.Request.Path.ToString(),
             ["Method"] = context.Request.Method,
             ["QueryString"] = context.Request.QueryString.HasValue ? context.Request.QueryString.Value : string.Empty,
             ["UserAgent"] = context.Request.Headers.TryGetValue("User-Agent", out StringValues ua) ? ua.ToString() : string.Empty,
             ["RemoteIp"] = context.Connection.RemoteIpAddress?.ToString() ?? string.Empty,
-            ["Headers"] = context.Request.Headers.ToDictionary(h => h.Key, h => (object?)h.Value.ToString())
+            ["Headers"] = context.Request.Headers.ToDictionary(
+                h => h.Key,
+                h => (object?)(SensitiveHeaders.Contains(h.Key) ? _options.MaskValue : h.Value.ToString()))
         };
 
         // Claims
@@ -115,33 +123,16 @@ public class RequestResponseLoggingMiddleware
         {
             string? userId = user.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             string? email = user.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Email)?.Value;
-            known["UserId"] = userId ?? string.Empty;
-            known["Email"] = email ?? string.Empty;
+            attributes["UserId"] = userId ?? string.Empty;
+            attributes["Email"] = email ?? string.Empty;
         }
         else
         {
-            known["UserId"] = string.Empty;
-            known["Email"] = string.Empty;
+            attributes["UserId"] = string.Empty;
+            attributes["Email"] = string.Empty;
         }
 
-        // Apply masking rules: if attribute is listed in AttributesToLog, include real value, otherwise mask
-        var final = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
-        foreach (KeyValuePair<string, object?> kvp in known)
-        {
-            final[kvp.Key] = MaskOrValue(kvp.Key, kvp.Value);
-        }
-
-        return final;
-    }
-
-    private object? MaskOrValue(string attributeName, object? value)
-    {
-        if (_options.AttributesToLog != null && _options.AttributesToLog.Any(a => string.Equals(a, attributeName, StringComparison.OrdinalIgnoreCase)))
-        {
-            return value;
-        }
-
-        return _options.MaskValue;
+        return attributes;
     }
 }
 

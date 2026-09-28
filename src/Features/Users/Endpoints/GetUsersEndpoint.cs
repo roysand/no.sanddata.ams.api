@@ -15,6 +15,9 @@ public class GetUsersEndpoint : Endpoint<GetUsersRequest, PagedUsersResponse>
     {
         Get("/api/users");
         AllowAnonymous();
+        // GET has no body; restrict binding to the query string so a stray "Content-Type: application/json"
+        // header with an empty body (sent by some clients, e.g. Scalar) doesn't fail JSON deserialization.
+        RequestBinder(new RequestBinder<GetUsersRequest>(BindingSource.QueryParams));
         Summary(s =>
         {
             s.Summary = "Get all users";
@@ -50,8 +53,8 @@ public class GetUsersEndpoint : Endpoint<GetUsersRequest, PagedUsersResponse>
 }
 
 public record GetUsersRequest(
-    int PageNumber = 1,
-    int PageSize = 10,
-    bool? IsActive = null,
-    string? Search = null
+    [property: QueryParam] int PageNumber = 1,
+    [property: QueryParam] int PageSize = 10,
+    [property: QueryParam] bool? IsActive = null,
+    [property: QueryParam] string? Search = null
 );

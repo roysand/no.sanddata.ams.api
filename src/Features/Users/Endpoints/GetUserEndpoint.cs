@@ -16,6 +16,9 @@ public class GetUserEndpoint : Endpoint<GetUserRequest, GetUserResponse>
     {
         Get("/api/users/{id}");
         AllowAnonymous();
+        // GET has no body; restrict binding to the route so a stray "Content-Type: application/json"
+        // header with an empty body (sent by some clients, e.g. Scalar) doesn't fail JSON deserialization.
+        RequestBinder(new RequestBinder<GetUserRequest>(BindingSource.RouteValues));
         Summary(s =>
         {
             s.Summary = "Get user by ID";
@@ -40,4 +43,4 @@ public class GetUserEndpoint : Endpoint<GetUserRequest, GetUserResponse>
     }
 }
 
-public record GetUserRequest(Guid Id);
+public record GetUserRequest([property: RouteParam] Guid Id);

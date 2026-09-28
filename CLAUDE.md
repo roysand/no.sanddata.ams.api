@@ -743,13 +743,12 @@ Rule (how to use)
 - Prefer structured property names (e.g. "UserId", "Email") instead of embedding them in message strings.
 
 Request / Response logging
-- We provide a lightweight middleware for request/response logging. It logs a fixed set of known attributes (Method, Path, QueryString, UserAgent, RemoteIp, Claims) in a structured way.
-- Attributes to log fully are configured in `appsettings.json` / `local.settings.json` under `RequestLogging:AttributesToLog` (an array of attribute names). Any known attribute not listed there will still be present in the log but with its value replaced by the mask (default "***").
+- We provide a lightweight middleware for request/response logging. It logs a fixed set of known attributes (Method, Path, QueryString, UserAgent, RemoteIp, Claims, Headers) in a structured way, with real values — there is no attribute-level masking.
+- The `Headers` attribute redacts only `Authorization` and `X-API-Key` values (replaced with `RequestLogging:MaskValue`) so bearer tokens and API keys never reach the logs. All other headers and attributes are logged as-is.
 - Configuration keys (example):
 
 ```json
 "RequestLogging": {
-  "AttributesToLog": [ "Path", "Method", "UserId", "Email" ],
   "MaskValue": "***",
   "LogRequestBody": false,
   "LogResponseBody": false
@@ -757,7 +756,7 @@ Request / Response logging
 ```
 
 - Known attribute names: `Path`, `Method`, `QueryString`, `UserAgent`, `RemoteIp`, `UserId`, `Email`, `Headers`.
-- For performance and privacy, request/response bodies are only read when `LogRequestBody` / `LogResponseBody` are enabled; prefer `false` in production or when bodies contain sensitive data.
+- For performance and privacy, request/response bodies are only read when `LogRequestBody` / `LogResponseBody` are enabled; prefer `false` in production, since bodies are logged in full with no masking.
 
 ### Standard failure reason codes
 
@@ -793,10 +792,10 @@ You can extend this list per feature; prefer adding new codes rather than overlo
 Implementation notes
 - Provide `Infrastructure/Logging/LogMessages.cs` with compiled logger delegates for request/response lifecycle events.
 - Provide `Infrastructure/Middleware/RequestResponseLoggingMiddleware.cs` which reads `RequestLogging` configuration and emits structured logs using the `LogMessages` helpers.
-- Masking rule: any known attribute not included in `AttributesToLog` will appear in the structured attributes map with the configured `MaskValue` (default `"***"`).
+- Redaction rule: only the `Authorization` and `X-API-Key` header values are replaced with `RequestLogging:MaskValue` (default `"***"`); every other attribute is logged with its real value.
 
 Do not
-- Log passwords, secrets, or PII that you are not permitted to store.
+- Log passwords, secrets, or PII that you are not permitted to store (the `Authorization` and `X-API-Key` headers are the exception already handled by the middleware's redaction rule — do not remove it).
 - Build message strings with concatenation — use structured templates and the compiled delegates.
 
 Guidance on EventId allocation
