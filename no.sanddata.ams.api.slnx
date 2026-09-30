@@ -18,4 +18,7 @@
   <Folder Name="/src/Generators/">
     <Project Path="src/Generators/Cqrs.SourceGenerator/Cqrs.SourceGenerator.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Features.Tests/Features.Tests.csproj" />
+  </Folder>
 </Solution>
