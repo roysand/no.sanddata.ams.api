@@ -1,0 +1,28 @@
+services:
+  api:
+    image: ${DOCKERHUB_USERNAME}/ams-api:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Production
+      ApplicationSettings__DbConnectionString: ${DB_CONNECTION_STRING}
+      JwtSettings__SecretKey: ${JWT_SECRET_KEY}
+      JwtSettings__Issuer: ${JWT_ISSUER}
+      JwtSettings__Audience: ${JWT_AUDIENCE}
+    depends_on:
+      - db
+
+  db:
+    image: timescale/timescaledb:latest-pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: amsadmin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set (see .env)}
+      POSTGRES_DB: amsdb
+    volumes:
+      - ams-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  ams-postgres-data:

@@ -7,7 +7,13 @@ EXPOSE 8081
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
+COPY ["Directory.Build.props", "Directory.Packages.props", "Nuget.Config", "./"]
 COPY ["src/api/api.csproj", "src/api/"]
+COPY ["src/Features/Features.csproj", "src/Features/"]
+COPY ["src/Infrastructure/Infrastructure.csproj", "src/Infrastructure/"]
+COPY ["src/Application/Application.csproj", "src/Application/"]
+COPY ["src/Domain/Domain.csproj", "src/Domain/"]
+COPY ["src/Generators/Cqrs.SourceGenerator/Cqrs.SourceGenerator.csproj", "src/Generators/Cqrs.SourceGenerator/"]
 RUN dotnet restore "src/api/api.csproj"
 COPY . .
 WORKDIR "/src/src/api"
