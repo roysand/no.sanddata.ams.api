@@ -9,8 +9,8 @@ description: "Task list for Electricity Cost Tracking"
 
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/endpoints.md, quickstart.md
 
-**Tests**: Not included — same convention as 001 (research.md documents no automated test project
-exists in this repo); validation is the manual `quickstart.md` run in the Polish phase.
+**Tests**: Added after implementation in `tests/Features.Tests/ElectricityCost/` (cost calculator, ENTSO-E
+parsing, handlers, validators); the manual `quickstart.md` run in the Polish phase remains.
 
 **Organization**: Tasks are grouped by user story (spec.md) to enable independent implementation
 and testing of each story.
