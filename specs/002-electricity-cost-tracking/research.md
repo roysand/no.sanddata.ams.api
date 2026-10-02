@@ -79,8 +79,13 @@ Verified against current ENTSO-E documentation (see Sources).
   code, identical for both on a price query), `periodStart`/`periodEnd` (UTC, `yyyyMMddHHmm`,
   no timezone suffix — conversion is the caller's job).
 - **Response**: XML (`TimeSeries` → `Period` → `Point`, each point a position number + price;
-  reconstruct the actual hour from `Period.timeInterval.start` + `resolution` (`PT60M`) + the
-  point's position). Parse with `System.Xml.Linq`, no new package needed.
+  reconstruct the point's start from `Period.timeInterval.start` + `resolution` + the point's
+  position). Parse with `System.Xml.Linq`, no new package needed.
+- **Resolution is 15 minutes (`PT15M`), verified live** (96 points/day), and each day came back
+  in two identical `TimeSeries`. **Decision (user, 2026-10-02): cost in Norway is calculated per
+  hour, so the price for an hour is the mean of its four quarter-hour prices.** The client
+  dedupes points by start time and averages per hour (a single point if a zone ever returns
+  `PT60M`). Per-quarter cost is out of scope.
 - **Norwegian bidding zone EIC codes** (verified, stable reference data — static, not needing a
   full reference table for this feature's scope, matching the spec's own deferral of a generic
   price-region table to later):
