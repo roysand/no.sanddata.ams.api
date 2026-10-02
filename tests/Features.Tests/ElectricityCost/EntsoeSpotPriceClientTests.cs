@@ -1,4 +1,5 @@
 using System.Net;
+using Application.Common.Interfaces.External;
 using Infrastructure.External;
 using Microsoft.Extensions.Options;
 
@@ -34,7 +35,7 @@ public class EntsoeSpotPriceClientTests
     {
         var handler = new StubHandler(status, body);
         var http = new HttpClient(handler) { BaseAddress = new Uri("https://example.test/api") };
-        var options = Options.Create(new EntsoeOptions { SecurityToken = "token" });
+        IOptions<EntsoeOptions> options = Options.Create(new EntsoeOptions { SecurityToken = "token" });
         return (new EntsoeSpotPriceClient(http, options), handler);
     }
 
@@ -44,7 +45,7 @@ public class EntsoeSpotPriceClientTests
         string xml = Document(Series("2026-10-01T22:00Z", "PT15M", 100m, 110m, 120m, 130m, 200m, 200m, 200m, 200m));
         (EntsoeSpotPriceClient client, _) = CreateClient(HttpStatusCode.OK, xml);
 
-        var prices = await client.GetPricesAsync("NO1", From, From.AddHours(2), CancellationToken.None);
+        IReadOnlyList<SpotPrice> prices = await client.GetPricesAsync("NO1", From, From.AddHours(2), CancellationToken.None);
 
         Assert.Equal(2, prices.Count);
         Assert.Equal(From, prices[0].HourStartUtc);
@@ -59,7 +60,7 @@ public class EntsoeSpotPriceClientTests
         string one = Series("2026-10-01T22:00Z", "PT15M", 100m, 100m, 100m, 100m);
         (EntsoeSpotPriceClient client, _) = CreateClient(HttpStatusCode.OK, Document(one, one));
 
-        var prices = await client.GetPricesAsync("NO1", From, From.AddHours(1), CancellationToken.None);
+        IReadOnlyList<SpotPrice> prices = await client.GetPricesAsync("NO1", From, From.AddHours(1), CancellationToken.None);
 
         Assert.Single(prices);
         Assert.Equal(100m, prices[0].PriceEurPerMwh);
@@ -71,7 +72,7 @@ public class EntsoeSpotPriceClientTests
         string xml = Document(Series("2026-10-01T22:00Z", "PT60M", 90m, 95m));
         (EntsoeSpotPriceClient client, _) = CreateClient(HttpStatusCode.OK, xml);
 
-        var prices = await client.GetPricesAsync("NO1", From, From.AddHours(2), CancellationToken.None);
+        IReadOnlyList<SpotPrice> prices = await client.GetPricesAsync("NO1", From, From.AddHours(2), CancellationToken.None);
 
         Assert.Equal([90m, 95m], prices.Select(p => p.PriceEurPerMwh));
     }
@@ -92,7 +93,7 @@ public class EntsoeSpotPriceClientTests
     {
         (EntsoeSpotPriceClient client, _) = CreateClient(HttpStatusCode.Unauthorized, "denied");
 
-        var prices = await client.GetPricesAsync("NO1", From, From.AddHours(1), CancellationToken.None);
+        IReadOnlyList<SpotPrice> prices = await client.GetPricesAsync("NO1", From, From.AddHours(1), CancellationToken.None);
 
         Assert.Empty(prices);
     }
