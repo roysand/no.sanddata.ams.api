@@ -51,7 +51,7 @@ public class PriceFetchService(
         DateTime today = DateTime.UtcNow.Date;
         DateTime to = today.AddDays(2);
 
-        IEnumerable<string> zones = (await locations.AllAsync(ct))
+        IEnumerable<string> zones = (await locations.FindAsync(_ => true, ct, noTrack: true))
             .Where(l => l is not null)
             .Select(l => l!.Zone)
             .Distinct();
@@ -61,7 +61,17 @@ public class PriceFetchService(
             try
             {
                 IReadOnlyList<SpotPrice> fetched = await spotClient.GetPricesAsync(zone, today, to, ct);
-                IReadOnlyList<ElectricityPrice> existing = await prices.GetByRegionAndHourRangeAsync(zone, today, to, ct);
+                if (fetched.Count == 0)
+                {
+                    continue;
+                }
+
+                // ENTSO-E returns whole local (CET/CEST) days, so the fetched hours start before 'today'
+                // in UTC - look up existing rows over the fetched span, not the requested one.
+                DateTime fetchedFrom = fetched.Min(p => p.HourStartUtc);
+                DateTime fetchedTo = fetched.Max(p => p.HourStartUtc).AddHours(1);
+                IReadOnlyList<ElectricityPrice> existing =
+                    await prices.GetByRegionAndHourRangeAsync(zone, fetchedFrom, fetchedTo, ct);
                 var known = existing.Select(p => p.HourStartUtc).ToHashSet();
 
                 int added = 0;

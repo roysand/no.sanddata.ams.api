@@ -17,6 +17,7 @@ public class ElectricityPriceEfRepository : GenericEfRepository<ElectricityPrice
     public async Task<IReadOnlyList<ElectricityPrice>> GetByRegionAndHourRangeAsync(
         string priceRegion, DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken) =>
         await _context.ElectricityPrice
+            .AsNoTracking()
             .Where(p => p.PriceRegion == priceRegion && p.HourStartUtc >= fromUtc && p.HourStartUtc < toUtc)
             .ToListAsync(cancellationToken);
 }
