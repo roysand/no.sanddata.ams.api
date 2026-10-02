@@ -39,10 +39,15 @@ Energy (kWh) for a bucket = `avg_power_watts × bucket_duration_hours / 1000`. T
 the read layer (or the view itself), not stored as a separate redundant column.
 
 **Rationale for real-time aggregation covering the "live current hour" requirement (FR-002)**:
-TimescaleDB continuous aggregates default to `materialized_only = false`, meaning a query against
-`measurement_hour` automatically unions in raw, not-yet-materialized data for the current,
-still-open bucket. Querying "this hour's consumption" mid-hour already returns an accurate,
-live-updating answer with no extra application logic — this is exactly what User Story 1 needs.
+**Correction (verified empirically during implementation): this TimescaleDB version defaults new
+continuous aggregates to `materialized_only = true`**, not `false` as originally assumed here —
+real-time aggregation must be requested explicitly: `WITH (timescaledb.continuous,
+timescaledb.materialized_only = false)`. With that set, a query against `measurement_hour`
+automatically unions in raw, not-yet-materialized data for the current, still-open bucket.
+Querying "this hour's consumption" mid-hour then returns an accurate, live-updating answer with
+no extra application logic — this is exactly what User Story 1 needs. (This was caught by testing
+the migration against a disposable database before applying it for real — the first version of
+this migration would have silently broken FR-002 in production.)
 
 **Accuracy caveat (documented, not solved)**: averaging instantaneous Watt readings rather than
 trapezoidal-integrating them is an approximation. Acceptable given reading frequency (~1-2s) and
