@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Application.CQRS;
 using Domain.Common;
 using FastEndpoints;
@@ -24,13 +25,15 @@ public class GetMeterEndpoint : Endpoint<GetMeterRequest, MeterResponse>
         {
             s.Summary = "Get a reader by id";
             s.Response(200, "Reader found");
-            s.Response(404, "Reader not found");
+            s.Response(401, "Not signed in");
+            s.Response(404, "Reader not found, or you are not linked to its location");
         });
     }
 
     public override async Task HandleAsync(GetMeterRequest req, CancellationToken ct)
     {
-        Result<MeterResponse> result = await _dispatcher.Send(new GetMeterQuery(req.Id), ct);
+        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        Result<MeterResponse> result = await _dispatcher.Send(new GetMeterQuery(req.Id, userId), ct);
 
         if (!result.IsSuccess)
         {

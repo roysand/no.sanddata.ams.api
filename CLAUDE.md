@@ -173,9 +173,11 @@ Two schemes:
 ```csharp
 AuthSchemes(JwtBearerDefaults.AuthenticationScheme);        // JWT only
 AuthSchemes(JwtBearerDefaults.AuthenticationScheme, "ApiKey"); // JWT or API Key
-Roles("Admin", "Manager");                                   // role-gated
+Roles(RoleNames.Admin);                                      // role-gated (401 no token, 403 wrong role)
 AllowAnonymous();                                             // open
 ```
+
+Roles: `Admin` and `User` (Admin is a superset). Every user-management endpoint requires sign-in; admin-only actions use `Roles(RoleNames.Admin)`, own-account actions pass `Caller.From(User)` to the handler. The first Admin is the account named by `Bootstrap:OwnerEmail` (default `roy@sanddata.no`), promoted at startup while no Admin exists. Rules, the first-owner SQL for an empty database, and the `AutoInclude` caveat: [AuthenticationGuide.md](AuthenticationGuide.md#roles-and-first-admin).
 
 Full login flow, securing-endpoint examples, and reading claims in handlers: [AuthenticationGuide.md](AuthenticationGuide.md).
 

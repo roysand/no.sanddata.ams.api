@@ -187,6 +187,81 @@ public class MyHandler : IRequestHandler<MyRequest, Result<MyResponse>>
 }
 ```
 
+## Roles and First Admin
+
+The system has exactly two roles, seeded by a migration: **Admin** and **User**. Every user holds `User`;
+an Admin holds `Admin` as well, so Admin rights are a superset of User rights. Role names are constants in
+`Domain.Common.RoleNames`.
+
+### Who may do what
+
+| Action | Not signed in | User | Admin |
+|---|---|---|---|
+| Sign in / refresh a token | allowed | allowed | allowed |
+| View, update, change password of **own** account | 401 | allowed | allowed |
+| Same actions on **another** account | 401 | **404** (looks like a missing account) | allowed |
+| List users, create user, delete user | 401 | 403 | allowed |
+| Grant / revoke Admin (`/api/users/{id}/roles/admin`) | 401 | 403 | allowed |
+| Link / unlink a user and a location (`/api/users/{id}/locations/{locationId}`) | 401 | 403 | allowed |
+| Meters (`/api/meters`) and all location data | 401 | only for locations the user is linked to (else 404) | same, an Admin has no bypass |
+
+Other rules: a non-Admin cannot change their own `isActive`; changing your own password needs the current
+password, while an Admin resetting another account does not; the **last active Admin** can never be demoted,
+deactivated or deleted (409 `User.LastAdmin`).
+
+### How roles reach the token
+
+`FindAsync(predicate)` loads a user's `Roles` and `Locations` (EF `AutoInclude` in `UserConfiguration`) and the
+token carries one `role` claim per role. `GetByIdAsync` uses `DbContext.Find`, which **ignores AutoInclude**, so
+use `FindAsync(u => u.Id == id)` whenever roles are needed. Roles are read at login and at refresh: a role change
+or deletion takes effect at the user's next sign-in or token refresh (tokens last up to 6 hours).
+
+### Protecting an endpoint
+
+```csharp
+AuthSchemes(JwtBearerDefaults.AuthenticationScheme);
+Roles(RoleNames.Admin);                       // admin-only: 401 without a token, 403 without the role
+// own-account endpoints: JWT only, then pass Caller.From(User) to the command/query and decide in the handler
+```
+
+### First Admin
+
+On every start, `AdminBootstrapService` checks whether any user holds `Admin`. If none does, the account named by
+`Bootstrap:OwnerEmail` (default `roy@sanddata.no`, in `appsettings.json`) is granted `Admin` (and `User`). Once any
+Admin exists the setting does nothing, so it cannot be used to take over a running system.
+
+### Creating the first owner account in an empty database
+
+Only needed for a brand-new environment: creating users through the API requires an Admin, so the very first account
+is inserted once by hand. The migration must already have run so the `Role` rows exist.
+
+1. Generate the password hash with the same library and cost the API uses (BCrypt, work factor 12). Save as `hash.cs`
+   and run it (needs the .NET 10 SDK; no project required):
+
+   ```csharp
+   #:package BCrypt.Net-Next@4.0.3
+
+   Console.WriteLine(BCrypt.Net.BCrypt.HashPassword(args[0], 12));
+   ```
+
+   ```bash
+   dotnet run hash.cs -- "your-chosen-password"
+   # prints something like: $2a$12$56x0zWi2yW.2V5Fqygosde5s1Tkj4D9qiix3qCW4duLwWzaceh.qK
+   ```
+
+2. Insert the user (PostgreSQL), pasting the hash and using the same email as `Bootstrap:OwnerEmail`:
+
+   ```sql
+   INSERT INTO "User" ("Id", "FirstName", "LastName", "PasswordHash", "Email", "IsActive", "CreatedAt", "UpdatedAt")
+   VALUES (gen_random_uuid(), 'Roy', 'Sand', '<hash from step 1>', 'roy@sanddata.no', true, now(), now());
+   ```
+
+   For the dev container: `docker exec -i <db-container> psql -U <user> -d <database>` and paste the statement.
+
+3. Start (or restart) the API. It grants the owner `Admin` and `User` and logs it. Log in, check `GET /api/auth/me`
+   shows both roles, then create everyone else with `POST /api/users` and link them to locations with
+   `PUT /api/users/{id}/locations/{locationId}`.
+
 ## Configuration
 
 ### appsettings.json

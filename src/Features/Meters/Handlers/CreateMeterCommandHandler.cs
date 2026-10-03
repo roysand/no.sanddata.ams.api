@@ -1,5 +1,5 @@
-using Application.CQRS;
 using Application.Common.Interfaces.Repositories;
+using Application.CQRS;
 using Domain.Common;
 using Domain.Common.Entities;
 using Features.Meters.Commands;
@@ -22,8 +22,8 @@ public class CreateMeterCommandHandler : ICommandHandler<CreateMeterCommand, Res
 
     public async Task<Result<MeterResponse>> Handle(CreateMeterCommand command, CancellationToken ct)
     {
-        Location? location = await _locationRepository.GetByIdAsync(command.LocationId, ct);
-        if (location is null)
+        // Same answer as for a missing location, so non-members learn nothing about it.
+        if (!await _locationRepository.IsUserAssociatedAsync(command.UserId, command.LocationId, ct))
         {
             return Result.Failure<MeterResponse>(Error.NotFound("Location.NotFound", "Location not found"));
         }

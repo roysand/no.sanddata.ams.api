@@ -3,7 +3,7 @@ using Domain.Common;
 
 namespace Features.Meters.Commands;
 
-public record CreateMeterCommand(Guid LocationId, string DeviceId, string? Comment) : ICommand<Result<MeterResponse>>;
+public record CreateMeterCommand(Guid UserId, Guid LocationId, string DeviceId, string? Comment) : ICommand<Result<MeterResponse>>;
 
 public record MeterResponse(
     Guid Id,

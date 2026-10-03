@@ -4,4 +4,4 @@ using Features.Meters.Commands;
 
 namespace Features.Meters.Queries;
 
-public record GetMeterQuery(Guid Id) : IQuery<Result<MeterResponse>>;
+public record GetMeterQuery(Guid Id, Guid UserId) : IQuery<Result<MeterResponse>>;

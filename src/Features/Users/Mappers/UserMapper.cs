@@ -11,8 +11,8 @@ public static class UserMapper
     public static CreateUserCommand ToCreateCommand(CreateUserRequest request) =>
         new CreateUserCommand(request.FirstName, request.LastName, request.Email, request.Password);
 
-    public static UpdateUserCommand ToUpdateCommand(Guid id, UpdateUserRequest request) =>
-        new UpdateUserCommand(id, request.FirstName, request.LastName, request.Email, request.IsActive);
+    public static UpdateUserCommand ToUpdateCommand(Guid id, UpdateUserRequest request, Caller caller) =>
+        new UpdateUserCommand(id, request.FirstName, request.LastName, request.Email, request.IsActive, caller);
 
     // Domain Entity → Response
     public static CreateUserResponse ToCreateResponse(User user) =>

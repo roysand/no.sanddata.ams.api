@@ -2,6 +2,7 @@ using Application.CQRS;
 using Domain.Common;
 using FastEndpoints;
 using Features.Users.Queries;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 
 namespace Features.Users.Endpoints;
@@ -17,7 +18,8 @@ public class GetUsersEndpoint : Endpoint<GetUsersRequest, PagedUsersResponse>
         Get("/api/users");
         Tags("Users");
         Description(b => b.WithTags("Users"));
-        AllowAnonymous();
+        AuthSchemes(JwtBearerDefaults.AuthenticationScheme);
+        Roles(RoleNames.Admin);
         Summary(s =>
         {
             s.Summary = "Get all users";
@@ -27,6 +29,8 @@ public class GetUsersEndpoint : Endpoint<GetUsersRequest, PagedUsersResponse>
             s.Params["IsActive"] = "Filter by active status (optional)";
             s.Params["Search"] = "Search term to filter users by name or email (optional)";
             s.Response(200, "Users retrieved successfully");
+            s.Response(401, "Not signed in");
+            s.Response(403, "Administrator role required");
             s.Response(400, "Invalid request parameters");
         });
     }

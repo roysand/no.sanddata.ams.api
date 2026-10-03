@@ -1,5 +1,5 @@
-using Application.CQRS;
 using Application.Common.Interfaces.Repositories;
+using Application.CQRS;
 using Domain.Common;
 using Domain.Common.Entities;
 using Features.Auth.Commands;
@@ -39,7 +39,9 @@ public class RefreshTokenCommandHandler : ICommandHandler<RefreshTokenCommand, R
         }
 
         // Get user
-        User? user = await _userRepository.GetByIdAsync(refreshToken.UserId, cancellationToken);
+        // FindAsync(predicate), not GetByIdAsync: Find ignores AutoInclude, and the new token needs the roles.
+        User? user = (await _userRepository.FindAsync(u => u.Id == refreshToken.UserId, cancellationToken))
+            .FirstOrDefault();
         if (user is null || !user.IsActive)
         {
             return Result.Failure<RefreshTokenResponse>(

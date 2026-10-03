@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Application.CQRS;
 using Domain.Common;
 using FastEndpoints;
@@ -26,14 +27,16 @@ public class CreateMeterEndpoint : Endpoint<CreateMeterRequest, MeterResponse>
             s.Description = "Registers a new reader (meter) at a location, so it's allowed to submit measurements";
             s.ExampleRequest = new CreateMeterRequest(Guid.NewGuid(), "58:CF:79:9C:93:AE", "Main building");
             s.Response(200, "Reader registered successfully");
-            s.Response(404, "Location not found");
+            s.Response(401, "Not signed in");
+            s.Response(404, "Location not found, or you are not linked to it");
             s.Response(409, "Reader already registered at this location");
         });
     }
 
     public override async Task HandleAsync(CreateMeterRequest req, CancellationToken ct)
     {
-        CreateMeterCommand command = MeterMapper.ToCommand(req);
+        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        CreateMeterCommand command = MeterMapper.ToCommand(userId, req);
         Result<MeterResponse> result = await _dispatcher.Send(command, ct);
 
         if (!result.IsSuccess)

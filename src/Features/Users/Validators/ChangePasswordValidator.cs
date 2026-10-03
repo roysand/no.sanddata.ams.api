@@ -11,8 +11,8 @@ public class ChangePasswordValidator : Validator<ChangePasswordRequest>
         RuleFor(x => x.Id)
             .NotEmpty().WithMessage("User ID is required");
 
-        RuleFor(x => x.CurrentPassword)
-            .NotEmpty().WithMessage("Current password is required");
+        // CurrentPassword is optional here: an administrator resetting another account omits it.
+        // The handler requires it when the caller changes their own password.
 
         RuleFor(x => x.NewPassword)
             .NotEmpty().WithMessage("New password is required")
@@ -20,7 +20,10 @@ public class ChangePasswordValidator : Validator<ChangePasswordRequest>
             .Matches(@"[A-Z]").WithMessage("New password must contain at least one uppercase letter")
             .Matches(@"[a-z]").WithMessage("New password must contain at least one lowercase letter")
             .Matches(@"[0-9]").WithMessage("New password must contain at least one number")
-            .Matches(@"[\W_]").WithMessage("New password must contain at least one special character")
-            .NotEqual(x => x.CurrentPassword).WithMessage("New password must be different from current password");
+            .Matches(@"[\W_]").WithMessage("New password must contain at least one special character");
+
+        RuleFor(x => x.NewPassword)
+            .NotEqual(x => x.CurrentPassword).WithMessage("New password must be different from current password")
+            .When(x => !string.IsNullOrEmpty(x.CurrentPassword));
     }
 }

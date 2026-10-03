@@ -1,6 +1,8 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 → 1.0.1 (PATCH — clarified/strengthened existing migrations guidance)
+- Version change: 1.0.1 → 1.0.2 (PATCH — Principle V: handlers are registered by the source
+  generator, not by hand; the old text was stale)
+- Previous: 1.0.0 → 1.0.1 (PATCH — clarified/strengthened existing migrations guidance)
 - Modified principles: none (no principle renamed or redefined)
 - Added sections: none (existing Development Workflow line strengthened; Technology Stack
   bullet added for visibility)
@@ -49,8 +51,8 @@ logic between the endpoint layer and the handler layer.
 Commands mutate state and return `Result<T>`; Queries read state and return `Result<T>` and MUST
 NOT mutate anything. All dispatch MUST go through the `Cqrs.SourceGenerator`-emitted dispatcher
 (a compile-time type-switch), never through reflection-based lookup (`MakeGenericType`,
-reflection `Invoke`) or a MediatR-style runtime pipeline. New handlers MUST be registered
-explicitly in `Infrastructure/AddInfrastructureToDI.cs` — they are not auto-discovered.
+reflection `Invoke`) or a MediatR-style runtime pipeline. New handlers are discovered and registered
+automatically at compile time by `Cqrs.SourceGenerator`; they MUST NOT be registered by hand.
 **Rationale**: read/write separation stays real (not cosmetic), and dispatch errors surface as
 compile errors instead of runtime "no handler registered" failures.
 
@@ -129,4 +131,4 @@ what `speckit-plan`'s constitution check step is for). Any deliberate deviation 
 out explicitly in the feature's plan with a one-line justification, rather than silently
 drifting from the stated architecture.
 
-**Version**: 1.0.1 | **Ratified**: 2026-09-24 | **Last Amended**: 2026-09-24
+**Version**: 1.0.2 | **Ratified**: 2026-09-24 | **Last Amended**: 2026-10-03

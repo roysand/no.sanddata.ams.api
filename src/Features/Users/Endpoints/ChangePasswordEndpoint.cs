@@ -2,6 +2,7 @@ using Application.CQRS;
 using Domain.Common;
 using FastEndpoints;
 using Features.Users.Commands;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 
 namespace Features.Users.Endpoints;
@@ -17,13 +18,14 @@ public class ChangePasswordEndpoint : Endpoint<ChangePasswordRequest>
         Put("/api/users/{id}/password");
         Tags("Users");
         Description(b => b.WithTags("Users"));
-        AllowAnonymous();
+        AuthSchemes(JwtBearerDefaults.AuthenticationScheme);
         Summary(s =>
         {
             s.Summary = "Change user password";
-            s.Description = "Allow users to change their password by providing current and new password";
+            s.Description = "Change a password. Your own password requires the current password; an administrator can reset another account without it.";
             s.ExampleRequest = new ChangePasswordRequest(Guid.NewGuid(), "OldPassword123!", "NewSecurePass456!");
             s.Response(200, "Password changed successfully");
+            s.Response(401, "Not signed in");
             s.Response(404, "User not found");
             s.Response(400, "Invalid request or current password incorrect");
         });
@@ -31,7 +33,7 @@ public class ChangePasswordEndpoint : Endpoint<ChangePasswordRequest>
 
     public override async Task HandleAsync(ChangePasswordRequest req, CancellationToken ct)
     {
-        var command = new ChangePasswordCommand(req.Id, req.CurrentPassword, req.NewPassword);
+        var command = new ChangePasswordCommand(req.Id, req.CurrentPassword, req.NewPassword, Caller.From(User));
         Result<ChangePasswordResponse> result = await _dispatcher.Send(command, ct);
 
         if (!result.IsSuccess)
@@ -51,6 +53,6 @@ public class ChangePasswordEndpoint : Endpoint<ChangePasswordRequest>
 
 public record ChangePasswordRequest(
     Guid Id,
-    string CurrentPassword,
+    string? CurrentPassword,
     string NewPassword
 );

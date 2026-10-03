@@ -3,6 +3,7 @@ using Domain.Common;
 using FastEndpoints;
 using Features.Users.Commands;
 using Features.Users.Mappers;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 
 namespace Features.Users.Endpoints;
@@ -18,13 +19,16 @@ public class CreateUserEndpoint : Endpoint<CreateUserRequest, CreateUserResponse
         Post("/api/users");
         Tags("Users");
         Description(b => b.WithTags("Users"));
-        AllowAnonymous();
+        AuthSchemes(JwtBearerDefaults.AuthenticationScheme);
+        Roles(RoleNames.Admin);
         Summary(s =>
         {
             s.Summary = "Create a new user";
             s.Description = "Register a new user in the system. The user will be created with IsActive set to true.";
             s.ExampleRequest = new CreateUserRequest("John", "Doe", "john.doe@example.com", "SecurePass123!");
             s.Response(201, "User created successfully");
+            s.Response(401, "Not signed in");
+            s.Response(403, "Administrator role required");
             s.Response(409, "User with this email already exists");
             s.Response(400, "Invalid request data");
         });

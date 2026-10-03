@@ -38,6 +38,44 @@ namespace Infrastructure.Database.Migrations
                     b.ToTable("ApiKeyUser", "public");
                 });
 
+            modelBuilder.Entity("Application.Common.Interfaces.Repositories.HourConsumption", b =>
+                {
+                    b.Property<double>("AvgPowerWatts")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("BucketStart")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("MeterId")
+                        .HasColumnType("uuid");
+
+                    b.ToTable((string)null);
+
+                    b.ToView("measurement_hour", "public");
+                });
+
+            modelBuilder.Entity("Application.Common.Interfaces.Repositories.MinuteConsumption", b =>
+                {
+                    b.Property<double>("AvgPowerWatts")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("BucketStart")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("MeterId")
+                        .HasColumnType("uuid");
+
+                    b.ToTable((string)null);
+
+                    b.ToView("measurement_minute", "public");
+                });
+
             modelBuilder.Entity("Domain.Common.Entities.ApiKey", b =>
                 {
                     b.Property<Guid>("Id")
@@ -332,6 +370,26 @@ namespace Infrastructure.Database.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Role", "public");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("a0000000-0000-0000-0000-000000000001"),
+                            CreatedAt = new DateTime(2026, 10, 3, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Manages users, roles and location links",
+                            IsActive = true,
+                            Name = "Admin",
+                            UpdatedAt = new DateTime(2026, 10, 3, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("a0000000-0000-0000-0000-000000000002"),
+                            CreatedAt = new DateTime(2026, 10, 3, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Uses own account and own locations",
+                            IsActive = true,
+                            Name = "User",
+                            UpdatedAt = new DateTime(2026, 10, 3, 0, 0, 0, 0, DateTimeKind.Utc)
+                        });
                 });
 
             modelBuilder.Entity("Domain.Common.Entities.User", b =>
@@ -406,44 +464,6 @@ namespace Infrastructure.Database.Migrations
                         .IsUnique();
 
                     b.ToTable("UserRole", "public");
-                });
-
-            modelBuilder.Entity("Infrastructure.Database.ReadModels.HourConsumption", b =>
-                {
-                    b.Property<double>("AvgPowerWatts")
-                        .HasColumnType("double precision");
-
-                    b.Property<DateTime>("BucketStart")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("LocationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("MeterId")
-                        .HasColumnType("uuid");
-
-                    b.ToTable((string)null);
-
-                    b.ToView("measurement_hour", "public");
-                });
-
-            modelBuilder.Entity("Infrastructure.Database.ReadModels.MinuteConsumption", b =>
-                {
-                    b.Property<double>("AvgPowerWatts")
-                        .HasColumnType("double precision");
-
-                    b.Property<DateTime>("BucketStart")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("LocationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("MeterId")
-                        .HasColumnType("uuid");
-
-                    b.ToTable((string)null);
-
-                    b.ToView("measurement_minute", "public");
                 });
 
             modelBuilder.Entity("ApiKeyUser", b =>
