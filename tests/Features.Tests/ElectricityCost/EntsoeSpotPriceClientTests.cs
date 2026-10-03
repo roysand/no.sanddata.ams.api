@@ -1,5 +1,6 @@
 using System.Net;
 using Application.Common.Interfaces.External;
+using Domain.Common;
 using Infrastructure.External;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -49,7 +50,7 @@ public class EntsoeSpotPriceClientTests
     private static async Task<IReadOnlyList<SpotPrice>> SuccessfulPricesAsync(
         EntsoeSpotPriceClient client, string region, DateTime from, DateTime to)
     {
-        var result = await client.GetPricesAsync(region, from, to, CancellationToken.None);
+        Result<IReadOnlyList<SpotPrice>> result = await client.GetPricesAsync(region, from, to, CancellationToken.None);
         Assert.True(result.IsSuccess, result.Error.Code);
         return result.Value;
     }
@@ -59,7 +60,7 @@ public class EntsoeSpotPriceClientTests
     {
         (EntsoeSpotPriceClient client, StubHandler handler) = CreateClient(HttpStatusCode.OK, "", securityToken: "");
 
-        var result = await client.GetPricesAsync("NO1", From, From.AddHours(2), CancellationToken.None);
+        Result<IReadOnlyList<SpotPrice>> result = await client.GetPricesAsync("NO1", From, From.AddHours(2), CancellationToken.None);
 
         Assert.Equal("SpotPrice.TokenMissing", result.Error.Code);
         Assert.Null(handler.LastRequest);
@@ -108,7 +109,7 @@ public class EntsoeSpotPriceClientTests
     {
         (EntsoeSpotPriceClient client, StubHandler handler) = CreateClient(HttpStatusCode.OK, Document());
 
-        var result = await client.GetPricesAsync("SE3", From, From.AddHours(1), CancellationToken.None);
+        Result<IReadOnlyList<SpotPrice>> result = await client.GetPricesAsync("SE3", From, From.AddHours(1), CancellationToken.None);
 
         Assert.Equal("SpotPrice.UnsupportedZone", result.Error.Code);
         Assert.Null(handler.LastRequest);
@@ -119,7 +120,7 @@ public class EntsoeSpotPriceClientTests
     {
         (EntsoeSpotPriceClient client, _) = CreateClient(HttpStatusCode.Unauthorized, "denied");
 
-        var result = await client.GetPricesAsync("NO1", From, From.AddHours(1), CancellationToken.None);
+        Result<IReadOnlyList<SpotPrice>> result = await client.GetPricesAsync("NO1", From, From.AddHours(1), CancellationToken.None);
 
         Assert.Equal("SpotPrice.HttpError", result.Error.Code);
         Assert.Contains("401", result.Error.Description);
@@ -130,7 +131,7 @@ public class EntsoeSpotPriceClientTests
     {
         (EntsoeSpotPriceClient client, _) = CreateClient(HttpStatusCode.OK, Document());
 
-        var result = await client.GetPricesAsync("NO1", From, From.AddHours(1), CancellationToken.None);
+        Result<IReadOnlyList<SpotPrice>> result = await client.GetPricesAsync("NO1", From, From.AddHours(1), CancellationToken.None);
 
         Assert.Equal("SpotPrice.NoData", result.Error.Code);
     }
@@ -140,7 +141,7 @@ public class EntsoeSpotPriceClientTests
     {
         (EntsoeSpotPriceClient client, _) = CreateClient(HttpStatusCode.OK, "<not-xml");
 
-        var result = await client.GetPricesAsync("NO1", From, From.AddHours(1), CancellationToken.None);
+        Result<IReadOnlyList<SpotPrice>> result = await client.GetPricesAsync("NO1", From, From.AddHours(1), CancellationToken.None);
 
         Assert.Equal("SpotPrice.InvalidResponse", result.Error.Code);
     }
@@ -151,7 +152,7 @@ public class EntsoeSpotPriceClientTests
         (EntsoeSpotPriceClient client, _) = CreateClient(
             HttpStatusCode.OK, "", toThrow: new HttpRequestException("connection refused"));
 
-        var result = await client.GetPricesAsync("NO1", From, From.AddHours(1), CancellationToken.None);
+        Result<IReadOnlyList<SpotPrice>> result = await client.GetPricesAsync("NO1", From, From.AddHours(1), CancellationToken.None);
 
         Assert.Equal("SpotPrice.Unavailable", result.Error.Code);
     }

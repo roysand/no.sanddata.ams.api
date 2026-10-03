@@ -97,7 +97,7 @@ public class EntsoeSpotPriceClient(
 
             return Result.Success(prices);
         }
-        catch (Exception ex) when ((ex is HttpRequestException or TaskCanceledException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException
                                    && !cancellationToken.IsCancellationRequested)
         {
             LogMessages.SpotPriceUnavailable(logger, priceRegion);
