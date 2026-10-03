@@ -47,6 +47,6 @@ internal static class LogMessages
     public static void ExchangeRateStored(ILogger logger, DateOnly date)
         => _exchangeRateStored(logger, date, null);
 
-    public static void PriceFetchFailed(ILogger logger, string reason, Exception exception)
+    public static void PriceFetchFailed(ILogger logger, string reason, Exception? exception)
         => _priceFetchFailed(logger, reason, exception);
 }

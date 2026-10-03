@@ -1,5 +1,6 @@
 using Application.Common.Interfaces.External;
 using Application.Common.Interfaces.Repositories;
+using Domain.Common;
 using Domain.Common.Entities;
 using Features.ElectricityCost.Services;
 using Microsoft.Extensions.Configuration;
@@ -51,7 +52,8 @@ public class PriceFetchServiceTests
         _locations.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<Location, bool>>>(), Arg.Any<CancellationToken>(), Arg.Any<bool>())
             .Returns([new Location(Guid.NewGuid(), "Home", "A", "SN", "NO1", true, false)]);
         _spotClient.GetPricesAsync("NO1", Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
-            .Returns([new SpotPrice(first, 1m), new SpotPrice(first.AddHours(1), 2m), new SpotPrice(first.AddHours(2), 3m)]);
+            .Returns(Result.Success<IReadOnlyList<SpotPrice>>(
+                [new SpotPrice(first, 1m), new SpotPrice(first.AddHours(1), 2m), new SpotPrice(first.AddHours(2), 3m)]));
         // The first two hours were stored by an earlier cycle - they lie before 'today' in UTC.
         _prices.GetByRegionAndHourRangeAsync("NO1", first, first.AddHours(3), Arg.Any<CancellationToken>())
             .Returns([
@@ -75,7 +77,7 @@ public class PriceFetchServiceTests
             new Location(Guid.NewGuid(), "C", "C", "SN3", "NO3", true, false)
         ]);
         _spotClient.GetPricesAsync(Arg.Any<string>(), Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
-            .Returns([]);
+            .Returns(Result.Success<IReadOnlyList<SpotPrice>>([]));
 
         await RunOneCycleAsync();
 
@@ -96,13 +98,13 @@ public class PriceFetchServiceTests
     }
 
     [Fact]
-    public async Task Cycle_SpotClientThrows_StillFetchesExchangeRate()
+    public async Task Cycle_SpotClientFails_StillFetchesExchangeRate()
     {
         _locations.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<Location, bool>>>(), Arg.Any<CancellationToken>(), Arg.Any<bool>())
             .Returns([new Location(Guid.NewGuid(), "Home", "A", "SN", "NO1", true, false)]);
         _spotClient.GetPricesAsync(Arg.Any<string>(), Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
-            .Returns<IReadOnlyList<SpotPrice>>(_ => throw new HttpRequestException("boom"));
-        _fxClient.GetRateAsync(Arg.Any<DateOnly>(), Arg.Any<CancellationToken>()).Returns(10m);
+            .Returns(Result.Failure<IReadOnlyList<SpotPrice>>(Error.Problem("SpotPrice.Unavailable", "unreachable")));
+        _fxClient.GetRateAsync(Arg.Any<DateOnly>(), Arg.Any<CancellationToken>()).Returns(Result.Success(10m));
 
         await RunOneCycleAsync();
 

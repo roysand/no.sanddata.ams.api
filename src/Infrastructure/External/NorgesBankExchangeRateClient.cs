@@ -1,6 +1,9 @@
 using System.Globalization;
 using System.Text.Json;
 using Application.Common.Interfaces.External;
+using Domain.Common;
+using Infrastructure.External.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.External;
 
@@ -10,43 +13,71 @@ namespace Infrastructure.External;
 /// authentication required. Response shape verified against a live request during
 /// implementation (unlike ENTSO-E, which needs a token that wasn't available yet).
 /// </summary>
-public class NorgesBankExchangeRateClient(HttpClient httpClient) : IExchangeRateClient
+public class NorgesBankExchangeRateClient(
+    HttpClient httpClient,
+    ILogger<NorgesBankExchangeRateClient> logger) : IExchangeRateClient
 {
-    public async Task<decimal?> GetRateAsync(DateOnly date, CancellationToken cancellationToken)
+    private static readonly Error NotPublished = Error.NotFound(
+        "ExchangeRate.NotPublished", "No exchange rate has been published for the requested date");
+    private static readonly Error Unavailable = Error.Problem(
+        "ExchangeRate.Unavailable", "Norges Bank could not be reached");
+    private static readonly Error InvalidResponse = Error.Problem(
+        "ExchangeRate.InvalidResponse", "Norges Bank returned an unexpected response");
+
+    public async Task<Result<decimal>> GetRateAsync(DateOnly date, CancellationToken cancellationToken)
     {
         string dateString = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         string query = $"?format=sdmx-json&startPeriod={dateString}&endPeriod={dateString}&locale=en";
 
-        using HttpResponseMessage response = await httpClient.GetAsync(query, cancellationToken);
-        if (!response.IsSuccessStatusCode)
+        try
         {
-            return null;
-        }
-
-        await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
-
-        JsonElement dataSets = document.RootElement.GetProperty("data").GetProperty("dataSets");
-        if (dataSets.GetArrayLength() == 0)
-        {
-            return null;
-        }
-
-        JsonElement series = dataSets[0].GetProperty("series");
-        foreach (JsonProperty seriesEntry in series.EnumerateObject())
-        {
-            // The query is fully specified (one currency pair, one tenor, one date), so there's
-            // at most one series and one observation - take the first one found.
-            foreach (JsonProperty observation in seriesEntry.Value.GetProperty("observations").EnumerateObject())
+            using HttpResponseMessage response = await httpClient.GetAsync(query, cancellationToken);
+            if (!response.IsSuccessStatusCode)
             {
-                string? rateText = observation.Value.EnumerateArray().FirstOrDefault().GetString();
-                if (decimal.TryParse(rateText, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal rate))
+                LogMessages.ExchangeRateRequestFailed(logger, (int)response.StatusCode);
+                return Result.Failure<decimal>(Error.Problem(
+                    "ExchangeRate.HttpError", $"Norges Bank responded with HTTP {(int)response.StatusCode}"));
+            }
+
+            await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+
+            JsonElement dataSets = document.RootElement.GetProperty("data").GetProperty("dataSets");
+            if (dataSets.GetArrayLength() == 0)
+            {
+                // Norges Bank publishes business days only, and today's rate arrives in the afternoon.
+                LogMessages.ExchangeRateNotPublished(logger, date);
+                return Result.Failure<decimal>(NotPublished);
+            }
+
+            JsonElement series = dataSets[0].GetProperty("series");
+            foreach (JsonProperty seriesEntry in series.EnumerateObject())
+            {
+                // The query is fully specified (one currency pair, one tenor, one date), so there's
+                // at most one series and one observation - take the first one found.
+                foreach (JsonProperty observation in seriesEntry.Value.GetProperty("observations").EnumerateObject())
                 {
-                    return rate;
+                    string? rateText = observation.Value.EnumerateArray().FirstOrDefault().GetString();
+                    if (decimal.TryParse(rateText, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal rate))
+                    {
+                        return Result.Success(rate);
+                    }
                 }
             }
-        }
 
-        return null;
+            LogMessages.ExchangeRateNotPublished(logger, date);
+            return Result.Failure<decimal>(NotPublished);
+        }
+        catch (Exception ex) when ((ex is HttpRequestException or TaskCanceledException)
+                                   && !cancellationToken.IsCancellationRequested)
+        {
+            LogMessages.ExchangeRateUnavailable(logger);
+            return Result.Failure<decimal>(Unavailable);
+        }
+        catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException)
+        {
+            LogMessages.ExchangeRateInvalidResponse(logger);
+            return Result.Failure<decimal>(InvalidResponse);
+        }
     }
 }

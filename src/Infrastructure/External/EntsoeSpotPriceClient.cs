@@ -2,6 +2,9 @@ using System.Globalization;
 using System.Xml;
 using System.Xml.Linq;
 using Application.Common.Interfaces.External;
+using Domain.Common;
+using Infrastructure.External.Logging;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Infrastructure.External;
@@ -21,7 +24,10 @@ public class EntsoeOptions
 /// (ENTSO-E security tokens require a manual, multi-day approval process) - this is more
 /// resilient to minor schema-version differences than hardcoding a namespace string unverified.
 /// </summary>
-public class EntsoeSpotPriceClient(HttpClient httpClient, IOptions<EntsoeOptions> options) : ISpotPriceClient
+public class EntsoeSpotPriceClient(
+    HttpClient httpClient,
+    IOptions<EntsoeOptions> options,
+    ILogger<EntsoeSpotPriceClient> logger) : ISpotPriceClient
 {
     private static readonly IReadOnlyDictionary<string, string> EicCodesByZone = new Dictionary<string, string>
     {
@@ -32,12 +38,30 @@ public class EntsoeSpotPriceClient(HttpClient httpClient, IOptions<EntsoeOptions
         ["NO5"] = "10Y1001A1001A48H"
     };
 
-    public async Task<IReadOnlyList<SpotPrice>> GetPricesAsync(
+    private static readonly Error UnsupportedZone = Error.Validation(
+        "SpotPrice.UnsupportedZone", "No ENTSO-E bidding zone is configured for the requested price region");
+    private static readonly Error TokenMissing = Error.Problem(
+        "SpotPrice.TokenMissing", "ENTSO-E security token is not configured");
+    private static readonly Error Unavailable = Error.Problem(
+        "SpotPrice.Unavailable", "ENTSO-E could not be reached");
+    private static readonly Error InvalidResponse = Error.Problem(
+        "SpotPrice.InvalidResponse", "ENTSO-E returned an unexpected response");
+    private static readonly Error NoData = Error.NotFound(
+        "SpotPrice.NoData", "ENTSO-E returned no usable prices for the requested period");
+
+    public async Task<Result<IReadOnlyList<SpotPrice>>> GetPricesAsync(
         string priceRegion, DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken)
     {
         if (!EicCodesByZone.TryGetValue(priceRegion, out string? eicCode))
         {
-            return [];
+            return Result.Failure<IReadOnlyList<SpotPrice>>(UnsupportedZone);
+        }
+
+        // Without a token ENTSO-E rejects the call; skip it so the failure is logged once, clearly.
+        if (string.IsNullOrWhiteSpace(options.Value.SecurityToken))
+        {
+            LogMessages.SpotPriceTokenMissing(logger, priceRegion);
+            return Result.Failure<IReadOnlyList<SpotPrice>>(TokenMissing);
         }
 
         string periodStart = fromUtc.ToString("yyyyMMddHHmm", CultureInfo.InvariantCulture);
@@ -52,14 +76,38 @@ public class EntsoeSpotPriceClient(HttpClient httpClient, IOptions<EntsoeOptions
             $"&periodStart={periodStart}" +
             $"&periodEnd={periodEnd}";
 
-        using HttpResponseMessage response = await httpClient.GetAsync(query, cancellationToken);
-        if (!response.IsSuccessStatusCode)
+        try
         {
-            return [];
-        }
+            // The request URL carries the security token, so only the status code is logged, never the URL.
+            using HttpResponseMessage response = await httpClient.GetAsync(query, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                LogMessages.SpotPriceRequestFailed(logger, priceRegion, (int)response.StatusCode);
+                return Result.Failure<IReadOnlyList<SpotPrice>>(Error.Problem(
+                    "SpotPrice.HttpError", $"ENTSO-E responded with HTTP {(int)response.StatusCode}"));
+            }
 
-        string xml = await response.Content.ReadAsStringAsync(cancellationToken);
-        return ParsePrices(xml);
+            string xml = await response.Content.ReadAsStringAsync(cancellationToken);
+            IReadOnlyList<SpotPrice> prices = ParsePrices(xml);
+            if (prices.Count == 0)
+            {
+                LogMessages.SpotPriceNoData(logger, priceRegion);
+                return Result.Failure<IReadOnlyList<SpotPrice>>(NoData);
+            }
+
+            return Result.Success(prices);
+        }
+        catch (Exception ex) when ((ex is HttpRequestException or TaskCanceledException)
+                                   && !cancellationToken.IsCancellationRequested)
+        {
+            LogMessages.SpotPriceUnavailable(logger, priceRegion);
+            return Result.Failure<IReadOnlyList<SpotPrice>>(Unavailable);
+        }
+        catch (Exception ex) when (ex is XmlException or FormatException)
+        {
+            LogMessages.SpotPriceInvalidResponse(logger, priceRegion);
+            return Result.Failure<IReadOnlyList<SpotPrice>>(InvalidResponse);
+        }
     }
 
     private static IReadOnlyList<SpotPrice> ParsePrices(string xml)
