@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using System.Text.Json;
 using Application.Common.Interfaces.External;
 using Domain.Common;
@@ -32,6 +33,14 @@ public class NorgesBankExchangeRateClient(
         try
         {
             using HttpResponseMessage response = await httpClient.GetAsync(query, cancellationToken);
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                // Verified live: for a date with no data (weekend/holiday, or today's rate not out yet)
+                // Norges Bank answers 404 rather than an empty dataset.
+                LogMessages.ExchangeRateNotPublished(logger, date);
+                return Result.Failure<decimal>(NotPublished);
+            }
+
             if (!response.IsSuccessStatusCode)
             {
                 LogMessages.ExchangeRateRequestFailed(logger, (int)response.StatusCode);
@@ -68,7 +77,7 @@ public class NorgesBankExchangeRateClient(
             LogMessages.ExchangeRateNotPublished(logger, date);
             return Result.Failure<decimal>(NotPublished);
         }
-        catch (Exception ex) when ((ex is HttpRequestException or TaskCanceledException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException
                                    && !cancellationToken.IsCancellationRequested)
         {
             LogMessages.ExchangeRateUnavailable(logger);
