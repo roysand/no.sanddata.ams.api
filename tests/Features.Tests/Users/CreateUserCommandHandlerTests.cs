@@ -13,7 +13,7 @@ public class CreateUserCommandHandlerTests
 
     public CreateUserCommandHandlerTests()
     {
-        var hasher = Substitute.For<IPasswordHasher>();
+        IPasswordHasher hasher = Substitute.For<IPasswordHasher>();
         hasher.HashPassword(Arg.Any<string>()).Returns("hashed");
         _handler = new CreateUserCommandHandler(_fx.UserRepository, hasher, _fx.RoleRepository, _fx.UserRoleRepository);
     }

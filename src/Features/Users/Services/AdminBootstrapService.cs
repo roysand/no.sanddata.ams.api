@@ -43,9 +43,9 @@ public class AdminBootstrapService(
 
         await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
         IServiceProvider sp = scope.ServiceProvider;
-        var users = sp.GetRequiredService<IUserRepository<User>>();
-        var roles = sp.GetRequiredService<IRoleRepository<Role>>();
-        var userRoles = sp.GetRequiredService<IUserRoleRepository<UserRole>>();
+        IUserRepository<User> users = sp.GetRequiredService<IUserRepository<User>>();
+        IRoleRepository<Role> roles = sp.GetRequiredService<IRoleRepository<Role>>();
+        IUserRoleRepository<UserRole> userRoles = sp.GetRequiredService<IUserRoleRepository<UserRole>>();
 
         Role[] allRoles = (await roles.AllAsync(ct)).OfType<Role>().ToArray();
         Role? adminRole = allRoles.FirstOrDefault(r => r.Name == RoleNames.Admin);

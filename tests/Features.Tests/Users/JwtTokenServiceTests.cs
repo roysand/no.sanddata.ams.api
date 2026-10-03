@@ -33,7 +33,7 @@ public class JwtTokenServiceTests
     {
         string token = _service.GenerateToken(_user, [RoleNamed(RoleNames.Admin), RoleNamed(RoleNames.User)]);
 
-        var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
+        JwtSecurityToken jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
         string[] roles = jwt.Claims.Where(c => c.Type is "role" or ClaimTypes.Role).Select(c => c.Value).ToArray();
         Assert.Equal([RoleNames.Admin, RoleNames.User], roles.OrderBy(r => r));
     }
