@@ -39,7 +39,8 @@ public class GetUsersQueryHandler : IQueryHandler<GetUsersQuery, Result<PagedUse
                 u.Email.Value,
                 u.IsActive,
                 u.Roles.Select(r => r.Name).ToArray(),
-                u.Locations.Select(l => l.Name).ToArray()
+                u.Locations.Select(l => l.Name).ToArray(),
+                u.Locations.Select(l => l.Id).ToArray()
             ))
             .ToArray();
 
