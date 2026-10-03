@@ -19,4 +19,17 @@ public class LocationEfRepository : GenericEfRepository<Location>, ILocationRepo
             .Where(l => l.Users.Any(u => u.Id == userId))
             .Include(l => l.Meters)
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Location>> GetAllWithKeyAsync(CancellationToken cancellationToken) =>
+        await _context.Location
+            .AsNoTracking()
+            .Include(l => l.ApiKey)
+            .Include(l => l.Meters)
+            .OrderBy(l => l.Name)
+            .ToListAsync(cancellationToken);
+
+    public async Task<bool> SerialNumberExistsAsync(
+        string serialNumber, Guid? exceptLocationId, CancellationToken cancellationToken) =>
+        await _context.Location
+            .AnyAsync(l => l.SerialNumber == serialNumber && l.Id != exceptLocationId, cancellationToken);
 }

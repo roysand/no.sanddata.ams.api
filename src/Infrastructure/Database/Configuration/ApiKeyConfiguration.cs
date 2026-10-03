@@ -1,6 +1,6 @@
+using Domain.Common.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Domain.Common.Entities;
 
 namespace Infrastructure.Database.Configuration;
 
@@ -10,7 +10,9 @@ public class ApiKeyConfiguration : IEntityTypeConfiguration<ApiKey>
     {
         builder.HasKey("Id");
 
-        builder.Property(a => a.Key).IsRequired().HasMaxLength(100);
+        builder.Property(a => a.KeyHash).IsRequired().HasMaxLength(64);
+        builder.Property(a => a.KeyHint).IsRequired().HasMaxLength(8);
+        builder.HasIndex(a => a.KeyHash).IsUnique();
         builder.Property(a => a.Description).IsRequired().HasMaxLength(100);
         builder.Property(a => a.IsActive);
         builder.Property(a => a.CreatedAt);
