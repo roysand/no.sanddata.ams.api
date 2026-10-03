@@ -21,7 +21,7 @@ public class HourlyCostProvider(IConsumptionRepository consumptionRepository, Co
         var result = new List<HourCost>();
         foreach (IGrouping<DateTime, HourConsumption> hour in rows.GroupBy(r => r.BucketStart).OrderBy(g => g.Key))
         {
-            DateTime hourStart = DateTime.SpecifyKind(hour.Key, DateTimeKind.Utc);
+            var hourStart = DateTime.SpecifyKind(hour.Key, DateTimeKind.Utc);
             decimal kwh = hour.Sum(r => r.ConsumptionKwh);
             result.Add(new HourCost(hourStart, kwh, await costCalculator.CalculateAsync(location, hourStart, kwh, ct)));
         }

@@ -46,11 +46,11 @@ public class PriceFetchService(
     {
         await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
         IServiceProvider sp = scope.ServiceProvider;
-        var locations = sp.GetRequiredService<ILocationRepository<Location>>();
-        var prices = sp.GetRequiredService<IElectricityPriceRepository<ElectricityPrice>>();
-        var rates = sp.GetRequiredService<IExchangeRateRepository<ExchangeRate>>();
-        var spotClient = sp.GetRequiredService<ISpotPriceClient>();
-        var fxClient = sp.GetRequiredService<IExchangeRateClient>();
+        ILocationRepository<Location> locations = sp.GetRequiredService<ILocationRepository<Location>>();
+        IElectricityPriceRepository<ElectricityPrice> prices = sp.GetRequiredService<IElectricityPriceRepository<ElectricityPrice>>();
+        IExchangeRateRepository<ExchangeRate> rates = sp.GetRequiredService<IExchangeRateRepository<ExchangeRate>>();
+        ISpotPriceClient spotClient = sp.GetRequiredService<ISpotPriceClient>();
+        IExchangeRateClient fxClient = sp.GetRequiredService<IExchangeRateClient>();
 
         DateTime today = DateTime.UtcNow.Date;
         DateTime to = today.AddDays(2);

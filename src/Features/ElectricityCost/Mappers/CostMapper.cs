@@ -30,7 +30,7 @@ public static class CostMapper
 
     private static DayCostResponse? SumCost(IEnumerable<RateCost?> costs)
     {
-        List<RateCost?> list = costs.ToList();
+        var list = costs.ToList();
         return list.Any(c => c is null) ? null : new DayCostResponse(list.Sum(c => c!.Cost));
     }
 

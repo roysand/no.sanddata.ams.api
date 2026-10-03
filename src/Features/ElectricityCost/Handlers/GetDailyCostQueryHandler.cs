@@ -41,7 +41,7 @@ public class GetDailyCostQueryHandler(
         IReadOnlyList<HourCost> hours = await hourlyCostProvider.GetAsync(
             location, CostTime.LocalDayStartUtc(firstDay), CostTime.LocalDayStartUtc(lastDay.AddDays(1)), ct);
 
-        List<DailyCostItemResponse> items = hours
+        var items = hours
             .GroupBy(h => CostTime.LocalDateOf(h.HourStart))
             .OrderBy(g => g.Key)
             .Select(g => CostMapper.ToDailyResponse(DateOnly.FromDateTime(g.Key), g.ToList()))
