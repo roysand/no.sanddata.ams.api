@@ -21,6 +21,9 @@ public static class ServiceCollectionExtensions
         // new handlers are picked up automatically on the next build, no manual registration needed here.
         services.AddGeneratedCqrsHandlers();
 
+        services.AddHostedService<Features.ElectricityCost.Services.PriceFetchService>();
+        services.AddScoped<Features.ElectricityCost.Services.HourlyCostProvider>();
+
         // Domain Events
         services.AddScoped<IDomainEventsDispatcher, DomainEventsDispatcher>();
 

@@ -439,4 +439,5 @@ Keep this mapping in sync as new features are added, to avoid EventId collisions
 | 1200-1299 | Test |
 | 1300-1399 | Measurements |
 | 1400-1499 | Locations |
+| 1500-1599 | ElectricityCost |
 | 2000-2099 | Infra/Logging |

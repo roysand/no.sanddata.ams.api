@@ -1,4 +1,5 @@
 ﻿using Application.Abstractions.Data;
+using Application.Common.Interfaces.Repositories;
 using Application.DomainEvents;
 using Domain.Common;
 using Domain.Common.Entities;
@@ -21,6 +22,8 @@ public sealed class ApplicationDbContext(
     public DbSet<RefreshToken> RefreshToken { get; set; }
     public DbSet<Measurement> Measurement { get; set; }
     public DbSet<Meter> Meter { get; set; }
+    public DbSet<ElectricityPrice> ElectricityPrice { get; set; }
+    public DbSet<ExchangeRate> ExchangeRate { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -37,6 +40,11 @@ public sealed class ApplicationDbContext(
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
 
         modelBuilder.HasDefaultSchema(Schemas.Default);
+
+        // Read-only projections of TimescaleDB continuous aggregates - never written to via EF
+        // Core, so they're mapped as keyless views rather than tracked entities.
+        modelBuilder.Entity<MinuteConsumption>().HasNoKey().ToView("measurement_minute", Schemas.Default);
+        modelBuilder.Entity<HourConsumption>().HasNoKey().ToView("measurement_hour", Schemas.Default);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

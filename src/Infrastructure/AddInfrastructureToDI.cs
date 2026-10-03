@@ -1,10 +1,13 @@
 using System.Text;
 using Application.Abstractions.Data;
+using Application.Common.Interfaces.External;
 using Application.Common.Interfaces.Repositories;
+using Application.ElectricityCost;
 using Domain.Common.Entities;
 using Infrastructure.Authentication;
 using Infrastructure.Database;
 using Infrastructure.Database.Repositories;
+using Infrastructure.External;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -40,6 +43,19 @@ public static class AddInfrastructureToDI
         services.AddScoped<IRefreshTokenRepository, RefreshTokenEfRepository>();
         services.AddScoped<IMeasurementRepository<Measurement>, MeasurementEfRepository>();
         services.AddScoped<IMeterRepository<Meter>, MeterEfRepository>();
+        services.AddScoped<IElectricityPriceRepository<ElectricityPrice>, ElectricityPriceEfRepository>();
+        services.AddScoped<IExchangeRateRepository<ExchangeRate>, ExchangeRateEfRepository>();
+        services.AddScoped<IConsumptionRepository, ConsumptionEfRepository>();
+
+        // Electricity cost: options, external clients, calculator
+        services.AddOptions<EntsoeOptions>().Bind(configuration.GetSection(EntsoeOptions.SectionName));
+        services.AddSingleton(configuration.GetSection(FlatRateOptions.SectionName).Get<FlatRateOptions>()
+                              ?? new FlatRateOptions());
+        services.AddHttpClient<ISpotPriceClient, EntsoeSpotPriceClient>(client =>
+            client.BaseAddress = new Uri("https://web-api.tp.entsoe.eu/api"));
+        services.AddHttpClient<IExchangeRateClient, NorgesBankExchangeRateClient>(client =>
+            client.BaseAddress = new Uri("https://data.norges-bank.no/api/data/EXR/B.EUR.NOK.SP"));
+        services.AddScoped<CostCalculator>();
 
         // Register Authentication Services
         services.AddAuthentication(options =>

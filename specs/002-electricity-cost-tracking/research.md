@@ -39,10 +39,15 @@ Energy (kWh) for a bucket = `avg_power_watts × bucket_duration_hours / 1000`. T
 the read layer (or the view itself), not stored as a separate redundant column.
 
 **Rationale for real-time aggregation covering the "live current hour" requirement (FR-002)**:
-TimescaleDB continuous aggregates default to `materialized_only = false`, meaning a query against
-`measurement_hour` automatically unions in raw, not-yet-materialized data for the current,
-still-open bucket. Querying "this hour's consumption" mid-hour already returns an accurate,
-live-updating answer with no extra application logic — this is exactly what User Story 1 needs.
+**Correction (verified empirically during implementation): this TimescaleDB version defaults new
+continuous aggregates to `materialized_only = true`**, not `false` as originally assumed here —
+real-time aggregation must be requested explicitly: `WITH (timescaledb.continuous,
+timescaledb.materialized_only = false)`. With that set, a query against `measurement_hour`
+automatically unions in raw, not-yet-materialized data for the current, still-open bucket.
+Querying "this hour's consumption" mid-hour then returns an accurate, live-updating answer with
+no extra application logic — this is exactly what User Story 1 needs. (This was caught by testing
+the migration against a disposable database before applying it for real — the first version of
+this migration would have silently broken FR-002 in production.)
 
 **Accuracy caveat (documented, not solved)**: averaging instantaneous Watt readings rather than
 trapezoidal-integrating them is an approximation. Acceptable given reading frequency (~1-2s) and
@@ -74,8 +79,13 @@ Verified against current ENTSO-E documentation (see Sources).
   code, identical for both on a price query), `periodStart`/`periodEnd` (UTC, `yyyyMMddHHmm`,
   no timezone suffix — conversion is the caller's job).
 - **Response**: XML (`TimeSeries` → `Period` → `Point`, each point a position number + price;
-  reconstruct the actual hour from `Period.timeInterval.start` + `resolution` (`PT60M`) + the
-  point's position). Parse with `System.Xml.Linq`, no new package needed.
+  reconstruct the point's start from `Period.timeInterval.start` + `resolution` + the point's
+  position). Parse with `System.Xml.Linq`, no new package needed.
+- **Resolution is 15 minutes (`PT15M`), verified live** (96 points/day), and each day came back
+  in two identical `TimeSeries`. **Decision (user, 2026-10-02): cost in Norway is calculated per
+  hour, so the price for an hour is the mean of its four quarter-hour prices.** The client
+  dedupes points by start time and averages per hour (a single point if a zone ever returns
+  `PT60M`). Per-quarter cost is out of scope.
 - **Norwegian bidding zone EIC codes** (verified, stable reference data — static, not needing a
   full reference table for this feature's scope, matching the spec's own deferral of a generic
   price-region table to later):
