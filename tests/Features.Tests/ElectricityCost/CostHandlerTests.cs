@@ -144,6 +144,36 @@ public class CostHandlerTests
     }
 
     [Fact]
+    public async Task Daily_GroupsByOsloLocalDay_NotUtcDay()
+    {
+        // 2026-10-01 is CEST (UTC+2): local midnight 2 October is 22:00 UTC on 1 October.
+        AddHour(new DateTime(2026, 10, 1, 21, 0, 0, DateTimeKind.Utc), 1000, 100m); // 23:00 local, 1 October
+        AddHour(new DateTime(2026, 10, 1, 22, 0, 0, DateTimeKind.Utc), 1000, 100m); // 00:00 local, 2 October
+        var handler = new GetDailyCostQueryHandler(_locations, Provider(), Substitute.For<ILogger<GetDailyCostQueryHandler>>());
+
+        Result<DailyCostResponse> result = await handler.Handle(
+            new GetDailyCostQuery(Guid.NewGuid(), _location.Id, new DateTime(2026, 10, 1), new DateTime(2026, 10, 2)),
+            CancellationToken.None);
+
+        Assert.Equal([new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 2)], result.Value.Items.Select(i => i.Date));
+    }
+
+    [Fact]
+    public async Task Daily_RequestsLocalDayBoundariesAsUtcRange()
+    {
+        var handler = new GetDailyCostQueryHandler(_locations, Provider(), Substitute.For<ILogger<GetDailyCostQueryHandler>>());
+
+        await handler.Handle(
+            new GetDailyCostQuery(Guid.NewGuid(), _location.Id, new DateTime(2026, 10, 1), new DateTime(2026, 10, 1)),
+            CancellationToken.None);
+
+        // CEST: 1 October local = 30 September 22:00 UTC to 1 October 22:00 UTC.
+        await _consumption.Received().GetHourlyAsync(_location.Id, null,
+            new DateTime(2026, 9, 30, 22, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 10, 1, 22, 0, 0, DateTimeKind.Utc), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Daily_UnknownLocation_ReturnsLocationNotFound()
     {
         _locations.IsUserAssociatedAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(false);

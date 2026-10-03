@@ -32,18 +32,17 @@ public class GetDailyCostQueryHandler(
             return Result.Failure<DailyCostResponse>(Error.NotFound("Location.NotFound", "Location not found"));
         }
 
-        // Days are UTC calendar days; 'to' includes its whole day.
-        DateTime lastDay = query.To is { } toValue ? CostTime.ToUtc(toValue).Date : DateTime.UtcNow.Date;
+        // Days are Oslo calendar days (local midnight to local midnight); 'to' includes its whole day.
+        DateTime lastDay = query.To is { } toValue ? CostTime.LocalDate(toValue) : CostTime.LocalDateOf(DateTime.UtcNow);
         DateTime firstDay = query.From is { } fromValue
-            ? CostTime.ToUtc(fromValue).Date
+            ? CostTime.LocalDate(fromValue)
             : lastDay.AddDays(-(DefaultDays - 1));
 
-        IReadOnlyList<HourCost> hours =
-            await hourlyCostProvider.GetAsync(location, DateTime.SpecifyKind(firstDay, DateTimeKind.Utc),
-                DateTime.SpecifyKind(lastDay.AddDays(1), DateTimeKind.Utc), ct);
+        IReadOnlyList<HourCost> hours = await hourlyCostProvider.GetAsync(
+            location, CostTime.LocalDayStartUtc(firstDay), CostTime.LocalDayStartUtc(lastDay.AddDays(1)), ct);
 
         List<DailyCostItemResponse> items = hours
-            .GroupBy(h => h.HourStart.Date)
+            .GroupBy(h => CostTime.LocalDateOf(h.HourStart))
             .OrderBy(g => g.Key)
             .Select(g => CostMapper.ToDailyResponse(DateOnly.FromDateTime(g.Key), g.ToList()))
             .ToList();

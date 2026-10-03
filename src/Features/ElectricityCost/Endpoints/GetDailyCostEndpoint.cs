@@ -23,7 +23,7 @@ public class GetDailyCostEndpoint : Endpoint<GetDailyCostRequest, DailyCostRespo
         Summary(s =>
         {
             s.Summary = "Get daily electricity cost for a location";
-            s.Description = "Returns consumption and cost per UTC day (the sum of that day's hourly figures) " +
+            s.Description = "Returns consumption and cost per Norwegian (Oslo) calendar day, the sum of that day's hourly figures " +
                              "for one of the caller's own locations. Defaults to the last 7 days.";
             s.Response(200, "Daily cost retrieved successfully");
             s.Response(404, "Location not found");

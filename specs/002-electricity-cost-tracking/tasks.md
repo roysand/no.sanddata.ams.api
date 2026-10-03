@@ -148,7 +148,7 @@ populated (or `comparison` explicitly marked unavailable) (via `quickstart.md` U
 
 - [X] T048 [P] Update the EventId allocation table in `CLAUDE.md` and `DevelopmentGuide.md` to add `1500-1599` (ElectricityCost) — required by the constitution's logging principle whenever a new range is claimed
 - [X] T049 Run `dotnet format --verify-no-changes` and `dotnet build` from the repo root and confirm no new warnings
-- [ ] T050 Execute every scenario in `specs/002-electricity-cost-tracking/quickstart.md` against local dev — note: the ENTSO-E-dependent scenarios need a real, approved security token (research.md §4); if it hasn't arrived yet, verify the FR-011 graceful-unavailability scenarios first and revisit the price-dependent ones once the token is approved
+- [X] T050 Execute every scenario in `specs/002-electricity-cost-tracking/quickstart.md` against local dev — note: the ENTSO-E-dependent scenarios need a real, approved security token (research.md §4); if it hasn't arrived yet, verify the FR-011 graceful-unavailability scenarios first and revisit the price-dependent ones once the token is approved
 
 ---
 
