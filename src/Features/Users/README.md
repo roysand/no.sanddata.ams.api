@@ -12,6 +12,10 @@ This folder contains all User CRUD endpoints following the FastEndpoints + CQRS 
 | UpdateUser | PUT | `/api/users/{id}` | Update user information |
 | DeleteUser | DELETE | `/api/users/{id}` | Soft delete user (sets IsActive=false) |
 | ChangePassword | PUT | `/api/users/{id}/password` | Change user password |
+| GrantAdmin | PUT | `/api/users/{id}/roles/admin` | Admin only: make the user an Admin |
+| RevokeAdmin | DELETE | `/api/users/{id}/roles/admin` | Admin only: remove the Admin role (not from the last Admin) |
+| LinkUserLocation | PUT | `/api/users/{id}/locations/{locationId}` | Admin only: let the user see a location |
+| UnlinkUserLocation | DELETE | `/api/users/{id}/locations/{locationId}` | Admin only: remove that access |
 
 ## Files
 
@@ -54,12 +58,10 @@ Result.Failure<T>(Error.Validation("Code", "Message"))
 
 ## Important Notes
 
-### Security TODOs
-1. **Password Hashing**: Replace placeholder password handling with BCrypt in:
-   - `CreateUser.cs` line 64
-   - `ChangePassword.cs` line 62
-
-2. **Authorization**: Add role-based authorization policies (currently commented out)
+### Access rules
+Every endpoint requires sign-in. Admin only: create, list and delete users, grant/revoke the Admin role, link/unlink
+locations. Own account (or Admin): get, update, change password; another person's account looks like a missing one
+(404). See [AuthenticationGuide.md](../../../AuthenticationGuide.md#roles-and-first-admin).
 
 ### Features
 - ✅ Result pattern for error handling

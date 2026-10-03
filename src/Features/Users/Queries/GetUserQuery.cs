@@ -1,9 +1,10 @@
 using Application.CQRS;
 using Domain.Common;
+using Features.Users.Commands;
 
 namespace Features.Users.Queries;
 
-public record GetUserQuery(Guid Id) : IQuery<Result<GetUserResponse>>;
+public record GetUserQuery(Guid Id, Caller Caller) : IQuery<Result<GetUserResponse>>;
 
 public record GetUserResponse(
     Guid Id,

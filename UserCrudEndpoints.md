@@ -286,22 +286,26 @@ return Result.Failure<UserResponse>(
 
 ## Security Considerations
 
-### TODO Items:
-1. **Password Hashing**: Replace placeholder password handling with BCrypt
-   - In [`CreateUser.cs`](Src/Features/Users/CreateUser.cs:64)
-   - In [`ChangePassword.cs`](Src/Features/Users/ChangePassword.cs:62)
+All endpoints below require a signed-in user (JWT). Details and the rules for roles are in
+[AuthenticationGuide.md](AuthenticationGuide.md#roles-and-first-admin).
 
-2. **Authorization**: Implement role-based authorization
-   - CreateUser: Admin or Anonymous (for self-registration)
-   - GetUser: User (own profile) or Admin (any profile)
-   - GetUsers: Admin only
-   - UpdateUser: User (own profile) or Admin (any profile)
-   - DeleteUser: Admin only
-   - ChangePassword: User (own password only)
+| Endpoint | Who may call it |
+|---|---|
+| `POST /api/users` | Admin (new users get the `User` role) |
+| `GET /api/users` | Admin |
+| `GET /api/users/{id}` | The user themselves, or an Admin |
+| `PUT /api/users/{id}` | The user themselves (cannot change `isActive`), or an Admin |
+| `DELETE /api/users/{id}` | Admin (409 `User.LastAdmin` for the last active Admin) |
+| `PUT /api/users/{id}/password` | The user themselves (current password required), or an Admin resetting another account |
+| `PUT` / `DELETE /api/users/{id}/roles/admin` | Admin: grant / revoke the Admin role (idempotent, 204) |
+| `PUT` / `DELETE /api/users/{id}/locations/{locationId}` | Admin: link / unlink a user and a location (idempotent, 204) |
 
-3. **Email Verification**: Consider adding email verification for new users
+A signed-in user addressing someone else's account gets **404 `User.NotFound`**, exactly as for a missing account.
+Anonymous callers get 401; a signed-in user without the Admin role on an admin-only action gets 403.
 
-4. **Rate Limiting**: Implement rate limiting for password change attempts
+### Still open
+1. **Email Verification**: consider adding email verification for new users
+2. **Rate Limiting**: implement rate limiting for password change and login attempts
 
 ## Database Considerations
 

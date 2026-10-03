@@ -8,7 +8,8 @@ public record UpdateUserCommand(
     string FirstName,
     string LastName,
     string Email,
-    bool IsActive
+    bool IsActive,
+    Caller Caller
 ) : ICommand<Result<UpdateUserResponse>>;
 
 public record UpdateUserResponse(
