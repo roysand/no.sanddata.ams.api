@@ -153,7 +153,7 @@ An Admin can link a user to a location and remove the link, so that user can see
 
 - Roles are system-wide, not per location: an Admin can manage users everywhere. Admin rights do **not** automatically grant access to other users' locations' measurement or cost data; that still requires a location link (kept minimal; can be revisited later).
 - Public self-registration is out of scope: only Admins create users. Self-signup can be a later feature.
-- Sign-in tokens already carry the user's roles and the sign-in and refresh results already list them (verified in the current system); this feature relies on that and does not change the token format.
+- The sign-in token format already has a place for the user's roles, but in the current system a user's roles are never actually loaded when signing in or refreshing, so tokens carry none. Making roles reach the token is therefore part of this feature (FR-010); the token format itself does not change.
 - A role change or deletion takes effect at the user's next sign-in or token refresh (tokens last up to 6 hours); immediate revocation is not required. (Decision, 2026-10-03.)
 - This is a personal/hobby system, not a product to be sold: a single owner acts as the system's default Admin, creates every other user and links each new user to their locations. Self-service, multi-tenant or customer-facing administration is out of scope. (Decision, 2026-10-03.)
 - The owner's account (roy@sanddata.no) already exists in the current environments.
