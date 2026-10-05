@@ -1,0 +1,7 @@
+# Add this site block to the Caddyfile next to compose.prod.yaml on the server.
+# Caddy obtains and renews the TLS certificate automatically; the domain's DNS
+# A/AAAA record must point at the Hetzner server and ports 80/443 must be open.
+ams-api.sanddata.eu {
+	encode zstd gzip
+	reverse_proxy api:8080
+}

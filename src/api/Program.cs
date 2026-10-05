@@ -2,6 +2,7 @@ using Api.OpenApi;
 using FastEndpoints;
 using Features;
 using Infrastructure;
+using Infrastructure.Database;
 using Infrastructure.Logging;
 using Infrastructure.Middleware;
 using Scalar.AspNetCore;
@@ -100,4 +101,8 @@ if (app.Urls.Any(url => url.StartsWith("https", StringComparison.OrdinalIgnoreCa
 }
 
 app.UseFastEndpoints();
+
+// Before Run() so the schema exists before hosted services (e.g. AdminBootstrapService) start.
+await app.ApplyMigrationsIfEnabledAsync();
+
 app.Run();

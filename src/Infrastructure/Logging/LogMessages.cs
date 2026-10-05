@@ -25,6 +25,22 @@ internal static class LogMessages
             new EventId(2002, nameof(ResponseError)),
             "Response error {StatusCode} {Attributes} {ResponseBody}");
 
+    private static readonly Action<ILogger, Exception?> _migrationsStarting =
+        LoggerMessage.Define(
+            LogLevel.Information,
+            new EventId(2010, nameof(MigrationsStarting)),
+            "Applying database migrations (RunMigrationsAtStartup=true)");
+
+    private static readonly Action<ILogger, Exception?> _migrationsCompleted =
+        LoggerMessage.Define(
+            LogLevel.Information,
+            new EventId(2011, nameof(MigrationsCompleted)),
+            "Database migrations applied");
+
+    public static void MigrationsStarting(ILogger logger) => _migrationsStarting(logger, null);
+
+    public static void MigrationsCompleted(ILogger logger) => _migrationsCompleted(logger, null);
+
     public static void RequestReceived(ILogger logger, string method, string path, string attributesJson)
         => _requestReceived(logger, method, path, attributesJson, null);
 

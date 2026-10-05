@@ -1,28 +1,64 @@
 services:
-  api:
-    image: ${DOCKERHUB_USERNAME}/ams-api:latest
+  caddy:
+    image: caddy:2
+    container_name: caddy
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./sites:/srv
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - frontend
+
+  api:
+    image: ${DOCKERHUB_USERNAME}/ams-api:latest
+    container_name: ams-api
+    restart: unless-stopped
+    # Not published on the host; Caddy reverse-proxies to api:8080 over the frontend network.
+    expose:
+      - "8080"
     environment:
       ASPNETCORE_URLS: http://+:8080
       ASPNETCORE_ENVIRONMENT: Production
+      RunMigrationsAtStartup: "true"
       ApplicationSettings__DbConnectionString: ${DB_CONNECTION_STRING}
       JwtSettings__SecretKey: ${JWT_SECRET_KEY}
       JwtSettings__Issuer: ${JWT_ISSUER}
       JwtSettings__Audience: ${JWT_AUDIENCE}
     depends_on:
-      - db
+      postgres:
+        condition: service_healthy
+    networks:
+      - frontend
+      - backend
 
-  db:
-    image: timescale/timescaledb:latest-pg16
+  postgres:
+    image: timescale/timescaledb:latest-pg17
+    container_name: postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: amsadmin
+      POSTGRES_USER: appuser
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set (see .env)}
-      POSTGRES_DB: amsdb
+      POSTGRES_DB: appdb
     volumes:
-      - ams-postgres-data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
-  ams-postgres-data:
+  postgres_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  frontend:
+  backend:
