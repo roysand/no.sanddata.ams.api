@@ -37,9 +37,17 @@ internal static class LogMessages
             new EventId(2011, nameof(MigrationsCompleted)),
             "Database migrations applied");
 
+    private static readonly Action<ILogger, Exception?> _migrationsSkipped =
+        LoggerMessage.Define(
+            LogLevel.Information,
+            new EventId(2012, nameof(MigrationsSkipped)),
+            "Database migrations skipped at startup (RunMigrationsAtStartup=false)");
+
     public static void MigrationsStarting(ILogger logger) => _migrationsStarting(logger, null);
 
     public static void MigrationsCompleted(ILogger logger) => _migrationsCompleted(logger, null);
+
+    public static void MigrationsSkipped(ILogger logger) => _migrationsSkipped(logger, null);
 
     public static void RequestReceived(ILogger logger, string method, string path, string attributesJson)
         => _requestReceived(logger, method, path, attributesJson, null);

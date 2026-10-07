@@ -15,15 +15,16 @@ public static class DatabaseMigrationExtensions
     /// </summary>
     public static async Task ApplyMigrationsIfEnabledAsync(this WebApplication app, CancellationToken ct = default)
     {
+        ILogger logger = app.Services.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("Infrastructure.Database.Migrations");
+
         if (!app.Configuration.GetValue<bool>("RunMigrationsAtStartup"))
         {
+            LogMessages.MigrationsSkipped(logger);
             return;
         }
 
         await using AsyncServiceScope scope = app.Services.CreateAsyncScope();
-        ILogger logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
-            .CreateLogger("Infrastructure.Database.Migrations");
-
         LogMessages.MigrationsStarting(logger);
         ApplicationDbContext db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         await db.Database.MigrateAsync(ct);
