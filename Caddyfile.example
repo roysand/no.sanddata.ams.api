@@ -10,7 +10,7 @@ ams-api.sanddata.eu {
 	encode zstd gzip
 
 	@docs path /scalar* /openapi*
-	basicauth @docs {
+	basic_auth @docs {
 		docs <bcrypt-hash-from-caddy-hash-password>
 	}
 
