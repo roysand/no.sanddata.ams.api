@@ -230,10 +230,19 @@ On every start, `AdminBootstrapService` checks whether any user holds `Admin`. I
 `Bootstrap:OwnerEmail` (default `roy@sanddata.no`, in `appsettings.json`) is granted `Admin` (and `User`). Once any
 Admin exists the setting does nothing, so it cannot be used to take over a running system.
 
-### Creating the first owner account in an empty database
+If that account doesn't exist yet and `Bootstrap:OwnerPassword` is configured (a secret - `local.settings.json` or
+the server's `.env`, never committed), the service creates it first, hashed the same way `POST /api/users` hashes a
+password (BCrypt via `IPasswordHasher`), then grants it `Admin` and `User`. If `OwnerPassword` isn't set, the service
+logs a warning (`AdminBootstrapOwnerMissing`) and does nothing, same as before this existed.
 
-Only needed for a brand-new environment: creating users through the API requires an Admin, so the very first account
-is inserted once by hand. The migration must already have run so the `Role` rows exist.
+Log in, check `GET /api/auth/me` shows both roles, then create everyone else with `POST /api/users` and link them to
+locations with `PUT /api/users/{id}/locations/{locationId}`.
+
+### Creating the first owner account by hand (fallback)
+
+Only needed if you'd rather not put `Bootstrap:OwnerPassword` in config for a given environment. Creating users
+through the API requires an Admin, so the very first account is inserted once by hand instead. The migration must
+already have run so the `Role` rows exist.
 
 1. Generate the password hash with the same library and cost the API uses (BCrypt, work factor 12). Save as `hash.cs`
    and run it (needs the .NET 10 SDK; no project required):

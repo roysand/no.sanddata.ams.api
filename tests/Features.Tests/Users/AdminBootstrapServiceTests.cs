@@ -4,6 +4,7 @@ using Domain.Common;
 using Domain.Common.Entities;
 using Domain.Common.ValueObjects;
 using Features.Users.Services;
+using Infrastructure.Authentication;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -23,25 +24,34 @@ public class AdminBootstrapServiceTests
     private readonly IUserRepository<User> _users = Substitute.For<IUserRepository<User>>();
     private readonly IRoleRepository<Role> _roles = Substitute.For<IRoleRepository<Role>>();
     private readonly IUserRoleRepository<UserRole> _userRoles = Substitute.For<IUserRoleRepository<UserRole>>();
+    private readonly IPasswordHasher _passwordHasher = Substitute.For<IPasswordHasher>();
+    private readonly List<User> _insertedUsers = [];
 
     public AdminBootstrapServiceTests()
     {
         _roles.AllAsync(Arg.Any<CancellationToken>()).Returns([_adminRole, _userRole]);
         _users.FindAsync(Arg.Any<Expression<Func<User, bool>>>(), Arg.Any<CancellationToken>(), Arg.Any<bool>())
             .Returns(call => ((IEnumerable<User?>)[_owner]).Where(u => call.Arg<Expression<Func<User, bool>>>().Compile()(u!)).ToList());
+        _users.Insert(Arg.Do<User>(_insertedUsers.Add)).Returns(call => call.Arg<User>());
+        _passwordHasher.HashPassword(Arg.Any<string>()).Returns(call => $"hashed:{call.Arg<string>()}");
         _userRoles.ExistsAsync(Arg.Any<Expression<Func<UserRole, bool>>>(), Arg.Any<CancellationToken>())
             .Returns(call => _rows.Any(call.Arg<Expression<Func<UserRole, bool>>>().Compile()));
         _userRoles.Insert(Arg.Do<UserRole>(_rows.Add));
     }
 
-    private async Task RunAsync(string? ownerEmail = OwnerEmail)
+    private async Task RunAsync(string? ownerEmail = OwnerEmail, string? ownerPassword = null)
     {
         var services = new ServiceCollection();
         services.AddSingleton(_users);
         services.AddSingleton(_roles);
         services.AddSingleton(_userRoles);
+        services.AddSingleton(_passwordHasher);
         IConfiguration configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { ["Bootstrap:OwnerEmail"] = ownerEmail })
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Bootstrap:OwnerEmail"] = ownerEmail,
+                ["Bootstrap:OwnerPassword"] = ownerPassword
+            })
             .Build();
 
         var service = new AdminBootstrapService(
@@ -84,11 +94,38 @@ public class AdminBootstrapServiceTests
     }
 
     [Fact]
-    public async Task Start_OwnerAccountDoesNotExist_ChangesNothing()
+    public async Task Start_OwnerAccountDoesNotExist_NoPasswordConfigured_ChangesNothing()
     {
         await RunAsync("someone.else@example.com");
 
         Assert.Empty(_rows);
+        Assert.Empty(_insertedUsers);
+    }
+
+    [Fact]
+    public async Task Start_OwnerAccountDoesNotExist_PasswordConfigured_CreatesOwnerAndPromotes()
+    {
+        const string ownerEmail = "someone.else@example.com";
+
+        await RunAsync(ownerEmail, ownerPassword: "a-strong-password");
+
+        User created = Assert.Single(_insertedUsers);
+        Assert.Equal(ownerEmail, created.Email.Value);
+        Assert.Equal("hashed:a-strong-password", created.PasswordHash);
+        Assert.True(created.IsActive);
+        Assert.Contains(_rows, r => r.UserId == created.Id && r.RoleId == _adminRole.Id);
+        Assert.Contains(_rows, r => r.UserId == created.Id && r.RoleId == _userRole.Id);
+        await _users.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Start_AnAdminAlreadyExists_DoesNotCreateOwnerEvenIfMissing()
+    {
+        _rows.Add(new UserRole(Guid.NewGuid(), _adminRole.Id, DateTime.UtcNow));
+
+        await RunAsync("someone.else@example.com", ownerPassword: "a-strong-password");
+
+        Assert.Empty(_insertedUsers);
     }
 
     [Fact]

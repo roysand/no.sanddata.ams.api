@@ -29,6 +29,9 @@ services:
       JwtSettings__SecretKey: ${JWT_SECRET_KEY}
       JwtSettings__Issuer: ${JWT_ISSUER}
       JwtSettings__Audience: ${JWT_AUDIENCE}
+      # Creates the first owner/Admin account on startup if Bootstrap:OwnerEmail has no row yet.
+      # Does nothing once any Admin exists - safe to leave set after the first successful login.
+      Bootstrap__OwnerPassword: ${BOOTSTRAP_OWNER_PASSWORD}
     depends_on:
       postgres:
         condition: service_healthy

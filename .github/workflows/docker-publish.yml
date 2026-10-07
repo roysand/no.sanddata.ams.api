@@ -58,6 +58,7 @@ jobs:
           username: ${{ secrets.HETZNER_USERNAME }}
           key: ${{ secrets.HETZNER_SSH_KEY }}
           script: |
+            set -e
             cd ${{ secrets.HETZNER_DEPLOY_PATH }}
             docker compose -f compose.prod.yaml pull api
             docker compose -f compose.prod.yaml up -d api

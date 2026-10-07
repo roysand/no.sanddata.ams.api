@@ -79,8 +79,26 @@ internal static class LogMessages
             new EventId(1017, nameof(AdminBootstrapFailed)),
             "Admin bootstrap failed; it will be retried at the next start (reason: BootstrapFailed)");
 
+    private static readonly Action<ILogger, string, Exception?> _adminBootstrapOwnerMissing =
+        LoggerMessage.Define<string>(
+            LogLevel.Warning,
+            new EventId(1018, nameof(AdminBootstrapOwnerMissing)),
+            "No Admin exists and owner {Email} has no account; set Bootstrap:OwnerPassword to create it (reason: OwnerMissing)");
+
+    private static readonly Action<ILogger, string, Exception?> _adminBootstrapOwnerCreated =
+        LoggerMessage.Define<string>(
+            LogLevel.Information,
+            new EventId(1019, nameof(AdminBootstrapOwnerCreated)),
+            "Owner account {Email} did not exist; created it from Bootstrap:OwnerPassword");
+
     public static void AdminBootstrapFailed(ILogger logger, Exception exception)
         => _adminBootstrapFailed(logger, exception);
+
+    public static void AdminBootstrapOwnerMissing(ILogger logger, string email)
+        => _adminBootstrapOwnerMissing(logger, email, null);
+
+    public static void AdminBootstrapOwnerCreated(ILogger logger, string email)
+        => _adminBootstrapOwnerCreated(logger, email, null);
 
     public static void AdminGranted(ILogger logger, Guid userId, Guid callerId)
         => _adminGranted(logger, userId, callerId, null);

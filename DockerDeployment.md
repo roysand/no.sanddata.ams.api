@@ -134,9 +134,15 @@ DB_CONNECTION_STRING=Server=db;Port=5432;Database=amsdb;User Id=amsadmin;Passwor
 JWT_SECRET_KEY=<at-least-32-characters-random-string>
 JWT_ISSUER=AmsApi
 JWT_AUDIENCE=AmsApiClients
+BOOTSTRAP_OWNER_PASSWORD=<choose-a-strong-password-for-the-first-admin-login>
 ```
 
 > Generate a strong `JWT_SECRET_KEY` with e.g. `openssl rand -base64 48`.
+
+> `BOOTSTRAP_OWNER_PASSWORD` creates the `Bootstrap:OwnerEmail` account (default `roy@sanddata.no`) the first
+> time the API starts with no Admin yet, so you can log in without a manual SQL step - see
+> [AuthenticationGuide.md](AuthenticationGuide.md#first-admin). It's a no-op once any Admin exists, so it's
+> safe to leave in `.env` after the first login.
 
 Set `HETZNER_DEPLOY_PATH` (GitHub secret) to `/opt/ams-api`.
 
