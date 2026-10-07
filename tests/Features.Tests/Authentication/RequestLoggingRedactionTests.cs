@@ -51,16 +51,14 @@ public class RequestLoggingRedactionTests
     [InlineData("POST", "/api/meters", false)]
     [InlineData("POST", "/api/measurements", false)]
     public void RevealsApiKey_OnlyForTheTwoKeyIssuingRequests(string method, string path, bool expected)
-    {
-        Assert.Equal(expected, SensitiveData.RevealsApiKey(method, new PathString(path)));
-    }
+        => Assert.Equal(expected, SensitiveData.RevealsApiKey(method, new PathString(path)));
 
     private static async Task<List<string>> RunAsync(string method, string path, string responseBody, bool allowHeaders)
     {
         var lines = new List<string>();
         var logger = new CapturingLogger(lines);
 
-        var options = Options.Create(new RequestLoggingOptions
+        IOptions<RequestLoggingOptions> options = Options.Create(new RequestLoggingOptions
         {
             AttributesToLog = allowHeaders ? ["Headers", "Path", "Method", "ResponseBody"] : ["Path", "Method"],
             LogResponseBody = true
