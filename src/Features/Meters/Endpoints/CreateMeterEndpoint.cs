@@ -24,7 +24,7 @@ public class CreateMeterEndpoint : Endpoint<CreateMeterRequest, MeterResponse>
         Summary(s =>
         {
             s.Summary = "Register a reader";
-            s.Description = "Registers a new reader (meter) at a location, so it's allowed to submit measurements";
+            s.Description = "Registers a new reader (meter) at a location, so it is allowed to submit measurements. Linked users can register at their own active locations; administrators at any location.";
             s.ExampleRequest = new CreateMeterRequest(Guid.NewGuid(), "58:CF:79:9C:93:AE", "Main building");
             s.Response(200, "Reader registered successfully");
             s.Response(401, "Not signed in");
@@ -36,7 +36,7 @@ public class CreateMeterEndpoint : Endpoint<CreateMeterRequest, MeterResponse>
     public override async Task HandleAsync(CreateMeterRequest req, CancellationToken ct)
     {
         var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        CreateMeterCommand command = MeterMapper.ToCommand(userId, req);
+        CreateMeterCommand command = MeterMapper.ToCommand(userId, User.IsInRole(RoleNames.Admin), req);
         Result<MeterResponse> result = await _dispatcher.Send(command, ct);
 
         if (!result.IsSuccess)

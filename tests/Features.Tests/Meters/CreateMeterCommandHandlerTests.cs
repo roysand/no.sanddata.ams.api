@@ -4,6 +4,7 @@ using Domain.Common;
 using Domain.Common.Entities;
 using Features.Meters.Commands;
 using Features.Meters.Handlers;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 
 namespace Features.Tests.Meters;
@@ -16,10 +17,16 @@ public class CreateMeterCommandHandlerTests
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Guid _locationId = Guid.NewGuid();
 
-    public CreateMeterCommandHandlerTests() => _handler = new CreateMeterCommandHandler(_meters, _locations);
+    public CreateMeterCommandHandlerTests() =>
+        _handler = new CreateMeterCommandHandler(_meters, _locations, Substitute.For<ILogger<CreateMeterCommandHandler>>());
 
     private void LinkUser(bool linked) =>
         _locations.IsUserAssociatedAsync(_userId, _locationId, Arg.Any<CancellationToken>()).Returns(linked);
+
+    private void LocationExists(bool exists) =>
+        _locations.ExistsAsync(Arg.Any<Expression<Func<Location, bool>>>(), Arg.Any<CancellationToken>()).Returns(exists);
+
+    private CreateMeterCommand Command(bool isAdmin = false) => new(_userId, isAdmin, _locationId, "dev1", "Main");
 
     [Fact]
     public async Task Handle_LinkedUser_RegistersTheMeter()
@@ -27,8 +34,7 @@ public class CreateMeterCommandHandlerTests
         LinkUser(true);
         _meters.ExistsAsync(Arg.Any<Expression<Func<Meter, bool>>>(), Arg.Any<CancellationToken>()).Returns(false);
 
-        Result<MeterResponse> result = await _handler.Handle(
-            new CreateMeterCommand(_userId, _locationId, "dev1", "Main"), CancellationToken.None);
+        Result<MeterResponse> result = await _handler.Handle(Command(), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         _meters.Received(1).Insert(Arg.Is<Meter>(m => m.LocationId == _locationId && m.DeviceId == "dev1"));
@@ -38,9 +44,33 @@ public class CreateMeterCommandHandlerTests
     public async Task Handle_UserNotLinkedToTheLocation_ReturnsLocationNotFoundAndRegistersNothing()
     {
         LinkUser(false);
+        LocationExists(true); // exists, but a regular user does not get to know that
 
-        Result<MeterResponse> result = await _handler.Handle(
-            new CreateMeterCommand(_userId, _locationId, "dev1", null), CancellationToken.None);
+        Result<MeterResponse> result = await _handler.Handle(Command(), CancellationToken.None);
+
+        Assert.Equal("Location.NotFound", result.Error.Code);
+        _meters.DidNotReceive().Insert(Arg.Any<Meter>());
+    }
+
+    [Fact]
+    public async Task Handle_AdminNotLinkedToTheLocation_StillRegistersTheMeter()
+    {
+        LinkUser(false);
+        LocationExists(true);
+
+        Result<MeterResponse> result = await _handler.Handle(Command(isAdmin: true), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        _meters.Received(1).Insert(Arg.Any<Meter>());
+        await _locations.DidNotReceive().IsUserAssociatedAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_AdminForAnUnknownLocation_ReturnsLocationNotFound()
+    {
+        LocationExists(false);
+
+        Result<MeterResponse> result = await _handler.Handle(Command(isAdmin: true), CancellationToken.None);
 
         Assert.Equal("Location.NotFound", result.Error.Code);
         _meters.DidNotReceive().Insert(Arg.Any<Meter>());
@@ -52,10 +82,20 @@ public class CreateMeterCommandHandlerTests
         LinkUser(true);
         _meters.ExistsAsync(Arg.Any<Expression<Func<Meter, bool>>>(), Arg.Any<CancellationToken>()).Returns(true);
 
-        Result<MeterResponse> result = await _handler.Handle(
-            new CreateMeterCommand(_userId, _locationId, "dev1", null), CancellationToken.None);
+        Result<MeterResponse> result = await _handler.Handle(Command(), CancellationToken.None);
 
         Assert.Equal("Meter.DeviceIdExists", result.Error.Code);
         Assert.Equal(ErrorType.Conflict, result.Error.Type);
+    }
+
+    [Fact]
+    public async Task Handle_AdminDuplicateDeviceId_ReturnsConflict()
+    {
+        LocationExists(true);
+        _meters.ExistsAsync(Arg.Any<Expression<Func<Meter, bool>>>(), Arg.Any<CancellationToken>()).Returns(true);
+
+        Result<MeterResponse> result = await _handler.Handle(Command(isAdmin: true), CancellationToken.None);
+
+        Assert.Equal("Meter.DeviceIdExists", result.Error.Code);
     }
 }
