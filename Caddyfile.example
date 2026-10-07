@@ -1,7 +1,18 @@
 # Add this site block to the Caddyfile next to compose.prod.yaml on the server.
 # Caddy obtains and renews the TLS certificate automatically; the domain's DNS
 # A/AAAA record must point at the Hetzner server and ports 80/443 must be open.
+#
+# /scalar* and /openapi* are gated with HTTP Basic Auth, separate from the app's own JWT/API-key
+# login - the app only has header-based auth, which can't show a browser login prompt on page load.
+# Generate the hash once (don't commit the real hash or password anywhere):
+#   docker exec -it caddy caddy hash-password --plaintext 'your-chosen-password'
 ams-api.sanddata.eu {
 	encode zstd gzip
+
+	@docs path /scalar* /openapi*
+	basicauth @docs {
+		docs <bcrypt-hash-from-caddy-hash-password>
+	}
+
 	reverse_proxy api:8080
 }

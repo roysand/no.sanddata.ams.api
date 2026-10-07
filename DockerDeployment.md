@@ -157,6 +157,12 @@ docker compose -f compose.prod.yaml ps
 
 Visit `http://<hetzner-ip>:8080/scalar/v1` to confirm the API responds.
 
+> Scalar/OpenAPI (`/scalar/v1`, `/openapi/v1.json`) only serve outside Development when
+> `EnableScalarDocs=true` is set on the `api` service (already in `compose.prod.yaml`). In normal use
+> they're only reachable through Caddy, which gates those two paths with HTTP Basic Auth - see
+> `Caddyfile.example`. Hitting the container directly on `:8080` like the line above bypasses that
+> gate entirely, so only do it from a trusted network for a quick sanity check.
+
 ---
 
 ## 4. Trigger the pipeline

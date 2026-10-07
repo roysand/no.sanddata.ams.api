@@ -25,6 +25,9 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ASPNETCORE_ENVIRONMENT: Production
       RunMigrationsAtStartup: "true"
+      # Served at /scalar/v1 and /openapi/v1.json; only safe to enable because Caddy puts Basic Auth
+      # in front of those paths (see Caddyfile.example) - the app itself has no browser-page login.
+      EnableScalarDocs: "true"
       ApplicationSettings__DbConnectionString: ${DB_CONNECTION_STRING}
       JwtSettings__SecretKey: ${JWT_SECRET_KEY}
       JwtSettings__Issuer: ${JWT_ISSUER}

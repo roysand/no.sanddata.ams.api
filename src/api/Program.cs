@@ -80,7 +80,10 @@ app.UseAuthorization();
 app.UseExceptionHandling();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+// Development always gets it; elsewhere it's an explicit opt-in (EnableScalarDocs) - e.g. production,
+// gated by HTTP Basic Auth at the reverse proxy (see Caddyfile.example), since the app itself only has
+// header-based JWT/API-key auth, which can't gate a plain browser page load.
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableScalarDocs"))
 {
     app.MapScalarApiReference(options =>
     {
