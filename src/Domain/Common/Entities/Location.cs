@@ -9,9 +9,9 @@ public class Location : Entity
     public bool IsActive { get; private set; }
     public bool HasNorgesPriceAgreement { get; private set; }
     public ApiKey ApiKey { get; private set; } = null!;
-    private List<User> _users = new();
+    private readonly List<User> _users = new();
     public IReadOnlyCollection<User> Users => _users.AsReadOnly();
-    private List<Meter> _meters = new();
+    private readonly List<Meter> _meters = new();
     public IReadOnlyCollection<Meter> Meters => _meters.AsReadOnly();
 
     public Location(Guid id, string name, string address, string serialNumber, string zone, bool isActive, bool hasNorgesPriceAgreement)
@@ -24,6 +24,19 @@ public class Location : Entity
         IsActive = isActive;
         HasNorgesPriceAgreement = hasNorgesPriceAgreement;
     }
+
+    public void Update(string name, string address, string serialNumber, string zone, bool hasNorgesPriceAgreement)
+    {
+        Name = name;
+        Address = address;
+        SerialNumber = serialNumber;
+        Zone = zone;
+        HasNorgesPriceAgreement = hasNorgesPriceAgreement;
+    }
+
+    public void SetActive(bool isActive) => IsActive = isActive;
+
+    public void AssignApiKey(ApiKey apiKey) => ApiKey = apiKey;
 
     public Location() : base() { }
 }

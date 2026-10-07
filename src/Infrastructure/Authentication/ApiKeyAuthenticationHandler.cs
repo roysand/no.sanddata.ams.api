@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Encodings.Web;
+using Application.Common.ApiKeys;
 using Application.Common.Interfaces.Repositories;
 using Domain.Common.Entities;
 using Microsoft.AspNetCore.Authentication;
@@ -34,7 +35,9 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
             return AuthenticateResult.Fail("Invalid API Key");
         }
 
-        ApiKey? apiKey = await _apiKeyRepository.FindActiveByKeyAsync(providedApiKey, CancellationToken.None);
+        // Only the fingerprint is looked up; the key itself is never stored, logged or put in a claim.
+        ApiKey? apiKey = await _apiKeyRepository.FindActiveByKeyHashAsync(
+            ApiKeyCrypto.Hash(providedApiKey), CancellationToken.None);
         if (apiKey is null)
         {
             return AuthenticateResult.Fail("Invalid or expired API Key");
@@ -42,9 +45,8 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
 
         Claim[] claims = new[]
         {
-            new Claim("ApiKey", apiKey.Key),
             new Claim(ClaimTypes.Name, "ApiKeyUser"),
-            new Claim("ApiKeyId", apiKey.GetType().GetProperty("Id")?.GetValue(apiKey)?.ToString() ?? string.Empty),
+            new Claim("ApiKeyId", apiKey.Id.ToString()),
             new Claim("LocationId", apiKey.Location.Id.ToString())
         };
 

@@ -1,4 +1,4 @@
-﻿using Application.Common.Interfaces.Repositories;
+using Application.Common.Interfaces.Repositories;
 using Domain.Common.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,8 +10,14 @@ public class ApiKeyEfRepository : GenericEfRepository<ApiKey>, IApiKeyRepository
     {
     }
 
-    public async Task<ApiKey?> FindActiveByKeyAsync(string key, CancellationToken cancellationToken) =>
+    public async Task<ApiKey?> FindActiveByKeyHashAsync(string keyHash, CancellationToken cancellationToken) =>
         await _context.Set<ApiKey>()
             .Include(a => a.Location)
-            .FirstOrDefaultAsync(a => a.Key == key && a.IsActive && a.ExpiresAt > DateTime.UtcNow, cancellationToken);
+            .FirstOrDefaultAsync(
+                a => a.KeyHash == keyHash && a.IsActive && a.ExpiresAt > DateTime.UtcNow && a.Location.IsActive,
+                cancellationToken);
+
+    public async Task<ApiKey?> FindByLocationIdAsync(Guid locationId, CancellationToken cancellationToken) =>
+        await _context.Set<ApiKey>()
+            .FirstOrDefaultAsync(a => a.Location.Id == locationId, cancellationToken);
 }

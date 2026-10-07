@@ -1,11 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 using Infrastructure.Logging;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -61,6 +56,12 @@ public class RequestResponseLoggingMiddleware
             {
                 using var sr = new StreamReader(context.Response.Body, Encoding.UTF8, leaveOpen: true);
                 responseText = await sr.ReadToEndAsync();
+                // A new sensor key is shown once, in the response; it must never be written to a log.
+                if (SensitiveData.RevealsApiKey(context.Request.Method, context.Request.Path))
+                {
+                    responseText = _options.MaskValue;
+                }
+
                 context.Response.Body.Seek(0, SeekOrigin.Begin);
                 attributes["ResponseBody"] = MaskOrValue("ResponseBody", responseText);
                 attributesJson = JsonSerializer.Serialize(attributes);
@@ -106,7 +107,7 @@ public class RequestResponseLoggingMiddleware
             ["QueryString"] = context.Request.QueryString.HasValue ? context.Request.QueryString.Value : string.Empty,
             ["UserAgent"] = context.Request.Headers.TryGetValue("User-Agent", out StringValues ua) ? ua.ToString() : string.Empty,
             ["RemoteIp"] = context.Connection.RemoteIpAddress?.ToString() ?? string.Empty,
-            ["Headers"] = context.Request.Headers.ToDictionary(h => h.Key, h => (object?)h.Value.ToString())
+            ["Headers"] = SensitiveData.RedactHeaders(context.Request.Headers, _options.MaskValue)
         };
 
         // Claims
