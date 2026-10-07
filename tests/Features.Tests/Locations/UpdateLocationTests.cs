@@ -7,6 +7,7 @@ using Features.Locations.Endpoints;
 using Features.Locations.Handlers;
 using Features.Locations.Queries;
 using Features.Locations.Validators;
+using FluentValidation.Results;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 
@@ -61,7 +62,7 @@ public class UpdateLocationTests
     [Fact]
     public async Task Handle_UnknownLocation_ReturnsNotFound()
     {
-        var command = Command() with { LocationId = Guid.NewGuid() };
+        UpdateLocationCommand command = Command() with { LocationId = Guid.NewGuid() };
 
         Result<AdminLocationResponse> result = await _handler.Handle(command, CancellationToken.None);
 
@@ -114,7 +115,7 @@ public class UpdateLocationTests
     [InlineData("")]
     public void Validator_BadZone_FailsWithTheZoneCode(string zone)
     {
-        var result = new UpdateLocationValidator().Validate(Request(zone: zone));
+        ValidationResult result = new UpdateLocationValidator().Validate(Request(zone: zone));
 
         Assert.Contains(result.Errors, e => e.ErrorCode == "Validation.InvalidZone");
     }
