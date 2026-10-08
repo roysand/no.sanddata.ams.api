@@ -24,6 +24,10 @@ public static class LocationMapper
         new(actingUserId, request.Name.Trim(), request.Address.Trim(), request.SerialNumber.Trim(), request.Zone,
             request.HasNorgesPriceAgreement, request.IsActive);
 
+    /// <summary>A user creating their own location: the same command, plus the link to the caller.</summary>
+    public static CreateLocationCommand ToOwnCommand(Guid userId, CreateLocationRequest request) =>
+        ToCommand(userId, request) with { LinkToUserId = userId };
+
     public static AdminLocationResponse ToAdminResponse(Location location, DateTime now) =>
         new(location.Id, location.Name, location.Address, location.SerialNumber, location.Zone, location.IsActive,
             location.HasNorgesPriceAgreement, ToKeyInfo(location.ApiKey, now),

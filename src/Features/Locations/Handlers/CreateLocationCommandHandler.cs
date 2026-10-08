@@ -12,6 +12,7 @@ namespace Features.Locations.Handlers;
 
 public class CreateLocationCommandHandler(
     ILocationRepository<Location> locationRepository,
+    IUserLocationRepository<UserLocation> userLocationRepository,
     ILogger<CreateLocationCommandHandler> logger)
     : ICommandHandler<CreateLocationCommand, Result<CreatedLocationResponse>>
 {
@@ -39,8 +40,14 @@ public class CreateLocationCommandHandler(
             command.IsActive, command.HasNorgesPriceAgreement);
         location.AssignApiKey(apiKey);
 
-        // One save: the location and its key are created together or not at all.
+        // One save: the location, its key and (for a user's own location) the link are created together or not at all.
+        // Both repositories share the request's DbContext, so a single SaveChanges commits all of it.
         locationRepository.Insert(location);
+        if (command.LinkToUserId is { } userId)
+        {
+            userLocationRepository.Insert(new UserLocation(userId, location.Id));
+        }
+
         await locationRepository.SaveChangesAsync(ct);
 
         LogMessages.LocationCreated(logger, location.Id, command.ActingUserId);
