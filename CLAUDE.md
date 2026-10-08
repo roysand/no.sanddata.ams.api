@@ -69,6 +69,12 @@ Features/YourFeature/
 
 **Custom CQRS Pattern**: `Application/CQRS/` defines the abstractions — `ICommand<TResult>`, `ICommandHandler<TCommand, TResult>`, `IQuery<TResult>`, `IQueryHandler<TQuery, TResult>`, `IDispatcher`. The concrete `IDispatcher` implementation and its DI registration are produced at compile time by `Cqrs.SourceGenerator` and land in `Features.Generated` (generated, not checked in) — see [DevelopmentGuide.md](DevelopmentGuide.md#custom-dispatcher).
 
+## Starting a New Feature
+
+Before starting a new feature, check `specs/_backlog/` for pending items. Backlog notes can describe API work that
+another project (for example the frontend) is waiting for, and may have to be done first or alongside the new feature.
+When you pick one up, run `speckit-specify` on it and remove or update the note.
+
 ## Getting Started
 
 ```bash
