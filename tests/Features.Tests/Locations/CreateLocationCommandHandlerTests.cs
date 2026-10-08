@@ -163,4 +163,36 @@ public class CreateLocationCommandHandlerTests
         Assert.Equal("Cabin", command.Name);
         Assert.Equal("SN-1", command.SerialNumber);
     }
+
+    [Theory]
+    [InlineData(3, true)]
+    [InlineData(4, false)]
+    [InlineData(10, false)]
+    public async Task Handle_OwnLocation_IsLimitedToFourPerUser(int existing, bool allowed)
+    {
+        var userId = Guid.NewGuid();
+        _locations.CountForUserAsync(userId, Arg.Any<CancellationToken>()).Returns(existing);
+
+        Result<CreatedLocationResponse> result =
+            await _handler.Handle(Command() with { LinkToUserId = userId }, CancellationToken.None);
+
+        Assert.Equal(allowed, result.IsSuccess);
+        if (!allowed)
+        {
+            Assert.Equal("Location.LimitReached", result.Error.Code);
+            Assert.Equal(ErrorType.Conflict, result.Error.Type);
+            _locations.DidNotReceive().Insert(Arg.Any<Location>());
+            _links.DidNotReceive().Insert(Arg.Any<UserLocation>());
+        }
+    }
+
+    [Fact]
+    public async Task Handle_AdminCreatedLocation_IsNotLimited()
+    {
+        _locations.CountForUserAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(99);
+
+        Result<CreatedLocationResponse> result = await _handler.Handle(Command(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+    }
 }

@@ -8,6 +8,9 @@ public interface ILocationRepository<T> : IRepository<T> where T : class
 
     Task<IReadOnlyList<Location>> GetForUserAsync(Guid userId, CancellationToken cancellationToken);
 
+    /// <summary>How many locations (active or not) the user is linked to.</summary>
+    Task<int> CountForUserAsync(Guid userId, CancellationToken cancellationToken);
+
     /// <summary>Every location (active or not) with its key and readers, for administrators.</summary>
     Task<IReadOnlyList<Location>> GetAllWithKeyAsync(CancellationToken cancellationToken);
 

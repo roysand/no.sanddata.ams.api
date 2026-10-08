@@ -5,5 +5,6 @@
 - [X] T003 Add `LocationMapper.ToOwnCommand` in `src/Features/Locations/Mappers/LocationMapper.cs`
 - [X] T004 Add `src/Features/Locations/Endpoints/CreateOwnLocationEndpoint.cs` (`POST /api/locations`)
 - [X] T005 Tests in `tests/Features.Tests/Locations/CreateLocationCommandHandlerTests.cs` (209 tests pass)
+- [X] T005a Limit of 4 linked locations per user (`ILocationRepository.CountForUserAsync`, handler check, tests)
 - [ ] T006 Manual check against a running API: create as non-admin, then `GET /api/locations` lists it
 - [ ] T007 Deploy to the environment the frontend calls

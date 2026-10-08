@@ -39,10 +39,13 @@ sensor key is returned only in this response.
   (all or nothing).
 - **FR-003**: The key MUST be returned only in this response and MUST NOT be logged or stored in plain form.
 - **FR-004**: Validation and conflict rules MUST be the same as for the admin endpoint.
-- **FR-005**: `POST /api/admin/locations` MUST keep its current behaviour (no link).
+- **FR-005**: `POST /api/admin/locations` MUST keep its current behaviour (no link, no limit).
+- **FR-006**: A user MUST NOT be linked to more than 4 locations through this endpoint. At 4 or more the request is
+  refused with `409` and code `Location.LimitReached` and the message "You can have at most 4 locations. Ask an
+  administrator to add more." Administrators add more through the admin endpoint plus the link endpoint.
 
 ## Out of scope / open questions
 
-- No per-user limit on the number of locations (not needed now).
+- The limit counts every location the user is linked to (active or not), because the data does not record who created a location. Locations an administrator linked to the user therefore count too.
 - Non-admins cannot rotate their own key; an administrator still does that.
 - Public self-registration (creating the account itself) is a separate feature.

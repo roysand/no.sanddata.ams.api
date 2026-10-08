@@ -22,6 +22,9 @@ public class LocationEfRepository : GenericEfRepository<Location>, ILocationRepo
             .Include(l => l.Meters)
             .ToListAsync(cancellationToken);
 
+    public async Task<int> CountForUserAsync(Guid userId, CancellationToken cancellationToken) =>
+        await _context.Location.CountAsync(l => l.Users.Any(u => u.Id == userId), cancellationToken);
+
     public async Task<Location?> GetByIdWithKeyAsync(Guid locationId, CancellationToken cancellationToken) =>
         await _context.Location
             .Include(l => l.ApiKey)

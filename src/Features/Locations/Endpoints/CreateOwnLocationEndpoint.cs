@@ -30,7 +30,7 @@ public class CreateOwnLocationEndpoint : Endpoint<CreateLocationRequest, Created
             s.Response(201, "Location created and linked to the caller; the response contains the key, shown once");
             s.Response(400, "Invalid request (for example a zone other than NO1-NO5)");
             s.Response(401, "Not signed in");
-            s.Response(409, "Another location already uses this serial number");
+            s.Response(409, "Another location already uses this serial number, or you already have the maximum of 4 locations (ask an administrator)");
         });
     }
 
