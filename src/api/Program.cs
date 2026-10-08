@@ -5,6 +5,7 @@ using Infrastructure;
 using Infrastructure.Database;
 using Infrastructure.Logging;
 using Infrastructure.Middleware;
+using Microsoft.AspNetCore.HttpOverrides;
 using Scalar.AspNetCore;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -68,6 +69,21 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod()));
 
 WebApplication app = builder.Build();
+
+// Caddy terminates TLS and reverse-proxies to this container over plain HTTP on the Docker network,
+// so Kestrel never sees HTTPS directly - only Caddy's X-Forwarded-Proto header says so. Without this,
+// Request.Scheme (and anything derived from it, e.g. the OpenAPI document's server URL) stays "http"
+// even in production. KnownNetworks/KnownProxies are cleared because the proxy's container IP isn't
+// static across deploys; that's safe here since the api container is never published on the host
+// (compose.prod.yaml uses `expose`, not `ports`) - only containers on the same Docker network can
+// reach it at all, so only Caddy can ever be the one setting these headers.
+var forwardedHeadersOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost
+};
+forwardedHeadersOptions.KnownNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeadersOptions);
 
 // Add Authentication and Authorization middleware
 app.UseCors(FrontendCorsPolicy);
