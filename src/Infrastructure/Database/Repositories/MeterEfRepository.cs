@@ -12,5 +12,6 @@ public class MeterEfRepository : GenericEfRepository<Meter>, IMeterRepository<Me
 
     public async Task<Meter?> FindByDeviceIdAsync(Guid locationId, string deviceId, CancellationToken cancellationToken) =>
         await _context.Set<Meter>()
+            .Include(m => m.Location)
             .FirstOrDefaultAsync(m => m.LocationId == locationId && m.DeviceId == deviceId && m.IsActive, cancellationToken);
 }
