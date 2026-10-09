@@ -21,6 +21,9 @@ public class Meter : Entity
 
     public Meter() : base() { }
 
+    /// <summary>The only thing about a registered meter that can be edited; device id and location are fixed.</summary>
+    public void SetComment(string? comment) => Comment = comment;
+
     public void UpdateMeterIdentity(string? meterId, string? meterType)
     {
         MeterId ??= meterId;

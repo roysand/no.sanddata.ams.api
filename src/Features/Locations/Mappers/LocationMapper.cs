@@ -23,6 +23,10 @@ public static class LocationMapper
         new(actingUserId, request.Id, request.Name.Trim(), request.Address.Trim(), request.SerialNumber.Trim(), request.Zone,
             request.HasNorgesPriceAgreement, request.IsActive);
 
+    /// <summary>An owner's edit: name, address and the active flag only. The validator has already required the flag.</summary>
+    public static UpdateOwnLocationCommand ToCommand(Guid actingUserId, UpdateOwnLocationRequest request) =>
+        new(actingUserId, request.Id, request.Name.Trim(), request.Address.Trim(), request.IsActive!.Value);
+
     public static CreateLocationCommand ToCommand(Guid actingUserId, CreateLocationRequest request) =>
         new(actingUserId, request.Name.Trim(), request.Address.Trim(), request.SerialNumber.Trim(), request.Zone,
             request.HasNorgesPriceAgreement, request.IsActive);
