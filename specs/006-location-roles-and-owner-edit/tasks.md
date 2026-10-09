@@ -115,9 +115,9 @@ Paths are relative to the repository root. Handlers are discovered by `Cqrs.Sour
 
 ## Phase 8: Polish and cross-cutting
 
-- [ ] T027 [P] Update `UserCrudEndpoints.md` (and `AuthenticationGuide.md` if it lists the endpoints) with the link role body, the two new `PUT` endpoints, the changed list responses and the `409 Location.LastOwner` rule.
-- [ ] T028 Run `dotnet build`, `dotnet test` and `dotnet format --verify-no-changes`; fix any failures. The three unrelated uncommitted files in the working tree (measurements ingest, meter repository) must not be part of these commits.
-- [ ] T029 Walk through `quickstart.md` against a locally running API with a throwaway database, including the no-body `PUT` link call (research item 4) and the migration check; note the result in the PR description.
+- [x] T027 [P] Update `UserCrudEndpoints.md` (and `AuthenticationGuide.md` if it lists the endpoints) with the link role body, the two new `PUT` endpoints, the changed list responses and the `409 Location.LastOwner` rule.
+- [x] T028 Run `dotnet build`, `dotnet test` and `dotnet format --verify-no-changes`; fix any failures. The three unrelated uncommitted files in the working tree (measurements ingest, meter repository) must not be part of these commits. Result 2026-10-09: Release build of the whole solution succeeds; 262 tests pass; format check clean for every hand-written file on this branch (the whole-solution check still lists 27 older files, including the generated migrations, which were already flagged before this work).
+- [ ] T029 Walk through `quickstart.md` against a locally running API with a throwaway database, including the no-body `PUT` link call (research item 4) and the migration check; note the result in the PR description. **WAITING FOR ROY: manual test not done. Follow `MANUAL-TEST.md` in this folder; do not merge before it passes.**
 - [ ] T030 Open the PR, merge, and confirm the Build, Push & Deploy workflow succeeded; confirm in the deployed database that the migration ran and existing links are owners. Record the deployment date in `specs/006-location-roles-and-owner-edit/spec.md` (Status).
 - [ ] T031 Tell the web app: in `no.sanddata.ams.frontend` tasks T040 of `specs/002-location-editing-sharing/tasks.md` (remove the flag and the compatibility shims) can now be done, and update its `contracts/backend-required.md` status line.
 
