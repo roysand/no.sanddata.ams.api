@@ -3,7 +3,8 @@ using Domain.Common;
 
 namespace Features.Users.Commands;
 
-public record LinkUserLocationCommand(Guid UserId, Guid LocationId, Caller Caller)
+/// <param name="Role">The role the link should have; a link made without stating one is an owner link.</param>
+public record LinkUserLocationCommand(Guid UserId, Guid LocationId, Caller Caller, LocationRole Role = LocationRole.Owner)
     : ICommand<Result<UserLocationChangeResponse>>;
 
 public record UnlinkUserLocationCommand(Guid UserId, Guid LocationId, Caller Caller)

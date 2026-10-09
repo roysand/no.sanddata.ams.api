@@ -36,6 +36,14 @@ public class UnlinkUserLocationCommandHandler(
             return Result.Success(new UserLocationChangeResponse(false));
         }
 
+        // A location always keeps at least one owner; viewers and surplus owners can be removed freely.
+        if (link.Role == LocationRole.Owner
+            && await userLocationRepository.CountOwnersAsync(command.LocationId, ct) <= 1)
+        {
+            return Result.Failure<UserLocationChangeResponse>(Error.Conflict(
+                "Location.LastOwner", "A location must keep at least one owner. Make another user an owner first."));
+        }
+
         userLocationRepository.Delete(link);
         await userLocationRepository.SaveChangesAsync(ct);
 

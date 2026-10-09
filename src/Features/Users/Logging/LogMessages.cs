@@ -1,3 +1,4 @@
+using Domain.Common;
 using Microsoft.Extensions.Logging;
 
 namespace Features.Users.Logging;
@@ -55,6 +56,12 @@ internal static class LogMessages
             new EventId(1013, nameof(UserLocationUnlinked)),
             "User {UserId} unlinked from location {LocationId} by {CallerId}");
 
+    private static readonly Action<ILogger, Guid, Guid, LocationRole, Guid, Exception?> _userLocationRoleChanged =
+        LoggerMessage.Define<Guid, Guid, LocationRole, Guid>(
+            LogLevel.Information,
+            new EventId(1020, nameof(UserLocationRoleChanged)),
+            "User {UserId} is now {Role} at location {LocationId}, changed by {CallerId}");
+
     private static readonly Action<ILogger, string, Exception?> _adminBootstrapped =
         LoggerMessage.Define<string>(
             LogLevel.Information,
@@ -111,6 +118,10 @@ internal static class LogMessages
 
     public static void UserLocationUnlinked(ILogger logger, Guid userId, Guid locationId, Guid callerId)
         => _userLocationUnlinked(logger, userId, locationId, callerId, null);
+
+    public static void UserLocationRoleChanged(
+        ILogger logger, Guid userId, Guid locationId, LocationRole role, Guid callerId)
+        => _userLocationRoleChanged(logger, userId, locationId, role, callerId, null);
 
     public static void AdminBootstrapped(ILogger logger, string email)
         => _adminBootstrapped(logger, email, null);
