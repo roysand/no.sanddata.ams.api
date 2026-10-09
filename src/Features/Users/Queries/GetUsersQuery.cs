@@ -26,5 +26,9 @@ public record UserListResponse(
     bool IsActive,
     string[] Roles,
     string[] Locations,
-    Guid[] LocationIds
+    Guid[] LocationIds,
+    UserLocationAccessResponse[] LocationAccess
 );
+
+/// <summary>A location the user is linked to and the role there ("Owner" or "Viewer").</summary>
+public record UserLocationAccessResponse(Guid LocationId, string Name, string Role);

@@ -16,12 +16,15 @@ namespace Features.Tests.Locations;
 public class UpdateLocationTests
 {
     private readonly ILocationRepository<Location> _locations = Substitute.For<ILocationRepository<Location>>();
+    private readonly IUserLocationRepository<UserLocation> _links = Substitute.For<IUserLocationRepository<UserLocation>>();
     private readonly UpdateLocationCommandHandler _handler;
     private readonly Location _location = new(Guid.NewGuid(), "Home", "Addr", "SN-1", "NO1", true, false);
 
     public UpdateLocationTests()
     {
-        _handler = new UpdateLocationCommandHandler(_locations, Substitute.For<ILogger<UpdateLocationCommandHandler>>());
+        _links.GetForLocationsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<LocationUserInfo>());
+        _handler = new UpdateLocationCommandHandler(_locations, _links, Substitute.For<ILogger<UpdateLocationCommandHandler>>());
         _location.AssignApiKey(new ApiKey(Guid.NewGuid(), ApiKeyCrypto.Hash("k"), "k", "Sensor key for Home", true,
             DateTime.UtcNow.AddDays(30)));
         _locations.GetByIdWithKeyAsync(_location.Id, Arg.Any<CancellationToken>()).Returns(_location);
@@ -30,6 +33,20 @@ public class UpdateLocationTests
     private UpdateLocationCommand Command(
         string name = "Cabin", string serial = "SN-2", string zone = "NO3", bool norges = true, bool active = true) =>
         new(Guid.NewGuid(), _location.Id, name, "New address", serial, zone, norges, active);
+
+    [Fact]
+    public async Task Handle_ReturnsWhoHasAccessWithTheirRole()
+    {
+        var owner = Guid.NewGuid();
+        _links.GetForLocationsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns([new LocationUserInfo(_location.Id, owner, "owner@example.com", "Olga", "Owner", LocationRole.Owner)]);
+
+        Result<AdminLocationResponse> result = await _handler.Handle(Command(), CancellationToken.None);
+
+        LocationUserResponse user = Assert.Single(result.Value.Users);
+        Assert.Equal(owner, user.UserId);
+        Assert.Equal("Owner", user.Role);
+    }
 
     [Fact]
     public async Task Handle_UpdatesDetailsAndLeavesTheKeyAlone()

@@ -22,10 +22,11 @@ public class GetMyLocationsQueryHandler : IQueryHandler<GetMyLocationsQuery, Res
 
     public async Task<Result<IReadOnlyList<LocationSummaryResponse>>> Handle(GetMyLocationsQuery query, CancellationToken ct)
     {
-        IReadOnlyList<Location> locations = await _locationRepository.GetForUserAsync(query.UserId, ct);
+        IReadOnlyList<LocationWithRole> locations = await _locationRepository.GetForUserWithRoleAsync(query.UserId, ct);
 
         LogMessages.LocationsListed(_logger, query.UserId, locations.Count);
 
-        return Result.Success<IReadOnlyList<LocationSummaryResponse>>(locations.Select(LocationMapper.ToResponse).ToList());
+        return Result.Success<IReadOnlyList<LocationSummaryResponse>>(
+            locations.Select(l => LocationMapper.ToResponse(l.Location, l.Role)).ToList());
     }
 }

@@ -18,13 +18,13 @@ public class CreateLocationCommandHandler(
 {
     private const int DescriptionMaxLength = 100;
 
-    /// <summary>A user creating their own location may be linked to at most this many; more needs an administrator.</summary>
+    /// <summary>A user creating their own location may own at most this many; more needs an administrator.</summary>
     public const int MaxLocationsPerUser = 4;
 
     public async Task<Result<CreatedLocationResponse>> Handle(CreateLocationCommand command, CancellationToken ct)
     {
         if (command.LinkToUserId is { } owner
-            && await locationRepository.CountForUserAsync(owner, ct) >= MaxLocationsPerUser)
+            && await locationRepository.CountOwnedForUserAsync(owner, ct) >= MaxLocationsPerUser)
         {
             return Result.Failure<CreatedLocationResponse>(Error.Conflict(
                 "Location.LimitReached",
