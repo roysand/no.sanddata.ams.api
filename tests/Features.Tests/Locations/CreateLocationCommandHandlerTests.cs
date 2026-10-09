@@ -12,12 +12,13 @@ namespace Features.Tests.Locations;
 public class CreateLocationCommandHandlerTests
 {
     private readonly ILocationRepository<Location> _locations = Substitute.For<ILocationRepository<Location>>();
+    private readonly IUserLocationRepository<UserLocation> _links = Substitute.For<IUserLocationRepository<UserLocation>>();
     private readonly CreateLocationCommandHandler _handler;
     private Location? _inserted;
 
     public CreateLocationCommandHandlerTests()
     {
-        _handler = new CreateLocationCommandHandler(_locations, Substitute.For<ILogger<CreateLocationCommandHandler>>());
+        _handler = new CreateLocationCommandHandler(_locations, _links, Substitute.For<ILogger<CreateLocationCommandHandler>>());
         _locations.Insert(Arg.Do<Location>(l => _inserted = l));
     }
 
@@ -110,5 +111,88 @@ public class CreateLocationCommandHandlerTests
         Assert.Equal(ErrorType.Conflict, result.Error.Type);
         _locations.DidNotReceive().Insert(Arg.Any<Location>());
         await _locations.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WithLinkToUser_LinksTheNewLocationToThatUserInTheSameSave()
+    {
+        var userId = Guid.NewGuid();
+        UserLocation? link = null;
+        _links.Insert(Arg.Do<UserLocation>(l => link = l));
+
+        Result<CreatedLocationResponse> result =
+            await _handler.Handle(Command() with { LinkToUserId = userId }, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(link);
+        Assert.Equal(userId, link.UserId);
+        Assert.Equal(_inserted!.Id, link.LocationId);
+        // The link is only inserted; the one SaveChanges on the shared context commits location, key and link together.
+        await _links.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+        await _locations.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WithoutLinkToUser_DoesNotLinkAnyone()
+    {
+        await _handler.Handle(Command(), CancellationToken.None);
+
+        _links.DidNotReceive().Insert(Arg.Any<UserLocation>());
+    }
+
+    [Fact]
+    public async Task Handle_WithLinkToUser_DuplicateSerialNumber_CreatesNoLink()
+    {
+        _locations.SerialNumberExistsAsync("SN-1", null, Arg.Any<CancellationToken>()).Returns(true);
+
+        await _handler.Handle(Command(serial: "SN-1") with { LinkToUserId = Guid.NewGuid() }, CancellationToken.None);
+
+        _links.DidNotReceive().Insert(Arg.Any<UserLocation>());
+    }
+
+    [Fact]
+    public void ToOwnCommand_LinksTheCallerAndTrimsInput()
+    {
+        var userId = Guid.NewGuid();
+
+        CreateLocationCommand command = Features.Locations.Mappers.LocationMapper.ToOwnCommand(
+            userId, new Features.Locations.Endpoints.CreateLocationRequest(" Cabin ", " Hyttevegen 1 ", " SN-1 ", "NO1"));
+
+        Assert.Equal(userId, command.LinkToUserId);
+        Assert.Equal(userId, command.ActingUserId);
+        Assert.Equal("Cabin", command.Name);
+        Assert.Equal("SN-1", command.SerialNumber);
+    }
+
+    [Theory]
+    [InlineData(3, true)]
+    [InlineData(4, false)]
+    [InlineData(10, false)]
+    public async Task Handle_OwnLocation_IsLimitedToFourPerUser(int existing, bool allowed)
+    {
+        var userId = Guid.NewGuid();
+        _locations.CountForUserAsync(userId, Arg.Any<CancellationToken>()).Returns(existing);
+
+        Result<CreatedLocationResponse> result =
+            await _handler.Handle(Command() with { LinkToUserId = userId }, CancellationToken.None);
+
+        Assert.Equal(allowed, result.IsSuccess);
+        if (!allowed)
+        {
+            Assert.Equal("Location.LimitReached", result.Error.Code);
+            Assert.Equal(ErrorType.Conflict, result.Error.Type);
+            _locations.DidNotReceive().Insert(Arg.Any<Location>());
+            _links.DidNotReceive().Insert(Arg.Any<UserLocation>());
+        }
+    }
+
+    [Fact]
+    public async Task Handle_AdminCreatedLocation_IsNotLimited()
+    {
+        _locations.CountForUserAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(99);
+
+        Result<CreatedLocationResponse> result = await _handler.Handle(Command(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
     }
 }

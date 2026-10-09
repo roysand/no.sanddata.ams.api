@@ -12,13 +12,25 @@ namespace Features.Locations.Handlers;
 
 public class CreateLocationCommandHandler(
     ILocationRepository<Location> locationRepository,
+    IUserLocationRepository<UserLocation> userLocationRepository,
     ILogger<CreateLocationCommandHandler> logger)
     : ICommandHandler<CreateLocationCommand, Result<CreatedLocationResponse>>
 {
     private const int DescriptionMaxLength = 100;
 
+    /// <summary>A user creating their own location may be linked to at most this many; more needs an administrator.</summary>
+    public const int MaxLocationsPerUser = 4;
+
     public async Task<Result<CreatedLocationResponse>> Handle(CreateLocationCommand command, CancellationToken ct)
     {
+        if (command.LinkToUserId is { } owner
+            && await locationRepository.CountForUserAsync(owner, ct) >= MaxLocationsPerUser)
+        {
+            return Result.Failure<CreatedLocationResponse>(Error.Conflict(
+                "Location.LimitReached",
+                $"You can have at most {MaxLocationsPerUser} locations. Ask an administrator to add more."));
+        }
+
         if (await locationRepository.SerialNumberExistsAsync(command.SerialNumber, null, ct))
         {
             return Result.Failure<CreatedLocationResponse>(Error.Conflict(
@@ -39,8 +51,14 @@ public class CreateLocationCommandHandler(
             command.IsActive, command.HasNorgesPriceAgreement);
         location.AssignApiKey(apiKey);
 
-        // One save: the location and its key are created together or not at all.
+        // One save: the location, its key and (for a user's own location) the link are created together or not at all.
+        // Both repositories share the request's DbContext, so a single SaveChanges commits all of it.
         locationRepository.Insert(location);
+        if (command.LinkToUserId is { } userId)
+        {
+            userLocationRepository.Insert(new UserLocation(userId, location.Id));
+        }
+
         await locationRepository.SaveChangesAsync(ct);
 
         LogMessages.LocationCreated(logger, location.Id, command.ActingUserId);
