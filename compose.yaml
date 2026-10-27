@@ -4,4 +4,10 @@
     build:
       context: .
       dockerfile: src/api/Dockerfile
+    environment:
+      "ApplicationSettings:DbConnectionString": Server=db;Port=5432;Database=amsdb;User Id=amsadmin;Password=${POSTGRES_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+
 
