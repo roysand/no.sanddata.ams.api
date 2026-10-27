@@ -1,6 +1,6 @@
 # Manual test: location roles and owner editing (task T029)
 
-**Status: NOT DONE. Roy must test this before the PR is merged.**
+**Status: DONE 2026-10-27. Run with `./manual-test.sh`; all steps pass.** The run found the no-body `PUT` link call answering 415, then 400; fixed in `LinkUserLocationEndpoint.cs`.
 
 The automated tests (262) and the checks against the local database all pass, but nothing has yet exercised the
 real HTTP layer: routing, authorisation, JSON shapes and the `PUT` link call without a body. That is what this

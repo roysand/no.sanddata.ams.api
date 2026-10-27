@@ -1,7 +1,9 @@
+using System.Text.Json;
 using Application.CQRS;
 using Domain.Common;
 using FastEndpoints;
 using Features.Users.Commands;
+using FluentValidation.Results;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 
@@ -17,9 +19,11 @@ public class LinkUserLocationEndpoint : Endpoint<LinkUserLocationRequest>
     {
         Put("/api/users/{id}/locations/{locationId}");
         Tags("Users");
-        Description(b => b.WithTags("Users"));
+        // The body is optional: without this, routing answers 415 to a PUT that has no JSON Content-Type.
+        Description(b => b.WithTags("Users").ClearDefaultAccepts());
         AuthSchemes(JwtBearerDefaults.AuthenticationScheme);
         Roles(RoleNames.Admin);
+        RequestBinder(new LinkUserLocationBinder());
         Summary(s =>
         {
             s.Summary = "Link a user to a location";
@@ -66,4 +70,46 @@ public class LinkUserLocationRequest
     public Guid Id { get; set; }
     public Guid LocationId { get; set; }
     public string? Role { get; set; }
+}
+
+/// <summary>
+/// Binds the route values and the OPTIONAL body. The default binder answers 415 to a body-less PUT without a JSON
+/// Content-Type, but linking a user without a role (an owner) must keep working that way.
+/// </summary>
+public class LinkUserLocationBinder : IRequestBinder<LinkUserLocationRequest>
+{
+    public async ValueTask<LinkUserLocationRequest> BindAsync(BinderContext ctx, CancellationToken ct)
+    {
+        HttpRequest request = ctx.HttpContext.Request;
+        var result = new LinkUserLocationRequest();
+
+        if (Guid.TryParse(request.RouteValues["id"]?.ToString(), out Guid id))
+            result.Id = id;
+        else
+            ctx.ValidationFailures.Add(new ValidationFailure("id", "A valid user id is required"));
+
+        if (Guid.TryParse(request.RouteValues["locationId"]?.ToString(), out Guid locationId))
+            result.LocationId = locationId;
+        else
+            ctx.ValidationFailures.Add(new ValidationFailure("locationId", "A valid location id is required"));
+
+        // No Content-Length header does not mean no body (chunked), so read it and treat an empty one as "no role".
+        using var reader = new StreamReader(request.Body);
+        string json = await reader.ReadToEndAsync(ct);
+        if (!string.IsNullOrWhiteSpace(json))
+        {
+            try
+            {
+                result.Role = JsonSerializer.Deserialize<LinkUserLocationBody>(json, JsonSerializerOptions.Web)?.Role;
+            }
+            catch (JsonException)
+            {
+                ctx.ValidationFailures.Add(new ValidationFailure("role", "The request body is not valid JSON"));
+            }
+        }
+
+        return result;
+    }
+
+    private sealed record LinkUserLocationBody(string? Role);
 }
