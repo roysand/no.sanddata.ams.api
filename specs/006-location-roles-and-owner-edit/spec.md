@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-09
 
-**Status**: Draft
+**Status**: Deployed 2026-10-27 (PR #13; migration `AddUserLocationRole` applied, existing links are owners)
 
 **Input**: Frontend feature `no.sanddata.ams.frontend` -> `specs/002-location-editing-sharing/` (contract in its `contracts/backend-required.md`). User description: "Every link between a user and a location gets a role, owner or viewer. The user an administrator allocates to a location is its owner. Other users given access to see its data, usage and cost are viewers. Owners can edit the non-system fields of their location (name, address, active flag) and the comment of its meters, but never the serial number, price zone, Norgespris agreement or sensor key; those stay administrator-only. Viewers can only read. Administrators can add and remove viewers and change roles. Sensor key rotation is out of scope."
 
