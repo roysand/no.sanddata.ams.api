@@ -34,6 +34,13 @@ public class Location : Entity
         HasNorgesPriceAgreement = hasNorgesPriceAgreement;
     }
 
+    /// <summary>What an owner may change. Serial number, zone and the Norgespris agreement are administrator-only.</summary>
+    public void UpdateDetails(string name, string address)
+    {
+        Name = name;
+        Address = address;
+    }
+
     public void SetActive(bool isActive) => IsActive = isActive;
 
     public void AssignApiKey(ApiKey apiKey) => ApiKey = apiKey;

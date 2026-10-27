@@ -1,3 +1,5 @@
+using Application.Common.Interfaces.Repositories;
+using Domain.Common;
 using Domain.Common.Entities;
 using Features.Locations.Commands;
 using Features.Locations.Endpoints;
@@ -12,13 +14,18 @@ public static class LocationMapper
     public const string StatusExpired = "Expired";
     public const string StatusDeactivated = "Deactivated";
 
-    public static LocationSummaryResponse ToResponse(Location location) =>
-        new(location.Id, location.Name, location.Address, location.Zone,
+    public static LocationSummaryResponse ToResponse(Location location, LocationRole role) =>
+        new(location.Id, location.Name, location.Address, location.Zone, location.SerialNumber,
+            location.HasNorgesPriceAgreement, location.IsActive, role.ToString(),
             location.Meters.Select(MeterMapper.ToResponse).ToList());
 
     public static UpdateLocationCommand ToCommand(Guid actingUserId, UpdateLocationRequest request) =>
         new(actingUserId, request.Id, request.Name.Trim(), request.Address.Trim(), request.SerialNumber.Trim(), request.Zone,
             request.HasNorgesPriceAgreement, request.IsActive);
+
+    /// <summary>An owner's edit: name, address and the active flag only. The validator has already required the flag.</summary>
+    public static UpdateOwnLocationCommand ToCommand(Guid actingUserId, UpdateOwnLocationRequest request) =>
+        new(actingUserId, request.Id, request.Name.Trim(), request.Address.Trim(), request.IsActive!.Value);
 
     public static CreateLocationCommand ToCommand(Guid actingUserId, CreateLocationRequest request) =>
         new(actingUserId, request.Name.Trim(), request.Address.Trim(), request.SerialNumber.Trim(), request.Zone,
@@ -28,10 +35,15 @@ public static class LocationMapper
     public static CreateLocationCommand ToOwnCommand(Guid userId, CreateLocationRequest request) =>
         ToCommand(userId, request) with { LinkToUserId = userId };
 
-    public static AdminLocationResponse ToAdminResponse(Location location, DateTime now) =>
+    public static AdminLocationResponse ToAdminResponse(
+        Location location, DateTime now, IEnumerable<LocationUserInfo>? users = null) =>
         new(location.Id, location.Name, location.Address, location.SerialNumber, location.Zone, location.IsActive,
             location.HasNorgesPriceAgreement, ToKeyInfo(location.ApiKey, now),
-            location.Meters.Select(MeterMapper.ToResponse).ToList());
+            location.Meters.Select(MeterMapper.ToResponse).ToList(),
+            (users ?? []).Select(ToUserResponse).ToList());
+
+    public static LocationUserResponse ToUserResponse(LocationUserInfo user) =>
+        new(user.UserId, user.Email, user.FirstName, user.LastName, user.Role.ToString());
 
     public static ApiKeyInfoResponse ToKeyInfo(ApiKey apiKey, DateTime now) =>
         new(apiKey.Description, apiKey.KeyHint, apiKey.IsActive, apiKey.ExpiresAt, KeyStatus(apiKey, now));

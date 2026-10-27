@@ -10,8 +10,9 @@ using Scalar.AspNetCore;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-// Add local.settings.json to configuration
+// Add local.settings.json for local development, then let environment variables override it.
 builder.Configuration.AddJsonFile("local.settings.json", optional: true, reloadOnChange: true);
+builder.Configuration.AddEnvironmentVariables();
 
 // Configures console log timestamps (Logging:Console:FormatterOptions in appsettings.json).
 builder.Logging.AddSimpleConsole(options => options.SingleLine = true);

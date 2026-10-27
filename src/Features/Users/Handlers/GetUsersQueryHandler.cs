@@ -1,7 +1,8 @@
-using Application.CQRS;
 using Application.Common.Interfaces.Repositories;
+using Application.CQRS;
 using Domain.Common;
 using Domain.Common.Entities;
+using Features.Users.Mappers;
 using Features.Users.Queries;
 
 namespace Features.Users.Handlers;
@@ -9,9 +10,15 @@ namespace Features.Users.Handlers;
 public class GetUsersQueryHandler : IQueryHandler<GetUsersQuery, Result<PagedUsersResponse>>
 {
     private readonly IUserRepository<User> _userRepository;
+    private readonly IUserLocationRepository<UserLocation> _userLocationRepository;
 
-    public GetUsersQueryHandler(IUserRepository<User> userRepository) 
-        => _userRepository = userRepository;
+    public GetUsersQueryHandler(
+        IUserRepository<User> userRepository,
+        IUserLocationRepository<UserLocation> userLocationRepository)
+    {
+        _userRepository = userRepository;
+        _userLocationRepository = userLocationRepository;
+    }
 
     public async Task<Result<PagedUsersResponse>> Handle(GetUsersQuery request, CancellationToken cancellationToken)
     {
@@ -29,19 +36,18 @@ public class GetUsersQueryHandler : IQueryHandler<GetUsersQuery, Result<PagedUse
         int totalCount = filteredUsers.Count;
 
         // Apply pagination
-        UserListResponse[] pagedUsers = filteredUsers
+        var page = filteredUsers
             .Skip((request.PageNumber - 1) * request.PageSize)
             .Take(request.PageSize)
-            .Select(u => new UserListResponse(
-                u.Id,
-                u.FirstName,
-                u.LastName,
-                u.Email.Value,
-                u.IsActive,
-                u.Roles.Select(r => r.Name).ToArray(),
-                u.Locations.Select(l => l.Name).ToArray(),
-                u.Locations.Select(l => l.Id).ToArray()
-            ))
+            .ToList();
+
+        // One query for the role of every link on this page.
+        IReadOnlyList<UserLinkInfo> links = await _userLocationRepository.GetForUsersAsync(
+            page.Select(u => u.Id).ToList(), cancellationToken);
+        ILookup<Guid, UserLinkInfo> linksByUser = links.ToLookup(l => l.UserId);
+
+        UserListResponse[] pagedUsers = page
+            .Select(u => UserMapper.ToListResponse(u, linksByUser[u.Id]))
             .ToArray();
 
         int totalPages = (int)Math.Ceiling(totalCount / (double)request.PageSize);

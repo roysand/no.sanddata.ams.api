@@ -52,6 +52,6 @@ public class IngestMeasurementsCommandHandler : ICommandHandler<IngestMeasuremen
 
         await _measurementRepository.SaveChangesAsync(ct);
 
-        return Result.Success(new IngestMeasurementsResponse(command.Readings.Count));
+        return Result.Success(new IngestMeasurementsResponse(command.Readings.Count, meter.Location.Name, meter.Comment));
     }
 }

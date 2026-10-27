@@ -1,6 +1,7 @@
+using Domain.Common;
+using Domain.Common.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Domain.Common.Entities;
 
 namespace Infrastructure.Database.Configuration;
 
@@ -12,6 +13,13 @@ public class UserLocationConfiguration : IEntityTypeConfiguration<UserLocation>
 
         builder.Property(ul => ul.UserId).IsRequired();
         builder.Property(ul => ul.LocationId).IsRequired();
+
+        // Stored as text ("Owner" / "Viewer"). The default makes every link that existed before roles an owner link.
+        builder.Property(ul => ul.Role)
+            .HasConversion<string>()
+            .HasMaxLength(10)
+            .IsRequired()
+            .HasDefaultValue(LocationRole.Owner);
 
         builder.HasIndex(ul => new { ul.UserId, ul.LocationId }).IsUnique();
 

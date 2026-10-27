@@ -29,16 +29,37 @@ public class LinkUserLocationCommandHandler(
                 Error.NotFound("Location.NotFound", "Location not found"));
         }
 
-        if (await userLocationRepository.ExistsAsync(
-                ul => ul.UserId == command.UserId && ul.LocationId == command.LocationId, ct))
+        UserLocation? link = (await userLocationRepository.FindAsync(
+            ul => ul.UserId == command.UserId && ul.LocationId == command.LocationId, ct)).FirstOrDefault();
+
+        if (link is null)
+        {
+            userLocationRepository.Insert(new UserLocation(command.UserId, command.LocationId, command.Role));
+            await userLocationRepository.SaveChangesAsync(ct);
+
+            LogMessages.UserLocationLinked(logger, command.UserId, command.LocationId, command.Caller.Id);
+            return Result.Success(new UserLocationChangeResponse(true));
+        }
+
+        if (link.Role == command.Role)
         {
             return Result.Success(new UserLocationChangeResponse(false));
         }
 
-        userLocationRepository.Insert(new UserLocation(command.UserId, command.LocationId));
+        // A location always keeps at least one owner. Several are allowed, so making someone an owner never conflicts.
+        if (link.Role == LocationRole.Owner
+            && command.Role == LocationRole.Viewer
+            && await userLocationRepository.CountOwnersAsync(command.LocationId, ct) <= 1)
+        {
+            return Result.Failure<UserLocationChangeResponse>(Error.Conflict(
+                "Location.LastOwner", "A location must keep at least one owner. Make another user an owner first."));
+        }
+
+        link.ChangeRole(command.Role);
+        userLocationRepository.Update(link);
         await userLocationRepository.SaveChangesAsync(ct);
 
-        LogMessages.UserLocationLinked(logger, command.UserId, command.LocationId, command.Caller.Id);
+        LogMessages.UserLocationRoleChanged(logger, command.UserId, command.LocationId, command.Role, command.Caller.Id);
         return Result.Success(new UserLocationChangeResponse(true));
     }
 }

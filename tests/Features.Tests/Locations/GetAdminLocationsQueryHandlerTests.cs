@@ -11,9 +11,15 @@ namespace Features.Tests.Locations;
 public class GetAdminLocationsQueryHandlerTests
 {
     private readonly ILocationRepository<Location> _locations = Substitute.For<ILocationRepository<Location>>();
+    private readonly IUserLocationRepository<UserLocation> _links = Substitute.For<IUserLocationRepository<UserLocation>>();
     private readonly GetAdminLocationsQueryHandler _handler;
 
-    public GetAdminLocationsQueryHandlerTests() => _handler = new GetAdminLocationsQueryHandler(_locations);
+    public GetAdminLocationsQueryHandlerTests()
+    {
+        _handler = new GetAdminLocationsQueryHandler(_locations, _links);
+        _links.GetForLocationsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<LocationUserInfo>());
+    }
 
     private static Location LocationWithKey(string name, bool keyActive, DateTime expiresAt, bool locationActive = true)
     {
@@ -39,6 +45,40 @@ public class GetAdminLocationsQueryHandlerTests
 
         Assert.Equal(2, list.Count);
         Assert.Contains(list, l => !l.IsActive);
+    }
+
+    [Fact]
+    public async Task Handle_ListsWhoHasAccessToEachLocationWithTheirRole()
+    {
+        Location shared = LocationWithKey("Shared", true, DateTime.UtcNow.AddDays(10));
+        Location alone = LocationWithKey("Alone", true, DateTime.UtcNow.AddDays(10));
+        var owner = Guid.NewGuid();
+        var viewer = Guid.NewGuid();
+        _links.GetForLocationsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns([
+                new LocationUserInfo(shared.Id, owner, "owner@example.com", "Olga", "Owner", LocationRole.Owner),
+                new LocationUserInfo(shared.Id, viewer, "viewer@example.com", "Vera", "Viewer", LocationRole.Viewer)
+            ]);
+
+        IReadOnlyList<AdminLocationResponse> list = await RunAsync(shared, alone);
+
+        AdminLocationResponse sharedResponse = list.Single(l => l.Id == shared.Id);
+        Assert.Equal(2, sharedResponse.Users.Count);
+        Assert.Equal("Owner", sharedResponse.Users.Single(u => u.UserId == owner).Role);
+        Assert.Equal("Viewer", sharedResponse.Users.Single(u => u.UserId == viewer).Role);
+        Assert.Equal("viewer@example.com", sharedResponse.Users.Single(u => u.UserId == viewer).Email);
+        Assert.Empty(list.Single(l => l.Id == alone.Id).Users);
+    }
+
+    [Fact]
+    public async Task Handle_AsksForEveryonesAccessInOneQuery()
+    {
+        await RunAsync(
+            LocationWithKey("A", true, DateTime.UtcNow.AddDays(10)),
+            LocationWithKey("B", true, DateTime.UtcNow.AddDays(10)));
+
+        await _links.Received(1).GetForLocationsAsync(
+            Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == 2), Arg.Any<CancellationToken>());
     }
 
     [Fact]

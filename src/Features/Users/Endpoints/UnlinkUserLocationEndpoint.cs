@@ -28,6 +28,7 @@ public class UnlinkUserLocationEndpoint : EndpointWithoutRequest
             s.Response(401, "Not signed in");
             s.Response(403, "Administrator role required");
             s.Response(404, "User or location not found");
+            s.Response(409, "The user is the location's last owner");
         });
     }
 
@@ -39,7 +40,12 @@ public class UnlinkUserLocationEndpoint : EndpointWithoutRequest
         if (!result.IsSuccess)
         {
             AddError(result.Error.Description, result.Error.Code);
-            ThrowIfAnyErrors(result.Error.Type == ErrorType.NotFound ? 404 : 400);
+            ThrowIfAnyErrors(result.Error.Type switch
+            {
+                ErrorType.NotFound => 404,
+                ErrorType.Conflict => 409,
+                _ => 400
+            });
         }
 
         HttpContext.Response.StatusCode = 204;

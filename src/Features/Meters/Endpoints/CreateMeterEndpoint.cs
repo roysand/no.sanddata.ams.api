@@ -24,11 +24,11 @@ public class CreateMeterEndpoint : Endpoint<CreateMeterRequest, MeterResponse>
         Summary(s =>
         {
             s.Summary = "Register a reader";
-            s.Description = "Registers a new reader (meter) at a location, so it is allowed to submit measurements. Linked users can register at their own active locations; administrators at any location.";
+            s.Description = "Registers a new reader (meter) at a location, so it is allowed to submit measurements. Owners can register at their own locations; viewers cannot; administrators at any location.";
             s.ExampleRequest = new CreateMeterRequest(Guid.NewGuid(), "58:CF:79:9C:93:AE", "Main building");
             s.Response(200, "Reader registered successfully");
             s.Response(401, "Not signed in");
-            s.Response(404, "Location not found, or you are not linked to it");
+            s.Response(404, "Location not found, or you do not own it");
             s.Response(409, "Reader already registered at this location");
         });
     }

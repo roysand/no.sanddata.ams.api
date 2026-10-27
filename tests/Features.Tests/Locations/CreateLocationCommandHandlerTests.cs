@@ -171,7 +171,8 @@ public class CreateLocationCommandHandlerTests
     public async Task Handle_OwnLocation_IsLimitedToFourPerUser(int existing, bool allowed)
     {
         var userId = Guid.NewGuid();
-        _locations.CountForUserAsync(userId, Arg.Any<CancellationToken>()).Returns(existing);
+        // The count is of owned locations only, so viewing shared locations never uses up the limit.
+        _locations.CountOwnedForUserAsync(userId, Arg.Any<CancellationToken>()).Returns(existing);
 
         Result<CreatedLocationResponse> result =
             await _handler.Handle(Command() with { LinkToUserId = userId }, CancellationToken.None);
@@ -189,7 +190,7 @@ public class CreateLocationCommandHandlerTests
     [Fact]
     public async Task Handle_AdminCreatedLocation_IsNotLimited()
     {
-        _locations.CountForUserAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(99);
+        _locations.CountOwnedForUserAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(99);
 
         Result<CreatedLocationResponse> result = await _handler.Handle(Command(), CancellationToken.None);
 

@@ -114,7 +114,10 @@ GET /api/users?pageNumber=1&pageSize=10&isActive=true&search=john
       "isActive": true,
       "roles": ["User"],
       "locations": ["Oslo"],
-      "locationIds": ["22222222-2222-2222-2222-222222222222"]
+      "locationIds": ["22222222-2222-2222-2222-222222222222"],
+      "locationAccess": [
+        { "locationId": "22222222-2222-2222-2222-222222222222", "name": "Oslo", "role": "Owner" }
+      ]
     }
   ],
   "totalCount": 1,
@@ -299,7 +302,14 @@ All endpoints below require a signed-in user (JWT). Details and the rules for ro
 | `DELETE /api/users/{id}` | Admin (409 `User.LastAdmin` for the last active Admin) |
 | `PUT /api/users/{id}/password` | The user themselves (current password required), or an Admin resetting another account |
 | `PUT` / `DELETE /api/users/{id}/roles/admin` | Admin: grant / revoke the Admin role (idempotent, 204) |
-| `PUT` / `DELETE /api/users/{id}/locations/{locationId}` | Admin: link / unlink a user and a location (idempotent, 204) |
+| `PUT` / `DELETE /api/users/{id}/locations/{locationId}` | Admin: link / unlink a user and a location (idempotent, 204). `PUT` takes an optional body `{ "role": "Owner" \| "Viewer" }`; without it the user becomes an owner |
+
+**Location roles.** A link is either an owner or a viewer link. `PUT` with a role creates the link with that role,
+or changes the role of an existing link. A location must keep at least one owner: demoting or unlinking the last
+owner returns `409` (`Location.LastOwner`), and making someone else an owner first is always allowed.
+`GET /api/users` lists each user's links as `locationAccess` (`locationId`, `name`, `role`).
+Owners edit their own location with `PUT /api/locations/{id}` (name, address, active flag) and a meter's comment
+with `PUT /api/meters/{id}`; see [AuthenticationGuide.md](AuthenticationGuide.md#roles-and-first-admin) for who may do what.
 
 A signed-in user addressing someone else's account gets **404 `User.NotFound`**, exactly as for a missing account.
 Anonymous callers get 401; a signed-in user without the Admin role on an admin-only action gets 403.

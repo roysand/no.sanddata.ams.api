@@ -202,8 +202,15 @@ an Admin holds `Admin` as well, so Admin rights are a superset of User rights. R
 | Same actions on **another** account | 401 | **404** (looks like a missing account) | allowed |
 | List users, create user, delete user | 401 | 403 | allowed |
 | Grant / revoke Admin (`/api/users/{id}/roles/admin`) | 401 | 403 | allowed |
-| Link / unlink a user and a location (`/api/users/{id}/locations/{locationId}`) | 401 | 403 | allowed |
-| Meters (`/api/meters`) and all location data | 401 | only for locations the user is linked to (else 404) | same, an Admin has no bypass |
+| Link / unlink a user and a location, set the role (`/api/users/{id}/locations/{locationId}`) | 401 | 403 | allowed |
+| Read a location's data, usage, cost or a meter | 401 | only for locations the user is linked to, as owner **or viewer** (else 404) | same, an Admin has no bypass |
+| Edit a location's name, address and active flag (`PUT /api/locations/{id}`) | 401 | only an **owner** of it (viewers and strangers get 404) | uses `PUT /api/admin/locations/{id}` (all fields) |
+| Register a meter (`POST /api/meters`) or edit its comment (`PUT /api/meters/{id}`) | 401 | only an **owner** of the location (viewers get 404) | any location |
+
+A user-location link has a role, **Owner** or **Viewer**. A link made without a role is an owner link. A location
+always keeps at least one owner (409 `Location.LastOwner` when a change would remove the last one); it may have several.
+Owners can never change the serial number, price zone, Norgespris agreement or sensor key: those requests do not exist
+for them, and only an Admin can edit them.
 
 Other rules: a non-Admin cannot change their own `isActive`; changing your own password needs the current
 password, while an Admin resetting another account does not; the **last active Admin** can never be demoted,

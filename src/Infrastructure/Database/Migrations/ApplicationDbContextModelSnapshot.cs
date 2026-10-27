@@ -446,6 +446,13 @@ namespace Infrastructure.Database.Migrations
                     b.Property<Guid>("LocationId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("Owner");
+
                     b.HasKey("UserId", "LocationId");
 
                     b.HasIndex("LocationId");

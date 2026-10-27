@@ -1,3 +1,4 @@
+using Application.Common.Interfaces.Repositories;
 using Domain.Common.Entities;
 using Features.Users.Commands;
 using Features.Users.Endpoints;
@@ -45,7 +46,7 @@ public static class UserMapper
             user.Roles.Select(r => r.Name).ToArray(),
             user.Locations.Select(l => l.Name).ToArray());
 
-    public static UserListResponse ToListResponse(User user) =>
+    public static UserListResponse ToListResponse(User user, IEnumerable<UserLinkInfo> links) =>
         new UserListResponse(
             user.Id,
             user.FirstName,
@@ -54,5 +55,6 @@ public static class UserMapper
             user.IsActive,
             user.Roles.Select(r => r.Name).ToArray(),
             user.Locations.Select(l => l.Name).ToArray(),
-            user.Locations.Select(l => l.Id).ToArray());
+            user.Locations.Select(l => l.Id).ToArray(),
+            links.Select(l => new UserLocationAccessResponse(l.LocationId, l.LocationName, l.Role.ToString())).ToArray());
 }

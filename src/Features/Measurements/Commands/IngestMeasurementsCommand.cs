@@ -8,4 +8,4 @@ public record IngestMeasurementsCommand(Guid LocationId, string DeviceId, IReadO
 
 public record MeasurementReading(DateTime Timestamp, string? MeterId, string? MeterType, int PowerWatts);
 
-public record IngestMeasurementsResponse(int Accepted);
+public record IngestMeasurementsResponse(int Accepted, string LocationName, string? MeterComment);

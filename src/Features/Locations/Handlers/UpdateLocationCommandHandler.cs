@@ -12,6 +12,7 @@ namespace Features.Locations.Handlers;
 
 public class UpdateLocationCommandHandler(
     ILocationRepository<Location> locationRepository,
+    IUserLocationRepository<UserLocation> userLocationRepository,
     ILogger<UpdateLocationCommandHandler> logger)
     : ICommandHandler<UpdateLocationCommand, Result<AdminLocationResponse>>
 {
@@ -41,6 +42,7 @@ public class UpdateLocationCommandHandler(
             LogMessages.LocationActiveChanged(logger, location.Id, location.IsActive, command.ActingUserId);
         }
 
-        return Result.Success(LocationMapper.ToAdminResponse(location, DateTime.UtcNow));
+        IReadOnlyList<LocationUserInfo> access = await userLocationRepository.GetForLocationsAsync([location.Id], ct);
+        return Result.Success(LocationMapper.ToAdminResponse(location, DateTime.UtcNow, access));
     }
 }
