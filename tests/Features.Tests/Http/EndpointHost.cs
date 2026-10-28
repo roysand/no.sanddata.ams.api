@@ -36,7 +36,7 @@ internal sealed class EndpointHost : IAsyncDisposable
 
     public static async Task<EndpointHost> StartAsync(Action<IDispatcher> arrange)
     {
-        var dispatcher = Substitute.For<IDispatcher>();
+        IDispatcher dispatcher = Substitute.For<IDispatcher>();
         arrange(dispatcher);
 
         WebApplicationBuilder builder = WebApplication.CreateBuilder();

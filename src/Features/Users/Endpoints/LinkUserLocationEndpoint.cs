@@ -84,14 +84,22 @@ public class LinkUserLocationBinder : IRequestBinder<LinkUserLocationRequest>
         var result = new LinkUserLocationRequest();
 
         if (Guid.TryParse(request.RouteValues["id"]?.ToString(), out Guid id))
+        {
             result.Id = id;
+        }
         else
+        {
             ctx.ValidationFailures.Add(new ValidationFailure("id", "A valid user id is required"));
+        }
 
         if (Guid.TryParse(request.RouteValues["locationId"]?.ToString(), out Guid locationId))
+        {
             result.LocationId = locationId;
+        }
         else
+        {
             ctx.ValidationFailures.Add(new ValidationFailure("locationId", "A valid location id is required"));
+        }
 
         // No Content-Length header does not mean no body (chunked), so read it and treat an empty one as "no role".
         using var reader = new StreamReader(request.Body);
