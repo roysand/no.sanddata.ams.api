@@ -64,8 +64,7 @@ UPDATE "Location" SET "IsActive" = true WHERE "Id" = '22222222-2222-2222-2222-22
 -- remove the test location, its meters, links and key, and the test users
 DELETE FROM "Meter" WHERE "LocationId" IN (SELECT "Id" FROM "Location" WHERE "SerialNumber" = 'TEST-ROLES-1');
 DELETE FROM "UserLocation" WHERE "LocationId" IN (SELECT "Id" FROM "Location" WHERE "SerialNumber" = 'TEST-ROLES-1');
-WITH k AS (DELETE FROM "Location" WHERE "SerialNumber" = 'TEST-ROLES-1' RETURNING "ApiKeyId")
-DELETE FROM "ApiKey" WHERE "Id" IN (SELECT "ApiKeyId" FROM k);
+DELETE FROM "Location" WHERE "SerialNumber" = 'TEST-ROLES-1';  -- its sensor key goes with it
 -- delete the two test users (adjust the e-mail addresses to the ones you created)
 DELETE FROM "User" WHERE "Email" IN ('role.a@example.com', 'role.b@example.com');
 SQL
