@@ -54,7 +54,5 @@ public static class UserMapper
             user.Email.Value,
             user.IsActive,
             user.Roles.Select(r => r.Name).ToArray(),
-            user.Locations.Select(l => l.Name).ToArray(),
-            user.Locations.Select(l => l.Id).ToArray(),
             links.Select(l => new UserLocationAccessResponse(l.LocationId, l.LocationName, l.Role.ToString())).ToArray());
 }
