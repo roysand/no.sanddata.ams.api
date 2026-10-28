@@ -25,8 +25,6 @@ public record UserListResponse(
     string Email,
     bool IsActive,
     string[] Roles,
-    string[] Locations,
-    Guid[] LocationIds,
     UserLocationAccessResponse[] LocationAccess
 );
 

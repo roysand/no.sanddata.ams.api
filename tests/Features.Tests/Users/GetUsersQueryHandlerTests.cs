@@ -60,16 +60,4 @@ public class GetUsersQueryHandlerTests
         await _links.Received(1).GetForUsersAsync(
             Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == 2), Arg.Any<CancellationToken>());
     }
-
-    [Fact]
-    public async Task Handle_KeepsTheExistingLocationFields()
-    {
-        _fx.AddUser("someone@example.com");
-
-        Result<PagedUsersResponse> result = await _handler.Handle(new GetUsersQuery(), CancellationToken.None);
-
-        UserListResponse user = Assert.Single(result.Value.Users);
-        Assert.NotNull(user.Locations);
-        Assert.NotNull(user.LocationIds);
-    }
 }

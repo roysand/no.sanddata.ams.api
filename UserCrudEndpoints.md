@@ -113,8 +113,6 @@ GET /api/users?pageNumber=1&pageSize=10&isActive=true&search=john
       "email": "john.doe@example.com",
       "isActive": true,
       "roles": ["User"],
-      "locations": ["Oslo"],
-      "locationIds": ["22222222-2222-2222-2222-222222222222"],
       "locationAccess": [
         { "locationId": "22222222-2222-2222-2222-222222222222", "name": "Oslo", "role": "Owner" }
       ]
