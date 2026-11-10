@@ -84,3 +84,6 @@ logs/
 # Temporary files
 tmp/
 temp/
+
+# dotnet ef leaves Windows-style build-host folders under the startup project
+src/api/bin\\Debug/
