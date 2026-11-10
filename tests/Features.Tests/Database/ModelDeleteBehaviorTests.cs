@@ -36,14 +36,12 @@ public class ModelDeleteBehaviorTests
     }
 
     [Fact]
-    public void DeletingAnApiKey_CannotDeleteALocation()
-    {
+    public void DeletingAnApiKey_CannotDeleteALocation() =>
         // A location must never hold a foreign key to its key: that would let a key delete take the location,
         // its meters and every measurement along.
         Assert.Empty(BuildModel().FindEntityType(typeof(Location))!
             .GetForeignKeys()
             .Where(fk => fk.PrincipalEntityType.ClrType == typeof(ApiKey)));
-    }
 
     [Fact]
     public void DeletingALocation_StillRemovesItsMeters()
