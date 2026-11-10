@@ -22,8 +22,7 @@ if [[ "${1:-}" == "clean" ]]; then
     docker exec -i nosanddataamsapi-db-1 psql -U amsadmin -d amsdb <<SQL
 DELETE FROM "Meter" WHERE "LocationId" IN (SELECT "Id" FROM "Location" WHERE "SerialNumber" = '$SERIAL');
 DELETE FROM "UserLocation" WHERE "LocationId" IN (SELECT "Id" FROM "Location" WHERE "SerialNumber" = '$SERIAL');
-WITH k AS (DELETE FROM "Location" WHERE "SerialNumber" = '$SERIAL' RETURNING "ApiKeyId")
-DELETE FROM "ApiKey" WHERE "Id" IN (SELECT "ApiKeyId" FROM k);
+DELETE FROM "Location" WHERE "SerialNumber" = '$SERIAL';
 DELETE FROM "User" WHERE "Email" IN ('$A_EMAIL', '$B_EMAIL');
 SQL
     exit $?

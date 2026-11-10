@@ -12,8 +12,6 @@ public class ApiKey : Entity
     public bool IsActive { get; private set; }
     public DateTime ExpiresAt { get; private set; }
     public Location Location { get; private set; } = null!;
-    private readonly List<User> _users = new();
-    public IReadOnlyCollection<User> Users => _users.AsReadOnly();
 
     public ApiKey(Guid id, string keyHash, string keyHint, string description, bool isActive, DateTime expiresAt)
         : base(id)

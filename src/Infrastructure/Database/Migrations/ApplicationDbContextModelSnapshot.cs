@@ -23,21 +23,6 @@ namespace Infrastructure.Database.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("ApiKeyUser", b =>
-                {
-                    b.Property<Guid>("ApiKeyId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("UsersId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("ApiKeyId", "UsersId");
-
-                    b.HasIndex("UsersId");
-
-                    b.ToTable("ApiKeyUser", "public");
-                });
-
             modelBuilder.Entity("Application.Common.Interfaces.Repositories.HourConsumption", b =>
                 {
                     b.Property<double>("AvgPowerWatts")
@@ -106,12 +91,18 @@ namespace Infrastructure.Database.Migrations
                         .HasMaxLength(8)
                         .HasColumnType("character varying(8)");
 
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
                     b.HasIndex("KeyHash")
+                        .IsUnique();
+
+                    b.HasIndex("LocationId")
                         .IsUnique();
 
                     b.ToTable("ApiKey", "public");
@@ -192,9 +183,6 @@ namespace Infrastructure.Database.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<Guid>("ApiKeyId")
-                        .HasColumnType("uuid");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -223,9 +211,6 @@ namespace Infrastructure.Database.Migrations
                         .HasColumnType("character varying(10)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ApiKeyId")
-                        .IsUnique();
 
                     b.HasIndex("SerialNumber")
                         .IsUnique();
@@ -484,30 +469,15 @@ namespace Infrastructure.Database.Migrations
                     b.ToTable("UserRole", "public");
                 });
 
-            modelBuilder.Entity("ApiKeyUser", b =>
+            modelBuilder.Entity("Domain.Common.Entities.ApiKey", b =>
                 {
-                    b.HasOne("Domain.Common.Entities.ApiKey", null)
-                        .WithMany()
-                        .HasForeignKey("ApiKeyId")
+                    b.HasOne("Domain.Common.Entities.Location", "Location")
+                        .WithOne("ApiKey")
+                        .HasForeignKey("Domain.Common.Entities.ApiKey", "LocationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Domain.Common.Entities.User", null)
-                        .WithMany()
-                        .HasForeignKey("UsersId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Domain.Common.Entities.Location", b =>
-                {
-                    b.HasOne("Domain.Common.Entities.ApiKey", "ApiKey")
-                        .WithOne("Location")
-                        .HasForeignKey("Domain.Common.Entities.Location", "ApiKeyId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ApiKey");
+                    b.Navigation("Location");
                 });
 
             modelBuilder.Entity("Domain.Common.Entities.Measurement", b =>
@@ -596,14 +566,11 @@ namespace Infrastructure.Database.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Domain.Common.Entities.ApiKey", b =>
-                {
-                    b.Navigation("Location")
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("Domain.Common.Entities.Location", b =>
                 {
+                    b.Navigation("ApiKey")
+                        .IsRequired();
+
                     b.Navigation("Meters");
                 });
 

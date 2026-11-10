@@ -18,9 +18,6 @@ public class LocationConfiguration : IEntityTypeConfiguration<Location>
         builder.Property(l => l.IsActive);
         builder.Property(l => l.HasNorgesPriceAgreement);
 
-        builder.HasOne(l => l.ApiKey)
-            .WithOne(a => a.Location);
-
         builder.HasMany(l => l.Users)
             .WithMany(u => u.Locations)
             .UsingEntity<UserLocation>();

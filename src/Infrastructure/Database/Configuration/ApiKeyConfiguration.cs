@@ -18,11 +18,13 @@ public class ApiKeyConfiguration : IEntityTypeConfiguration<ApiKey>
         builder.Property(a => a.CreatedAt);
         builder.Property(a => a.ExpiresAt);
 
+        // The key belongs to its location: deleting a location deletes its key, and a key can neither
+        // outlive its location nor take the location (with its meters and measurements) along when deleted.
         builder.HasOne(a => a.Location)
             .WithOne(l => l.ApiKey)
-            .HasForeignKey<Location>("ApiKeyId");
-
-        builder.HasMany(a => a.Users)
-            .WithMany();
+            .HasForeignKey<ApiKey>("LocationId")
+            .IsRequired()
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex("LocationId").IsUnique();
     }
 }
