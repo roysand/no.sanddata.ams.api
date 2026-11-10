@@ -52,6 +52,10 @@ services:
       POSTGRES_DB: appdb
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # Loopback only, never reachable from the internet: connect with an SSH tunnel (DataGrip: SSH/SSL tab,
+    # host localhost, port 5432). Keep the 127.0.0.1 prefix; Docker publishing ignores the ufw firewall.
+    ports:
+      - "127.0.0.1:5432:5432"
     networks:
       - backend
     healthcheck:
