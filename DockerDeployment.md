@@ -17,10 +17,15 @@ GitHub Actions: build-and-push job
    ▼
 GitHub Actions: deploy job
    │  - SSH into the Hetzner server
-   │  - docker compose pull && docker compose up -d
+   │  - docker compose pull api && docker compose up -d api
    ▼
 Hetzner container running the new image
 ```
+
+> **The pipeline deploys the image only.** It does not copy `compose.prod.yaml`, the `Caddyfile` or `.env` to the
+> server. After you change `compose.prod.yaml`, copy it yourself (`scp compose.prod.yaml deploy@<host>:/opt/ams-api/`)
+> and run `docker compose -f compose.prod.yaml up -d` on the server. Database migrations are different: the API
+> applies them itself at startup (`RunMigrationsAtStartup`), so a deploy with a new migration needs no extra step.
 
 Files involved:
 
@@ -29,7 +34,8 @@ Files involved:
 | `.github/workflows/docker-publish.yml` | CI/CD pipeline (build → push → deploy) |
 | `src/api/Dockerfile` | Multi-stage build for the API (fixed: now copies all project references + `Directory.Build.props`/`Directory.Packages.props`/`Nuget.Config` before `dotnet restore`) |
 | `compose.yaml` | **Local development** — builds the image from source |
-| `compose.prod.yaml` | **Hetzner/production** — pulls the prebuilt image from Docker Hub |
+| `compose.prod.yaml` | **Hetzner/production** — Caddy (TLS), the API (prebuilt image from Docker Hub) and Postgres |
+| `Caddyfile.example` | Template for the server's `Caddyfile`: TLS, reverse proxy to the API, Basic Auth on the docs |
 | `compose.db.yaml` | Local-only Postgres/TimescaleDB for dev |
 
 ---
@@ -121,7 +127,11 @@ chown deploy:deploy /opt/ams-api
 ```
 
 Copy `compose.prod.yaml` from this repo to `/opt/ams-api/compose.prod.yaml` on the server
-(e.g. `scp compose.prod.yaml deploy@<host>:/opt/ams-api/`).
+(e.g. `scp compose.prod.yaml deploy@<host>:/opt/ams-api/`). Repeat this whenever the file changes.
+
+Create `/opt/ams-api/Caddyfile` from `Caddyfile.example` (your domain, and the Basic Auth hash for the docs from
+`docker exec -it caddy caddy hash-password --plaintext '<password>'`). The domain's DNS A/AAAA record must point
+at the server; Caddy gets and renews the TLS certificate by itself.
 
 Create `/opt/ams-api/.env` on the server (this file is **never committed to git**
 and only ever exists on the server) with real secret values:
@@ -130,7 +140,7 @@ and only ever exists on the server) with real secret values:
 # /opt/ams-api/.env
 DOCKERHUB_USERNAME=<your-dockerhub-username>
 POSTGRES_PASSWORD=<choose-a-strong-password>
-DB_CONNECTION_STRING=Server=db;Port=5432;Database=amsdb;User Id=amsadmin;Password=<same-as-above>;
+DB_CONNECTION_STRING=Server=postgres;Port=5432;Database=appdb;User Id=appuser;Password=<same-as-POSTGRES_PASSWORD>;
 JWT_SECRET_KEY=<at-least-32-characters-random-string>
 JWT_ISSUER=AmsApi
 JWT_AUDIENCE=AmsApiClients
@@ -155,13 +165,14 @@ docker compose -f compose.prod.yaml up -d
 docker compose -f compose.prod.yaml ps
 ```
 
-Visit `http://<hetzner-ip>:8080/scalar/v1` to confirm the API responds.
+Visit `https://<your-domain>/scalar/v1` to confirm the API responds. The browser asks for the Basic Auth user
+`docs` and the password you hashed into the `Caddyfile`.
 
-> Scalar/OpenAPI (`/scalar/v1`, `/openapi/v1.json`) only serve outside Development when
-> `EnableScalarDocs=true` is set on the `api` service (already in `compose.prod.yaml`). In normal use
-> they're only reachable through Caddy, which gates those two paths with HTTP Basic Auth - see
-> `Caddyfile.example`. Hitting the container directly on `:8080` like the line above bypasses that
-> gate entirely, so only do it from a trusted network for a quick sanity check.
+> The API container is not published on the host: it only listens on port 8080 inside Docker, and Caddy
+> proxies to it. Scalar/OpenAPI (`/scalar/v1`, `/openapi/v1.json`) only serve outside Development when
+> `EnableScalarDocs=true` is set on the `api` service (already in `compose.prod.yaml`), and Caddy gates those
+> two paths with HTTP Basic Auth - see `Caddyfile.example`. Everything else uses the API's own login
+> (`POST /api/auth/login`, JWT) or a sensor key (`X-API-Key`).
 
 ---
 
@@ -182,11 +193,41 @@ You can also trigger it manually from the **Actions** tab via **Run workflow**
 
 ---
 
-## 5. Firewall / networking reminder
+## 5. Firewall / networking
 
-Make sure port `8080` (or whichever you expose) is allowed through the Hetzner
-firewall/Cloud Firewall rules, and consider putting a reverse proxy (e.g. Caddy
-or Nginx) in front for TLS — not covered by this guide.
+Only these ports need to be open to the internet (Hetzner firewall and `ufw`):
+
+| Port | Why |
+|------|-----|
+| 22 | SSH (you, and the deploy job) |
+| 80 | Caddy: redirects to HTTPS and answers the certificate challenge |
+| 443 | Caddy: the API and the docs |
+
+Do **not** open 8080 (the API) or 5432 (Postgres). The API is only reachable through Caddy, and Postgres is bound
+to the server's loopback (`127.0.0.1:5432`, see below). Docker's published ports bypass `ufw`, so keep the
+`127.0.0.1` prefix on the Postgres port in `compose.prod.yaml`.
+
+---
+
+## 6. Looking into the production database
+
+Postgres is published on the server's loopback only, so it is reachable through an SSH tunnel and from nowhere else.
+
+**DataGrip** (data source type PostgreSQL):
+
+- **SSH/SSL tab**: tick *Use SSH tunnel*, host = the server, port `22`, your SSH user, authentication *Key pair*.
+  Leave the local port dynamic, or use a high one such as `15432`; never `22` (a port below 1024 gives
+  "Permission denied").
+- **General tab**: host `localhost`, port `5432`, database `appdb`, user `appuser`, password = `POSTGRES_PASSWORD`
+  from the server's `.env`. Host and port are resolved on the server, through the tunnel.
+- Switch on read-only for the connection, so production data cannot be changed by accident.
+
+**From a terminal** (no GUI): `ssh -N -L 15432:127.0.0.1:5432 <user>@<host>` and then connect a client to
+`127.0.0.1:15432`. Or run `docker exec -it postgres psql -U appuser -d appdb` on the server.
+
+If the tunnel is refused with "administratively prohibited", the server's `sshd` has `AllowTcpForwarding no`;
+set it to `yes` (or `local`) in `/etc/ssh/sshd_config` and reload `ssh`. If the connection is refused on the server
+side, check that the port is published: `ss -tlnp | grep 5432` must show `127.0.0.1:5432`.
 
 ---
 
@@ -198,4 +239,5 @@ or Nginx) in front for TLS — not covered by this guide.
 - [ ] Hetzner server has Docker installed
 - [ ] `deploy` user created with SSH key + docker group membership
 - [ ] `docker login` run once on Hetzner as the `deploy` user
-- [ ] `/opt/ams-api/compose.prod.yaml` and `/opt/ams-api/.env` present on the server
+- [ ] `/opt/ams-api/compose.prod.yaml`, `/opt/ams-api/Caddyfile` and `/opt/ams-api/.env` present on the server
+- [ ] DNS for the domain points at the server; ports 22, 80 and 443 open (not 8080 or 5432)
