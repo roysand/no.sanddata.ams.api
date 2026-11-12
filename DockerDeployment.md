@@ -145,7 +145,14 @@ JWT_SECRET_KEY=<at-least-32-characters-random-string>
 JWT_ISSUER=AmsApi
 JWT_AUDIENCE=AmsApiClients
 BOOTSTRAP_OWNER_PASSWORD=<choose-a-strong-password-for-the-first-admin-login>
+ENTSOE_SECURITY_TOKEN=<your-entso-e-security-token>
 ```
+
+> `ENTSOE_SECURITY_TOKEN` is the ENTSO-E Transparency Platform token used to fetch day-ahead spot prices.
+> `compose.prod.yaml` passes it to the API as `EntsoE__SecurityToken`. Without it the API still starts, but no
+> spot prices are fetched and the log says `ENTSO-E security token is not configured (reason: TokenMissing)`.
+> Request the token at transparency.entsoe.eu (register, then email transparency@entsoe.eu with the subject
+> "Restful API access"; approval takes about 3 business days), then create it under My Account.
 
 > Generate a strong `JWT_SECRET_KEY` with e.g. `openssl rand -base64 48`.
 

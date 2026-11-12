@@ -35,6 +35,8 @@ services:
       # Creates the first owner/Admin account on startup if Bootstrap:OwnerEmail has no row yet.
       # Does nothing once any Admin exists - safe to leave set after the first successful login.
       Bootstrap__OwnerPassword: ${BOOTSTRAP_OWNER_PASSWORD}
+      # ENTSO-E Transparency Platform token for day-ahead spot prices. Without it no prices are fetched.
+      EntsoE__SecurityToken: ${ENTSOE_SECURITY_TOKEN:-}
     depends_on:
       postgres:
         condition: service_healthy
