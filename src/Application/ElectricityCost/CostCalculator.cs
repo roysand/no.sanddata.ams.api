@@ -16,10 +16,13 @@ public record CostResult(PricingModel PricingModel, RateCost? Actual, RateCost? 
 public class CostCalculator(
     IElectricityPriceRepository<ElectricityPrice> priceRepository,
     IExchangeRateRepository<ExchangeRate> exchangeRateRepository,
-    FlatRateOptions flatRate)
+    INorgesPrisRateRepository norgesPrisRates)
 {
     private const string EurNok = "EURNOK";
     private const int MaxRateLookbackDays = 7;
+
+    // The calculator is scoped, so the (tiny) rate list is read once per request, however many hours are priced.
+    private Task<IReadOnlyList<NorgesPrisRate>>? _rates;
 
     public async Task<CostResult> CalculateAsync(
         Location location, DateTime hourStartUtc, decimal consumptionKwh, CancellationToken ct)
@@ -37,10 +40,17 @@ public class CostCalculator(
         PricingModel model, Location location, DateTime hourStartUtc, decimal consumptionKwh, CancellationToken ct)
     {
         decimal? rate = model == PricingModel.NorgesPris
-            ? flatRate.RatePerKwh + flatRate.TaxPerKwh
+            ? await GetNorgesPrisRateAsync(hourStartUtc, ct)
             : await GetSpotRateAsync(location.Zone, hourStartUtc, ct);
 
         return rate is null ? null : new RateCost(rate.Value, consumptionKwh * rate.Value);
+    }
+
+    private async Task<decimal?> GetNorgesPrisRateAsync(DateTime hourStartUtc, CancellationToken ct)
+    {
+        _rates ??= norgesPrisRates.GetAllAsync(ct);
+        NorgesPrisRate? rate = NorgesPrisSchedule.RateFor(await _rates, hourStartUtc);
+        return rate is null ? null : rate.RatePerKwh + rate.TaxPerKwh;
     }
 
     private async Task<decimal?> GetSpotRateAsync(string priceRegion, DateTime hourStartUtc, CancellationToken ct)

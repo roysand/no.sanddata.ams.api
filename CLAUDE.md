@@ -210,6 +210,7 @@ EventId ranges (keep in sync as features are added):
 | 1300-1399 | Measurements |
 | 1400-1499 | Locations |
 | 1500-1599 | ElectricityCost |
+| 1600-1699 | NorgesPris |
 | 2000-2099 | Infra/Logging |
 
 Full guide (why, request/response logging config, reason-code table): [DevelopmentGuide.md](DevelopmentGuide.md#logging-with-logmessages).

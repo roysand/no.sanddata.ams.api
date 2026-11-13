@@ -5,6 +5,7 @@ using Domain.Common.Entities;
 using Features.ElectricityCost.Handlers;
 using Features.ElectricityCost.Queries;
 using Features.ElectricityCost.Services;
+using Features.Tests.NorgesPris;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 
@@ -24,7 +25,7 @@ public class CostHandlerTests
 
     public CostHandlerTests()
     {
-        _calculator = new CostCalculator(_prices, _rates, new FlatRateOptions { RatePerKwh = 0.40m });
+        _calculator = new CostCalculator(_prices, _rates, NorgesPrisRates.Seeded());
         _locations.IsUserAssociatedAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
         _locations.GetByIdAsync(_location.Id, Arg.Any<CancellationToken>()).Returns(_location);
         _rates.GetByDateAsync("EURNOK", Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())

@@ -4,6 +4,7 @@ using Domain.Common;
 using Domain.Common.Entities;
 using Features.ElectricityCost.Handlers;
 using Features.ElectricityCost.Queries;
+using Features.Tests.NorgesPris;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 
@@ -29,7 +30,7 @@ public class GetDayPricesQueryHandlerTests
 
     private GetDayPricesQueryHandler Handler() => new(
         _locations,
-        new CostCalculator(_prices, _rates, new FlatRateOptions { RatePerKwh = 0.40m }),
+        new CostCalculator(_prices, _rates, NorgesPrisRates.Seeded()),
         Substitute.For<ILogger<GetDayPricesQueryHandler>>());
 
     [Theory]

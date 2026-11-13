@@ -294,6 +294,52 @@ namespace Infrastructure.Database.Migrations
                     b.ToTable("Meter", "public");
                 });
 
+            modelBuilder.Entity("Domain.Common.Entities.NorgesPrisRate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AddedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("RatePerKwh")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("numeric(9,4)");
+
+                    b.Property<decimal>("TaxPerKwh")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("numeric(9,4)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("ValidFrom")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ValidFrom")
+                        .IsUnique();
+
+                    b.ToTable("NorgesPrisRate", "public");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("b0000000-0000-0000-0000-000000000001"),
+                            AddedByUserId = new Guid("00000000-0000-0000-0000-000000000000"),
+                            CreatedAt = new DateTime(2026, 11, 13, 0, 0, 0, 0, DateTimeKind.Utc),
+                            RatePerKwh = 0.40m,
+                            TaxPerKwh = 0m,
+                            UpdatedAt = new DateTime(2026, 11, 13, 0, 0, 0, 0, DateTimeKind.Utc),
+                            ValidFrom = new DateOnly(2020, 1, 1)
+                        });
+                });
+
             modelBuilder.Entity("Domain.Common.Entities.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")

@@ -1,6 +1,7 @@
 using Application.Common.Interfaces.Repositories;
 using Application.ElectricityCost;
 using Domain.Common.Entities;
+using Features.Tests.NorgesPris;
 using NSubstitute;
 
 namespace Features.Tests.ElectricityCost;
@@ -17,7 +18,7 @@ public class CostCalculatorTests
 
     private readonly CostCalculator _calculator;
 
-    public CostCalculatorTests() => _calculator = new CostCalculator(_prices, _rates, new FlatRateOptions { RatePerKwh = 0.40m, TaxPerKwh = 0.05m });
+    public CostCalculatorTests() => _calculator = new CostCalculator(_prices, _rates, NorgesPrisRates.Seeded(0.05m));
 
     private static Location LocationWith(bool norgesPris) =>
         new(Guid.NewGuid(), "Home", "Addr", "SN1", "NO1", true, norgesPris);

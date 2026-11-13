@@ -129,6 +129,8 @@ at this data volume — computing it on read is simple and cheap.
 
 ## 8. Flat government rate (Norgespris) is configuration, not data
 
+> **Superseded by feature 007 (2026-11):** Norgespris rates are now dated rows in the database that an Admin manages. The configuration section described below no longer exists.
+
 **Decision**: The flat rate (NOK 0.40/kWh baseline + a tax component, per the user) is
 application configuration (`appsettings.json`), not a database table — it's a single
 government-set constant that changes rarely, not per-location or per-hour data. Exact current
