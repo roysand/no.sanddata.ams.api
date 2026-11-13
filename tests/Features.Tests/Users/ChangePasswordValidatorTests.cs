@@ -20,11 +20,10 @@ public class ChangePasswordValidatorTests
         Assert.False(_validator.Validate(new ChangePasswordRequest(Guid.NewGuid(), "SamePassw0rd!", "SamePassw0rd!")).IsValid);
 
     [Theory]
-    [InlineData("Sh0rt!x")]
+    [InlineData("Sh0rt!xyz")]
     [InlineData("alllowercase1!")]
     [InlineData("ALLUPPERCASE1!")]
     [InlineData("NoNumbersHere!")]
-    [InlineData("NoSpecial1234")]
     public void Validate_WeakNewPassword_Fails(string newPassword) =>
         Assert.False(_validator.Validate(new ChangePasswordRequest(Guid.NewGuid(), null, newPassword)).IsValid);
 

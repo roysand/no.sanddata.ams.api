@@ -48,7 +48,7 @@ Src/Features/Users/
 - First name: Required, max 100 characters
 - Last name: Required, max 100 characters
 - Email: Required, valid email format, max 255 characters, must be unique
-- Password: Required, min 8 characters, must contain uppercase, lowercase, number, and special character
+- Password: Required, min 10 characters, must contain uppercase, lowercase, and number
 
 **Error Responses:**
 - `409 Conflict` - Email already exists
@@ -223,7 +223,7 @@ GET /api/users?pageNumber=1&pageSize=10&isActive=true&search=john
 
 **Validation Rules:**
 - Current password: Required
-- New password: Required, min 8 characters, must contain uppercase, lowercase, number, and special character
+- New password: Required, min 10 characters, must contain uppercase, lowercase, and number
 - New password must be different from current password
 
 **Error Responses:**
