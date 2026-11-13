@@ -8,6 +8,11 @@ public class GetMeasurementsValidatorTests
 {
     private readonly GetMeasurementsValidator _validator = new();
 
+    // Once any in-memory endpoint host has started in this process, FastEndpoints reports property names in
+    // camelCase for every validator, so the casing depends on which tests ran first.
+    private static bool PropertyIs(ValidationFailure error, string name) =>
+        string.Equals(error.PropertyName, name, StringComparison.OrdinalIgnoreCase);
+
     [Fact]
     public void Validate_DefaultRequest_Passes()
     {
@@ -28,7 +33,7 @@ public class GetMeasurementsValidatorTests
         ValidationResult result = _validator.Validate(request);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.PropertyName == nameof(GetMeasurementsRequest.Page));
+        Assert.Contains(result.Errors, e => PropertyIs(e, nameof(GetMeasurementsRequest.Page)));
     }
 
     [Theory]
@@ -41,7 +46,7 @@ public class GetMeasurementsValidatorTests
         ValidationResult result = _validator.Validate(request);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.PropertyName == nameof(GetMeasurementsRequest.PageSize));
+        Assert.Contains(result.Errors, e => PropertyIs(e, nameof(GetMeasurementsRequest.PageSize)));
     }
 
     [Fact]
