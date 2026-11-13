@@ -84,6 +84,35 @@ public class GetDayPricesQueryHandlerTests
     }
 
     [Fact]
+    public async Task Handle_NorgesPris_StillReturnsTheSpotRateForEachHour()
+    {
+        DateTime hour = new(2026, 9, 30, 22, 0, 0, DateTimeKind.Utc); // 2026-10-01 00:00 in Oslo
+        _prices.GetByRegionAndHourAsync("NO1", hour, Arg.Any<CancellationToken>())
+            .Returns(new ElectricityPrice(Guid.NewGuid(), "NO1", hour, 50m));
+
+        Result<DayPricesResponse> result = await Handler().Handle(
+            new GetDayPricesQuery(Guid.NewGuid(), _norgesPris.Id, DateTime.Parse("2026-10-01")), CancellationToken.None);
+
+        HourPriceResponse first = result.Value.Items[0];
+        Assert.NotEqual(first.RatePerKwh, first.SpotRatePerKwh); // flat plan rate versus market rate
+        Assert.True(first.SpotRatePerKwh > 0);
+        Assert.Null(result.Value.Items[1].SpotRatePerKwh); // no price published for the next hour
+    }
+
+    [Fact]
+    public async Task Handle_Spot_HasTheSameSpotRateAsPlanRate()
+    {
+        DateTime hour = new(2026, 9, 30, 22, 0, 0, DateTimeKind.Utc);
+        _prices.GetByRegionAndHourAsync("NO1", hour, Arg.Any<CancellationToken>())
+            .Returns(new ElectricityPrice(Guid.NewGuid(), "NO1", hour, 50m));
+
+        Result<DayPricesResponse> result = await Handler().Handle(
+            new GetDayPricesQuery(Guid.NewGuid(), _spot.Id, DateTime.Parse("2026-10-01")), CancellationToken.None);
+
+        Assert.Equal(result.Value.Items[0].RatePerKwh, result.Value.Items[0].SpotRatePerKwh);
+    }
+
+    [Fact]
     public async Task Handle_InaccessibleLocation_ReturnsNotFound()
     {
         _locations.IsUserAssociatedAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(false);
