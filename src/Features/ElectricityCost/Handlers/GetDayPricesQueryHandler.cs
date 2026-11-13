@@ -43,7 +43,8 @@ public class GetDayPricesQueryHandler(
         {
             CostResult cost = await costCalculator.CalculateAsync(location, hour, 1m, ct);
             pricingModel = cost.PricingModel.ToString();
-            items.Add(new HourPriceResponse(hour, cost.Actual?.RatePerKwh));
+            RateCost? spot = cost.PricingModel == PricingModel.Spot ? cost.Actual : cost.Comparison;
+            items.Add(new HourPriceResponse(hour, cost.Actual?.RatePerKwh, spot?.RatePerKwh));
         }
 
         LogMessages.CostQueried(logger, query.UserId, query.LocationId);
