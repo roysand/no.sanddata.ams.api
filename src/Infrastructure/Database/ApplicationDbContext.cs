@@ -24,6 +24,7 @@ public sealed class ApplicationDbContext(
     public DbSet<Meter> Meter { get; set; }
     public DbSet<ElectricityPrice> ElectricityPrice { get; set; }
     public DbSet<ExchangeRate> ExchangeRate { get; set; }
+    public DbSet<NorgesPrisRate> NorgesPrisRate { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

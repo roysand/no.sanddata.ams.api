@@ -46,11 +46,11 @@ public static class AddInfrastructureToDI
         services.AddScoped<IElectricityPriceRepository<ElectricityPrice>, ElectricityPriceEfRepository>();
         services.AddScoped<IExchangeRateRepository<ExchangeRate>, ExchangeRateEfRepository>();
         services.AddScoped<IConsumptionRepository, ConsumptionEfRepository>();
+        services.AddScoped<INorgesPrisRateRepository, NorgesPrisRateEfRepository>();
+        services.AddSingleton(TimeProvider.System);
 
         // Electricity cost: options, external clients, calculator
         services.AddOptions<EntsoeOptions>().Bind(configuration.GetSection(EntsoeOptions.SectionName));
-        services.AddSingleton(configuration.GetSection(FlatRateOptions.SectionName).Get<FlatRateOptions>()
-                              ?? new FlatRateOptions());
         services.AddHttpClient<ISpotPriceClient, EntsoeSpotPriceClient>(client =>
             client.BaseAddress = new Uri("https://web-api.tp.entsoe.eu/api"));
         services.AddHttpClient<IExchangeRateClient, NorgesBankExchangeRateClient>(client =>

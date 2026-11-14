@@ -6,7 +6,6 @@ using Features.Users.Endpoints;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -17,7 +16,7 @@ namespace Features.Tests.Http;
 
 /// <summary>
 /// The real FastEndpoints pipeline (routing, binding, validation, authorisation) in memory, with a stubbed
-/// dispatcher and a sign-in that always succeeds as an administrator. Catches what handler tests cannot,
+/// dispatcher and a sign-in that succeeds as an administrator unless a test asks for another caller. Catches what handler tests cannot,
 /// such as a request being refused before any handler runs.
 /// </summary>
 internal sealed class EndpointHost : IAsyncDisposable
@@ -34,7 +33,7 @@ internal sealed class EndpointHost : IAsyncDisposable
         Client = app.GetTestClient();
     }
 
-    public static async Task<EndpointHost> StartAsync(Action<IDispatcher> arrange)
+    public static async Task<EndpointHost> StartAsync(Action<IDispatcher> arrange, HostCaller caller = HostCaller.Admin)
     {
         IDispatcher dispatcher = Substitute.For<IDispatcher>();
         arrange(dispatcher);
@@ -43,6 +42,7 @@ internal sealed class EndpointHost : IAsyncDisposable
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
         builder.Services.AddSingleton(dispatcher);
+        builder.Services.AddSingleton(new CallerSetting(caller));
         builder.Services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddScheme<AuthenticationSchemeOptions, AdminAuthHandler>(JwtBearerDefaults.AuthenticationScheme, null);
@@ -68,14 +68,22 @@ internal sealed class EndpointHost : IAsyncDisposable
     private sealed class AdminAuthHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger,
-        UrlEncoder encoder) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+        UrlEncoder encoder,
+        CallerSetting setting) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
     {
+        private readonly HostCaller caller = setting.Caller;
+
         protected override Task<AuthenticateResult> HandleAuthenticateAsync()
         {
+            if (caller == HostCaller.Anonymous)
+            {
+                return Task.FromResult(AuthenticateResult.NoResult());
+            }
+
             var identity = new ClaimsIdentity(
                 [
                     new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
-                    new Claim(ClaimTypes.Role, Domain.Common.RoleNames.Admin)
+                    new Claim(ClaimTypes.Role, caller == HostCaller.Admin ? Domain.Common.RoleNames.Admin : Domain.Common.RoleNames.User)
                 ],
                 Scheme.Name);
             return Task.FromResult(
@@ -83,3 +91,13 @@ internal sealed class EndpointHost : IAsyncDisposable
         }
     }
 }
+
+/// <summary>Who the test host signs in as: an administrator (default), an ordinary user, or nobody.</summary>
+public enum HostCaller
+{
+    Admin,
+    User,
+    Anonymous
+}
+
+internal sealed record CallerSetting(HostCaller Caller);

@@ -13,6 +13,7 @@ public interface IApplicationDbContext
     DbSet<UserRole> UserRole { get; }
     DbSet<Measurement> Measurement { get; }
     DbSet<Meter> Meter { get; }
+    DbSet<NorgesPrisRate> NorgesPrisRate { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
