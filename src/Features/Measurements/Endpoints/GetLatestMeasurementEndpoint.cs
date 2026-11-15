@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace Features.Measurements.Endpoints;
 
-public class GetLatestMeasurementEndpoint : Endpoint<GetLatestMeasurementRequest, MeasurementResponse>
+public class GetLatestMeasurementEndpoint : Endpoint<GetLatestMeasurementRequest, LatestMeasurement>
 {
     private readonly IDispatcher _dispatcher;
 
@@ -24,7 +24,8 @@ public class GetLatestMeasurementEndpoint : Endpoint<GetLatestMeasurementRequest
         {
             s.Summary = "Get the latest measurement for a location";
             s.Description = "Returns the single most recent power reading for one of the caller's own " +
-                             "locations, optionally narrowed to a meter. 204 if no reading exists yet.";
+                             "locations, optionally narrowed to a meter. isStale is true when the reading is older than " +
+                             "Measurements:StaleAfterSeconds. 204 if no reading exists yet.";
             s.Response(200, "Latest measurement retrieved successfully");
             s.Response(204, "No measurement exists yet");
             s.Response(404, "Location or meter not found");

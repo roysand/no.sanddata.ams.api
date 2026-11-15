@@ -5,6 +5,7 @@ using Domain.Common.Entities;
 using Features.Measurements.Logging;
 using Features.Measurements.Mappers;
 using Features.Measurements.Queries;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Features.Measurements.Handlers;
@@ -14,17 +15,23 @@ public class GetLatestMeasurementQueryHandler : IQueryHandler<GetLatestMeasureme
     private readonly ILocationRepository<Location> _locationRepository;
     private readonly IMeterRepository<Meter> _meterRepository;
     private readonly IMeasurementRepository<Measurement> _measurementRepository;
+    private readonly IConfiguration _configuration;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<GetLatestMeasurementQueryHandler> _logger;
 
     public GetLatestMeasurementQueryHandler(
         ILocationRepository<Location> locationRepository,
         IMeterRepository<Meter> meterRepository,
         IMeasurementRepository<Measurement> measurementRepository,
+        IConfiguration configuration,
+        TimeProvider timeProvider,
         ILogger<GetLatestMeasurementQueryHandler> logger)
     {
         _locationRepository = locationRepository;
         _meterRepository = meterRepository;
         _measurementRepository = measurementRepository;
+        _configuration = configuration;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -49,6 +56,16 @@ public class GetLatestMeasurementQueryHandler : IQueryHandler<GetLatestMeasureme
 
         LogMessages.LatestMeasurementQueried(_logger, query.UserId, query.LocationId);
 
-        return Result.Success(new LatestMeasurementResponse(latest is null ? null : MeasurementMapper.ToResponse(latest)));
+        return Result.Success(new LatestMeasurementResponse(latest is null ? null : ToLatest(latest)));
+    }
+
+    private LatestMeasurement ToLatest(Measurement latest)
+    {
+        // Read per call so the value can be changed in appsettings.json without a restart or code change.
+        double staleAfterSeconds = _configuration.GetValue("Measurements:StaleAfterSeconds", 60.0);
+        DateTime timestamp = DateTime.SpecifyKind(latest.Timestamp, DateTimeKind.Utc);
+        bool isStale = _timeProvider.GetUtcNow().UtcDateTime - timestamp > TimeSpan.FromSeconds(staleAfterSeconds);
+
+        return new LatestMeasurement(latest.Timestamp, latest.MeterId, latest.PowerWatts, isStale);
     }
 }
