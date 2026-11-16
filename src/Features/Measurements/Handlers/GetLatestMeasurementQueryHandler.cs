@@ -63,7 +63,7 @@ public class GetLatestMeasurementQueryHandler : IQueryHandler<GetLatestMeasureme
     {
         // Read per call so the value can be changed in appsettings.json without a restart or code change.
         double staleAfterSeconds = _configuration.GetValue("Measurements:StaleAfterSeconds", 60.0);
-        DateTime timestamp = DateTime.SpecifyKind(latest.Timestamp, DateTimeKind.Utc);
+        var timestamp = DateTime.SpecifyKind(latest.Timestamp, DateTimeKind.Utc);
         bool isStale = _timeProvider.GetUtcNow().UtcDateTime - timestamp > TimeSpan.FromSeconds(staleAfterSeconds);
 
         return new LatestMeasurement(latest.Timestamp, latest.MeterId, latest.PowerWatts, isStale);
