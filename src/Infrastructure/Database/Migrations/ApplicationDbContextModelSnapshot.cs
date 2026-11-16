@@ -172,6 +172,68 @@ namespace Infrastructure.Database.Migrations
                     b.ToTable("ExchangeRate", "public");
                 });
 
+            modelBuilder.Entity("Domain.Common.Entities.GridTariff", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("GridTariff", "public");
+                });
+
+            modelBuilder.Entity("Domain.Common.Entities.GridTariffRate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AddedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("DayRatePerKwh")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("numeric(9,4)");
+
+                    b.Property<Guid>("GridTariffId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("NightRatePerKwh")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("numeric(9,4)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("ValidFrom")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GridTariffId", "ValidFrom")
+                        .IsUnique();
+
+                    b.ToTable("GridTariffRate", "public");
+                });
+
             modelBuilder.Entity("Domain.Common.Entities.Location", b =>
                 {
                     b.Property<Guid>("Id")
@@ -185,6 +247,9 @@ namespace Infrastructure.Database.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("GridTariffId")
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("HasNorgesPriceAgreement")
                         .HasColumnType("boolean");
@@ -202,6 +267,12 @@ namespace Infrastructure.Database.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<decimal>("SupplierMarkupPerKwh")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(9, 4)
+                        .HasColumnType("numeric(9,4)")
+                        .HasDefaultValue(0m);
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -211,6 +282,8 @@ namespace Infrastructure.Database.Migrations
                         .HasColumnType("character varying(10)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("GridTariffId");
 
                     b.HasIndex("SerialNumber")
                         .IsUnique();
@@ -337,6 +410,73 @@ namespace Infrastructure.Database.Migrations
                             TaxPerKwh = 0m,
                             UpdatedAt = new DateTime(2026, 11, 13, 0, 0, 0, 0, DateTimeKind.Utc),
                             ValidFrom = new DateOnly(2020, 1, 1)
+                        });
+                });
+
+            modelBuilder.Entity("Domain.Common.Entities.PriceRate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AddedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("ValidFrom")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("Value")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("numeric(9,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Kind", "ValidFrom")
+                        .IsUnique();
+
+                    b.ToTable("PriceRate", "public");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("b1000000-0000-0000-0000-000000000001"),
+                            AddedByUserId = new Guid("00000000-0000-0000-0000-000000000000"),
+                            CreatedAt = new DateTime(2026, 11, 16, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Kind = "Vat",
+                            UpdatedAt = new DateTime(2026, 11, 16, 0, 0, 0, 0, DateTimeKind.Utc),
+                            ValidFrom = new DateOnly(2020, 1, 1),
+                            Value = 0.25m
+                        },
+                        new
+                        {
+                            Id = new Guid("b1000000-0000-0000-0000-000000000002"),
+                            AddedByUserId = new Guid("00000000-0000-0000-0000-000000000000"),
+                            CreatedAt = new DateTime(2026, 11, 16, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Kind = "ElectricityTax",
+                            UpdatedAt = new DateTime(2026, 11, 16, 0, 0, 0, 0, DateTimeKind.Utc),
+                            ValidFrom = new DateOnly(2026, 1, 1),
+                            Value = 0.0713m
+                        },
+                        new
+                        {
+                            Id = new Guid("b1000000-0000-0000-0000-000000000003"),
+                            AddedByUserId = new Guid("00000000-0000-0000-0000-000000000000"),
+                            CreatedAt = new DateTime(2026, 11, 16, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Kind = "EnovaFee",
+                            UpdatedAt = new DateTime(2026, 11, 16, 0, 0, 0, 0, DateTimeKind.Utc),
+                            ValidFrom = new DateOnly(2026, 1, 1),
+                            Value = 0.01m
                         });
                 });
 
@@ -524,6 +664,23 @@ namespace Infrastructure.Database.Migrations
                         .IsRequired();
 
                     b.Navigation("Location");
+                });
+
+            modelBuilder.Entity("Domain.Common.Entities.GridTariffRate", b =>
+                {
+                    b.HasOne("Domain.Common.Entities.GridTariff", null)
+                        .WithMany()
+                        .HasForeignKey("GridTariffId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Domain.Common.Entities.Location", b =>
+                {
+                    b.HasOne("Domain.Common.Entities.GridTariff", null)
+                        .WithMany()
+                        .HasForeignKey("GridTariffId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Domain.Common.Entities.Measurement", b =>

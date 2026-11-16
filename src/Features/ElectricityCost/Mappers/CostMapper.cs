@@ -35,8 +35,11 @@ public static class CostMapper
     }
 
     private static CurrentRateCostResponse? ToCurrent(RateCost? rate) =>
-        rate is null ? null : new CurrentRateCostResponse(rate.RatePerKwh, rate.Cost);
+        rate is null ? null : new CurrentRateCostResponse(rate.RatePerKwh, rate.Cost, ToParts(rate.Breakdown));
 
     private static HourRateCostResponse? ToHourly(RateCost? rate) =>
-        rate is null ? null : new HourRateCostResponse(rate.RatePerKwh, rate.Cost);
+        rate is null ? null : new HourRateCostResponse(rate.RatePerKwh, rate.Cost, ToParts(rate.Breakdown));
+
+    private static PriceParts ToParts(PriceBreakdown b) =>
+        new(b.Energy, b.Markup, b.Grid, b.Taxes, b.Vat, b.Total, b.GridSet);
 }

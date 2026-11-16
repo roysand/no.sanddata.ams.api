@@ -18,6 +18,9 @@ public class HourlyCostProvider(IConsumptionRepository consumptionRepository, Co
         IReadOnlyList<HourConsumption> rows =
             await consumptionRepository.GetHourlyAsync(location.Id, null, fromUtc, toUtc, ct);
 
+        // One query for the spot prices and one for the exchange rates of the whole range, not one per hour.
+        await costCalculator.PreloadAsync(location, fromUtc, toUtc, ct);
+
         var result = new List<HourCost>();
         foreach (IGrouping<DateTime, HourConsumption> hour in rows.GroupBy(r => r.BucketStart).OrderBy(g => g.Key))
         {

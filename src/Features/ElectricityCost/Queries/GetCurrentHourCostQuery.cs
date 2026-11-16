@@ -5,7 +5,8 @@ namespace Features.ElectricityCost.Queries;
 
 public record GetCurrentHourCostQuery(Guid UserId, Guid LocationId) : IQuery<Result<CurrentHourCostResponse>>;
 
-public record CurrentRateCostResponse(decimal RatePerKwh, decimal CostSoFar);
+/// <param name="RatePerKwh">The full price per kWh including VAT; the same as Parts.Total.</param>
+public record CurrentRateCostResponse(decimal RatePerKwh, decimal CostSoFar, PriceParts Parts);
 
 public record CurrentHourCostResponse(
     DateTime HourStart,

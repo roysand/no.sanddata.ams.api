@@ -25,6 +25,9 @@ public sealed class ApplicationDbContext(
     public DbSet<ElectricityPrice> ElectricityPrice { get; set; }
     public DbSet<ExchangeRate> ExchangeRate { get; set; }
     public DbSet<NorgesPrisRate> NorgesPrisRate { get; set; }
+    public DbSet<PriceRate> PriceRate { get; set; }
+    public DbSet<GridTariff> GridTariff { get; set; }
+    public DbSet<GridTariffRate> GridTariffRate { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

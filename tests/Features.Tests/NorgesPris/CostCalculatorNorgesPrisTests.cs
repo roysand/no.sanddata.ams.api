@@ -1,6 +1,7 @@
 using Application.Common.Interfaces.Repositories;
 using Application.ElectricityCost;
 using Domain.Common.Entities;
+using Features.Tests.Pricing;
 using NSubstitute;
 
 namespace Features.Tests.NorgesPris;
@@ -19,7 +20,7 @@ public class CostCalculatorNorgesPrisTests
     private static Location LocationWith(bool norgesPris) =>
         new(Guid.NewGuid(), "Home", "Addr", "SN1", "NO1", true, norgesPris);
 
-    private CostCalculator Calculator(INorgesPrisRateRepository rates) => new(_prices, _exchangeRates, rates);
+    private CostCalculator Calculator(INorgesPrisRateRepository rates) => new(_prices, _exchangeRates, rates, PriceRateStubs.Zero());
 
     private INorgesPrisRateRepository TwoRates() => NorgesPrisRates.Repository(
         NorgesPrisRates.Rate("2020-01-01", 0.40m, 0.05m),
@@ -33,10 +34,10 @@ public class CostCalculatorNorgesPrisTests
         CostResult before = await calculator.CalculateAsync(LocationWith(true), Before, 2m, CancellationToken.None);
         CostResult after = await calculator.CalculateAsync(LocationWith(true), After, 2m, CancellationToken.None);
 
-        Assert.Equal(0.45m, before.Actual!.RatePerKwh); // rate plus tax
-        Assert.Equal(0.90m, before.Actual.Cost);
-        Assert.Equal(0.52m, after.Actual!.RatePerKwh);
-        Assert.Equal(1.04m, after.Actual.Cost);
+        Assert.Equal(0.40m, before.Actual!.RatePerKwh); // the rate only: the old tax field of the row is not used
+        Assert.Equal(0.80m, before.Actual.Cost);
+        Assert.Equal(0.50m, after.Actual!.RatePerKwh);
+        Assert.Equal(1.00m, after.Actual.Cost);
     }
 
     [Fact]
@@ -47,8 +48,8 @@ public class CostCalculatorNorgesPrisTests
         CostResult before = await calculator.CalculateAsync(LocationWith(false), Before, 1m, CancellationToken.None);
         CostResult after = await calculator.CalculateAsync(LocationWith(false), After, 1m, CancellationToken.None);
 
-        Assert.Equal(0.45m, before.Comparison!.RatePerKwh);
-        Assert.Equal(0.52m, after.Comparison!.RatePerKwh);
+        Assert.Equal(0.40m, before.Comparison!.RatePerKwh);
+        Assert.Equal(0.50m, after.Comparison!.RatePerKwh);
     }
 
     [Fact]

@@ -256,7 +256,8 @@ public class NorgesPrisHandlerTests
         Func<CostCalculator> calculator = () => new CostCalculator(
             Substitute.For<Application.Common.Interfaces.Repositories.IElectricityPriceRepository<ElectricityPrice>>(),
             Substitute.For<Application.Common.Interfaces.Repositories.IExchangeRateRepository<ExchangeRate>>(),
-            store);
+            store,
+            Features.Tests.Pricing.PriceRateStubs.Zero());
         var location = new Location(Guid.NewGuid(), "Home", "Addr", "SN1", "NO1", true, true);
         var hour = new DateTime(2027, 2, 1, 10, 0, 0, DateTimeKind.Utc);
 

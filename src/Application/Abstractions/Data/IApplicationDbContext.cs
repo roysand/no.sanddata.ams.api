@@ -14,6 +14,9 @@ public interface IApplicationDbContext
     DbSet<Measurement> Measurement { get; }
     DbSet<Meter> Meter { get; }
     DbSet<NorgesPrisRate> NorgesPrisRate { get; }
+    DbSet<PriceRate> PriceRate { get; }
+    DbSet<GridTariff> GridTariff { get; }
+    DbSet<GridTariffRate> GridTariffRate { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
