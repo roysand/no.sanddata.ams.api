@@ -36,7 +36,7 @@ public class LocationPricingHandlerTests
         _locations.GetByIdAsync(location.Id, Arg.Any<CancellationToken>()).Returns(location);
 
         Result<LocationPricingResponse> result = await SetHandler()
-            .Handle(new SetLocationPricingCommand(location.Id, tariff.Id, 0.0250m, Admin), CancellationToken.None);
+            .Handle(new SetLocationPricingCommand(location.Id, tariff.Id, 0.0250m, null, null, null, Admin), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(tariff.Id, location.GridTariffId);
@@ -50,11 +50,11 @@ public class LocationPricingHandlerTests
     public async Task Set_WithNullTariff_ClearsItAndMarksTheLocationIncomplete()
     {
         Location location = LocationNamed("Home");
-        location.SetPricing(Guid.NewGuid(), 0.02m);
+        location.SetPricing(Guid.NewGuid(), 0.02m, false, false, false);
         _locations.GetByIdAsync(location.Id, Arg.Any<CancellationToken>()).Returns(location);
 
         Result<LocationPricingResponse> result = await SetHandler()
-            .Handle(new SetLocationPricingCommand(location.Id, null, 0m, Admin), CancellationToken.None);
+            .Handle(new SetLocationPricingCommand(location.Id, null, 0m, null, null, null, Admin), CancellationToken.None);
 
         Assert.Null(location.GridTariffId);
         Assert.False(result.Value.IsComplete);
@@ -65,7 +65,7 @@ public class LocationPricingHandlerTests
     public async Task Set_OnAnUnknownLocation_IsLocationNotFound()
     {
         Result<LocationPricingResponse> result = await SetHandler()
-            .Handle(new SetLocationPricingCommand(Guid.NewGuid(), null, 0m, Admin), CancellationToken.None);
+            .Handle(new SetLocationPricingCommand(Guid.NewGuid(), null, 0m, null, null, null, Admin), CancellationToken.None);
 
         Assert.Equal("Pricing.LocationNotFound", result.Error.Code);
         Assert.Equal(ErrorType.NotFound, result.Error.Type);
@@ -79,7 +79,7 @@ public class LocationPricingHandlerTests
         _locations.GetByIdAsync(location.Id, Arg.Any<CancellationToken>()).Returns(location);
 
         Result<LocationPricingResponse> result = await SetHandler()
-            .Handle(new SetLocationPricingCommand(location.Id, Guid.NewGuid(), 0.02m, Admin), CancellationToken.None);
+            .Handle(new SetLocationPricingCommand(location.Id, Guid.NewGuid(), 0.02m, null, null, null, Admin), CancellationToken.None);
 
         Assert.Equal("Pricing.TariffNotFound", result.Error.Code);
         Assert.Null(location.GridTariffId);
@@ -95,7 +95,7 @@ public class LocationPricingHandlerTests
         var tariff = new GridTariff(Guid.NewGuid(), "Elvia");
         _rates.Tariffs.Add(tariff);
         Location configured = LocationNamed("Cabin");
-        configured.SetPricing(tariff.Id, 0.0300m);
+        configured.SetPricing(tariff.Id, 0.0300m, false, false, false);
         Location bare = LocationNamed("Home");
         _locations.GetAllWithKeyAsync(Arg.Any<CancellationToken>()).Returns([bare, configured]);
 
@@ -123,5 +123,40 @@ public class LocationPricingHandlerTests
             await ListHandler().Handle(new ListLocationPricingQuery(Admin), CancellationToken.None);
 
         Assert.Equal(3, result.Value.Count);
+    }
+
+    // ---- exemption and holiday-home flags ---------------------------------------------------------------------
+
+    [Fact]
+    public async Task Set_StoresTheFlags_AndReturnsThem()
+    {
+        Location location = LocationNamed("Cabin");
+        _locations.GetByIdAsync(location.Id, Arg.Any<CancellationToken>()).Returns(location);
+
+        Result<LocationPricingResponse> result = await SetHandler().Handle(
+            new SetLocationPricingCommand(location.Id, null, 0m, true, true, true, Admin), CancellationToken.None);
+
+        Assert.True(location.ElectricityTaxExempt);
+        Assert.True(location.VatExempt);
+        Assert.True(location.IsHolidayHome);
+        Assert.True(result.Value.ElectricityTaxExempt);
+        Assert.True(result.Value.VatExempt);
+        Assert.True(result.Value.IsHolidayHome);
+    }
+
+    [Fact]
+    public async Task Set_AnOmittedFlag_KeepsItsValue()
+    {
+        Location location = LocationNamed("Cabin");
+        location.SetPricing(null, 0m, true, false, true);
+        _locations.GetByIdAsync(location.Id, Arg.Any<CancellationToken>()).Returns(location);
+
+        await SetHandler().Handle(
+            new SetLocationPricingCommand(location.Id, null, 0.01m, null, true, null, Admin), CancellationToken.None);
+
+        Assert.True(location.ElectricityTaxExempt);
+        Assert.True(location.VatExempt);
+        Assert.True(location.IsHolidayHome);
+        Assert.Equal(0.01m, location.SupplierMarkupPerKwh);
     }
 }

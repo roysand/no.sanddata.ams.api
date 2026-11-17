@@ -33,8 +33,18 @@ public class GetDayPricesQueryHandlerTests
 
     private GetDayPricesQueryHandler Handler() => new(
         _locations,
+        NoConsumption(),
         new CostCalculator(_prices, _rates, NorgesPrisRates.Seeded(), PriceRateStubs.Zero()),
         Substitute.For<ILogger<GetDayPricesQueryHandler>>());
+
+    private static IConsumptionRepository NoConsumption()
+    {
+        IConsumptionRepository consumption = Substitute.For<IConsumptionRepository>();
+        consumption.GetHourlyAsync(
+                Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<HourConsumption>>([]));
+        return consumption;
+    }
 
     [Theory]
     [InlineData("2026-10-01", 24)]

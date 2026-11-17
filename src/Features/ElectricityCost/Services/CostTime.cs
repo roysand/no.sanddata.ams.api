@@ -23,4 +23,11 @@ internal static class CostTime
     public static DateTime LocalDayStartUtc(DateTime localDate) => DateTime.SpecifyKind(
         TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(localDate.Date, DateTimeKind.Unspecified), Oslo),
         DateTimeKind.Utc);
+
+    /// <summary>The UTC instant at which the Oslo calendar month of the instant starts (the Norgespris cap counts from it).</summary>
+    public static DateTime LocalMonthStartUtc(DateTime utcInstant)
+    {
+        DateTime local = LocalDateOf(utcInstant);
+        return LocalDayStartUtc(new DateTime(local.Year, local.Month, 1));
+    }
 }

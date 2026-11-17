@@ -12,6 +12,7 @@ namespace Features.ElectricityCost.Handlers;
 
 public class GetDayPricesQueryHandler(
     ILocationRepository<Location> locationRepository,
+    IConsumptionRepository consumptionRepository,
     CostCalculator costCalculator,
     ILogger<GetDayPricesQueryHandler> logger)
     : IQueryHandler<GetDayPricesQuery, Result<DayPricesResponse>>
@@ -38,12 +39,23 @@ public class GetDayPricesQueryHandler(
 
         await costCalculator.PreloadAsync(location, start, end, ct);
 
-        // The rate is read from a one-kWh calculation so it is exactly the rate used in the cost endpoints.
+        // The Norgespris cap counts the month so far: the kWh before the day, then each measured hour of the day.
+        decimal monthKwh = await consumptionRepository.GetConsumptionKwhAsync(
+            location.Id, CostTime.LocalMonthStartUtc(start), start, ct);
+        IReadOnlyList<HourConsumption> dayRows =
+            await consumptionRepository.GetHourlyAsync(location.Id, null, start, end, ct);
+        Dictionary<DateTime, decimal> measured = dayRows
+            .GroupBy(r => DateTime.SpecifyKind(r.BucketStart, DateTimeKind.Utc))
+            .ToDictionary(g => g.Key, g => g.Sum(r => r.ConsumptionKwh));
+
+        // The rate is the rate of the next kWh in the hour, read from a one-kWh calculation so it is exactly the rate
+        // used in the cost endpoints. Once the month has passed the cap, a Norgespris location sees the spot rate.
         var items = new List<HourPriceResponse>();
         string pricingModel = location.HasNorgesPriceAgreement ? nameof(PricingModel.NorgesPris) : nameof(PricingModel.Spot);
         for (DateTime hour = start; hour < end; hour = hour.AddHours(1))
         {
-            CostResult cost = await costCalculator.CalculateAsync(location, hour, 1m, ct);
+            CostResult cost = await costCalculator.CalculateAsync(location, hour, 1m, monthKwh, ct);
+            monthKwh += measured.GetValueOrDefault(hour);
             pricingModel = cost.PricingModel.ToString();
             RateCost? spot = cost.PricingModel == PricingModel.Spot ? cost.Actual : cost.Comparison;
             items.Add(new HourPriceResponse(hour, cost.Actual?.RatePerKwh, spot?.RatePerKwh));

@@ -45,6 +45,22 @@ public class PricingValidatorTests
             new AddPriceRateValidator().Validate(new AddPriceRateRequest("EnovaFee", Date, (decimal)value)).IsValid);
 
     [Fact]
+    public void AddPriceRate_ACapIsKwhPerMonth_AboveZeroAndAtMost99999()
+    {
+        foreach (string kind in new[] { "NorgesPrisCapHome", "NorgesPrisCapHolidayHome" })
+        {
+            Assert.True(new AddPriceRateValidator().Validate(new AddPriceRateRequest(kind, Date, 1000m)).IsValid);
+            Assert.True(new AddPriceRateValidator().Validate(new AddPriceRateRequest(kind, Date, 99999m)).IsValid);
+            Assert.False(new AddPriceRateValidator().Validate(new AddPriceRateRequest(kind, Date, 0m)).IsValid);
+            Assert.False(new AddPriceRateValidator().Validate(new AddPriceRateRequest(kind, Date, 100000m)).IsValid);
+            Assert.False(new AddPriceRateValidator().Validate(new AddPriceRateRequest(kind, Date, 1000.00001m)).IsValid);
+        }
+
+        // A fee keeps its limit of 100 NOK per kWh.
+        Assert.False(new AddPriceRateValidator().Validate(new AddPriceRateRequest("EnovaFee", Date, 1000m)).IsValid);
+    }
+
+    [Fact]
     public void AddPriceRate_VatIsAFraction_SoAboveOneIsRefused()
     {
         Assert.True(new AddPriceRateValidator().Validate(new AddPriceRateRequest("Vat", Date, 0.25m)).IsValid);

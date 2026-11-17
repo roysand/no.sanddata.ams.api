@@ -18,6 +18,9 @@ public class LocationConfiguration : IEntityTypeConfiguration<Location>
         builder.Property(l => l.IsActive);
         builder.Property(l => l.HasNorgesPriceAgreement);
         builder.Property(l => l.SupplierMarkupPerKwh).IsRequired().HasPrecision(9, 4).HasDefaultValue(0m);
+        builder.Property(l => l.ElectricityTaxExempt).IsRequired().HasDefaultValue(false);
+        builder.Property(l => l.VatExempt).IsRequired().HasDefaultValue(false);
+        builder.Property(l => l.IsHolidayHome).IsRequired().HasDefaultValue(false);
 
         builder.HasOne<GridTariff>()
             .WithMany()

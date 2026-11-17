@@ -40,7 +40,7 @@ public class CostCalculatorPriceTests
     private static Location LocationWith(bool norgesPris, Guid? tariff, decimal markup)
     {
         var location = new Location(Guid.NewGuid(), "Home", "Addr", "SN1", "NO1", true, norgesPris);
-        location.SetPricing(tariff, markup);
+        location.SetPricing(tariff, markup, false, false, false);
         return location;
     }
 
@@ -57,7 +57,7 @@ public class CostCalculatorPriceTests
     {
         // (1.00 + 0.02 + 0.30 + 0.0813) x 1.25 = 1.751625
         CostResult result = await Calculator().CalculateAsync(
-            LocationWith(false, Tariff, 0.02m), WeekdayAfternoon, 2m, CancellationToken.None);
+            LocationWith(false, Tariff, 0.02m), WeekdayAfternoon, 2m, 0m, CancellationToken.None);
 
         Assert.Equal(PricingModel.Spot, result.PricingModel);
         Assert.Equal(1.751625m, result.Actual!.RatePerKwh);
@@ -71,8 +71,8 @@ public class CostCalculatorPriceTests
         Location location = LocationWith(false, Tariff, 0.02m);
         CostCalculator calculator = Calculator();
 
-        CostResult weekday = await calculator.CalculateAsync(location, WeekdayAfternoon, 1m, CancellationToken.None);
-        CostResult sunday = await calculator.CalculateAsync(location, SundayAfternoon, 1m, CancellationToken.None);
+        CostResult weekday = await calculator.CalculateAsync(location, WeekdayAfternoon, 1m, 0m, CancellationToken.None);
+        CostResult sunday = await calculator.CalculateAsync(location, SundayAfternoon, 1m, 0m, CancellationToken.None);
 
         // (1.00 + 0.02 + 0.20 + 0.0813) x 1.25 = 1.626625; the gap is (0.30 - 0.20) x 1.25.
         Assert.Equal(1.626625m, sunday.Actual!.RatePerKwh);
@@ -85,7 +85,7 @@ public class CostCalculatorPriceTests
     {
         // (0.40 + 0 + 0.30 + 0.0813) x 1.25 = 0.976625
         CostResult result = await Calculator().CalculateAsync(
-            LocationWith(true, Tariff, 0.02m), WeekdayAfternoon, 1m, CancellationToken.None);
+            LocationWith(true, Tariff, 0.02m), WeekdayAfternoon, 1m, 0m, CancellationToken.None);
 
         Assert.Equal(PricingModel.NorgesPris, result.PricingModel);
         Assert.Equal(0.976625m, result.Actual!.RatePerKwh);
@@ -97,7 +97,7 @@ public class CostCalculatorPriceTests
     public async Task TheComparison_DiffersOnlyInTheEnergyAndTheMarkup()
     {
         CostResult result = await Calculator().CalculateAsync(
-            LocationWith(true, Tariff, 0.02m), WeekdayAfternoon, 1m, CancellationToken.None);
+            LocationWith(true, Tariff, 0.02m), WeekdayAfternoon, 1m, 0m, CancellationToken.None);
 
         PriceBreakdown actual = result.Actual!.Breakdown; // Norgespris terms
         PriceBreakdown comparison = result.Comparison!.Breakdown; // spot terms
@@ -112,7 +112,7 @@ public class CostCalculatorPriceTests
     public async Task ASpotLocationComparison_IsNorgesPrisTermsWithNoMarkup()
     {
         CostResult result = await Calculator().CalculateAsync(
-            LocationWith(false, Tariff, 0.02m), WeekdayAfternoon, 1m, CancellationToken.None);
+            LocationWith(false, Tariff, 0.02m), WeekdayAfternoon, 1m, 0m, CancellationToken.None);
 
         Assert.Equal(0.976625m, result.Comparison!.RatePerKwh);
         Assert.Equal(0m, result.Comparison.Breakdown.Markup);
@@ -126,9 +126,9 @@ public class CostCalculatorPriceTests
         Location location = LocationWith(true, Tariff, 0m);
 
         CostResult a = await Calculator(norgesPris: withTax).CalculateAsync(
-            location, WeekdayAfternoon, 1m, CancellationToken.None);
+            location, WeekdayAfternoon, 1m, 0m, CancellationToken.None);
         CostResult b = await Calculator(norgesPris: withoutTax).CalculateAsync(
-            location, WeekdayAfternoon, 1m, CancellationToken.None);
+            location, WeekdayAfternoon, 1m, 0m, CancellationToken.None);
 
         Assert.Equal(b.Actual!.RatePerKwh, a.Actual!.RatePerKwh);
         Assert.Equal(0.976625m, a.Actual.RatePerKwh);
@@ -138,7 +138,7 @@ public class CostCalculatorPriceTests
     public async Task ThePartsAddUpToTheTotal()
     {
         CostResult result = await Calculator().CalculateAsync(
-            LocationWith(false, Tariff, 0.0123m), WeekdayAfternoon, 1m, CancellationToken.None);
+            LocationWith(false, Tariff, 0.0123m), WeekdayAfternoon, 1m, 0m, CancellationToken.None);
 
         PriceBreakdown p = result.Actual!.Breakdown;
         Assert.Equal(p.Total, p.Energy + p.Markup + (p.Grid ?? 0m) + p.Taxes + p.Vat);
@@ -154,7 +154,7 @@ public class CostCalculatorPriceTests
 
         for (int i = 0; i < 23; i++)
         {
-            CostResult result = await calculator.CalculateAsync(location, start.AddHours(i), 1m, CancellationToken.None);
+            CostResult result = await calculator.CalculateAsync(location, start.AddHours(i), 1m, 0m, CancellationToken.None);
             Assert.Equal(0.20m, result.Actual!.Breakdown.Grid);
         }
     }
@@ -164,7 +164,7 @@ public class CostCalculatorPriceTests
     {
         // The national rows start in 2026; a missing tax must not be hidden.
         CostResult result = await Calculator().CalculateAsync(
-            LocationWith(false, Tariff, 0m), Utc("2025-12-02T13:00:00Z"), 1m, CancellationToken.None);
+            LocationWith(false, Tariff, 0m), Utc("2025-12-02T13:00:00Z"), 1m, 0m, CancellationToken.None);
 
         Assert.Null(result.Actual);
         Assert.Null(result.Comparison);
@@ -177,7 +177,7 @@ public class CostCalculatorPriceTests
             .Returns((ElectricityPrice?)null);
 
         CostResult result = await Calculator().CalculateAsync(
-            LocationWith(true, Tariff, 0m), WeekdayAfternoon, 1m, CancellationToken.None);
+            LocationWith(true, Tariff, 0m), WeekdayAfternoon, 1m, 0m, CancellationToken.None);
 
         Assert.NotNull(result.Actual); // Norgespris terms
         Assert.Null(result.Comparison); // spot terms
@@ -190,7 +190,7 @@ public class CostCalculatorPriceTests
             .Returns((ExchangeRate?)null);
 
         CostResult result = await Calculator().CalculateAsync(
-            LocationWith(false, Tariff, 0m), WeekdayAfternoon, 1m, CancellationToken.None);
+            LocationWith(false, Tariff, 0m), WeekdayAfternoon, 1m, 0m, CancellationToken.None);
 
         Assert.Null(result.Actual);
         Assert.NotNull(result.Comparison);
@@ -201,7 +201,7 @@ public class CostCalculatorPriceTests
     {
         // (1.00 + 0.02 + 0.0813) x 1.25 = 1.376625
         CostResult result = await Calculator().CalculateAsync(
-            LocationWith(false, null, 0.02m), WeekdayAfternoon, 1m, CancellationToken.None);
+            LocationWith(false, null, 0.02m), WeekdayAfternoon, 1m, 0m, CancellationToken.None);
 
         Assert.Equal(1.376625m, result.Actual!.RatePerKwh);
         Assert.Null(result.Actual.Breakdown.Grid);
@@ -212,7 +212,7 @@ public class CostCalculatorPriceTests
     public async Task ATariffWithNoRateForTheHourYet_BehavesLikeNoTariff()
     {
         CostResult result = await Calculator(FullRates(gridFrom: "2027-01-01")).CalculateAsync(
-            LocationWith(false, Tariff, 0.02m), WeekdayAfternoon, 1m, CancellationToken.None);
+            LocationWith(false, Tariff, 0.02m), WeekdayAfternoon, 1m, 0m, CancellationToken.None);
 
         Assert.Null(result.Actual!.Breakdown.Grid);
         Assert.False(result.Actual.Breakdown.GridSet);
@@ -224,9 +224,9 @@ public class CostCalculatorPriceTests
         Location location = LocationWith(false, null, 0.02m);
         CostCalculator calculator = Calculator();
 
-        CostResult before = await calculator.CalculateAsync(location, WeekdayAfternoon, 1m, CancellationToken.None);
-        location.SetPricing(Tariff, 0.02m);
-        CostResult after = await calculator.CalculateAsync(location, WeekdayAfternoon, 1m, CancellationToken.None);
+        CostResult before = await calculator.CalculateAsync(location, WeekdayAfternoon, 1m, 0m, CancellationToken.None);
+        location.SetPricing(Tariff, 0.02m, false, false, false);
+        CostResult after = await calculator.CalculateAsync(location, WeekdayAfternoon, 1m, 0m, CancellationToken.None);
 
         Assert.False(before.Actual!.Breakdown.GridSet);
         Assert.True(after.Actual!.Breakdown.GridSet);
@@ -243,7 +243,7 @@ public class CostCalculatorPriceTests
 
         for (int hour = 0; hour < 24 * 30; hour++)
         {
-            await calculator.CalculateAsync(location, WeekdayAfternoon.AddHours(hour), 1m, CancellationToken.None);
+            await calculator.CalculateAsync(location, WeekdayAfternoon.AddHours(hour), 1m, 0m, CancellationToken.None);
         }
 
         await rates.Received(1).GetPriceRatesAsync(Arg.Any<CancellationToken>());
@@ -268,7 +268,7 @@ public class CostCalculatorPriceTests
         Location location = LocationWith(false, Tariff, 0m);
 
         await calculator.PreloadAsync(location, from, to, CancellationToken.None);
-        CostResult result = await calculator.CalculateAsync(location, from.AddHours(13), 1m, CancellationToken.None);
+        CostResult result = await calculator.CalculateAsync(location, from.AddHours(13), 1m, 0m, CancellationToken.None);
 
         // 2026-12-02 has no rate of its own: the look-back finds 2026-12-01 in the preloaded rows.
         // (1.00 + 0 + 0.30 + 0.0813) x 1.25 = 1.726625
@@ -301,7 +301,7 @@ public class CostCalculatorPriceTests
         Location location = LocationWith(false, Tariff, 0m);
 
         await calculator.PreloadAsync(location, from, from.AddHours(1), CancellationToken.None);
-        CostResult result = await calculator.CalculateAsync(location, from.AddDays(18), 1m, CancellationToken.None);
+        CostResult result = await calculator.CalculateAsync(location, from.AddDays(18), 1m, 0m, CancellationToken.None);
 
         Assert.NotNull(result.Actual);
     }

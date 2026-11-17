@@ -248,6 +248,11 @@ namespace Infrastructure.Database.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("ElectricityTaxExempt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<Guid?>("GridTariffId")
                         .HasColumnType("uuid");
 
@@ -256,6 +261,11 @@ namespace Infrastructure.Database.Migrations
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
+
+                    b.Property<bool>("IsHolidayHome")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -275,6 +285,11 @@ namespace Infrastructure.Database.Migrations
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("VatExempt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("Zone")
                         .IsRequired()
@@ -427,8 +442,8 @@ namespace Infrastructure.Database.Migrations
 
                     b.Property<string>("Kind")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -477,6 +492,26 @@ namespace Infrastructure.Database.Migrations
                             UpdatedAt = new DateTime(2026, 11, 16, 0, 0, 0, 0, DateTimeKind.Utc),
                             ValidFrom = new DateOnly(2026, 1, 1),
                             Value = 0.01m
+                        },
+                        new
+                        {
+                            Id = new Guid("b1000000-0000-0000-0000-000000000004"),
+                            AddedByUserId = new Guid("00000000-0000-0000-0000-000000000000"),
+                            CreatedAt = new DateTime(2026, 11, 17, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Kind = "NorgesPrisCapHome",
+                            UpdatedAt = new DateTime(2026, 11, 17, 0, 0, 0, 0, DateTimeKind.Utc),
+                            ValidFrom = new DateOnly(2025, 10, 1),
+                            Value = 5000m
+                        },
+                        new
+                        {
+                            Id = new Guid("b1000000-0000-0000-0000-000000000005"),
+                            AddedByUserId = new Guid("00000000-0000-0000-0000-000000000000"),
+                            CreatedAt = new DateTime(2026, 11, 17, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Kind = "NorgesPrisCapHolidayHome",
+                            UpdatedAt = new DateTime(2026, 11, 17, 0, 0, 0, 0, DateTimeKind.Utc),
+                            ValidFrom = new DateOnly(2025, 10, 1),
+                            Value = 1000m
                         });
                 });
 

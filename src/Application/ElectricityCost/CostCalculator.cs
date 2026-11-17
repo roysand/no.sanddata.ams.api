@@ -12,14 +12,25 @@ public enum PricingModel
 
 /// <param name="RatePerKwh">The full price per kWh including VAT (the total of the breakdown).</param>
 /// <param name="Cost">Consumption times <paramref name="RatePerKwh"/>.</param>
-/// <param name="Breakdown">The parts of the price; they add up exactly to the total.</param>
-public record RateCost(decimal RatePerKwh, decimal Cost, PriceBreakdown Breakdown);
+/// <param name="Breakdown">
+/// The parts of the price; they add up exactly to the total. When part of the hour is above the Norgespris cap, these
+/// are the terms of the kWh within the cap (or the spot terms when every kWh is above it).
+/// </param>
+/// <param name="Cap">Set on Norgespris terms when some kWh of the hour are above the monthly cap; null otherwise.</param>
+public record RateCost(decimal RatePerKwh, decimal Cost, PriceBreakdown Breakdown, CapSplit? Cap = null);
+
+/// <summary>
+/// How an hour on Norgespris terms is split by the monthly cap. Cost = KwhWithinCap x the Norgespris total +
+/// KwhAboveCap x <see cref="AboveCapBreakdown"/>.Total, exactly.
+/// </summary>
+public record CapSplit(decimal KwhWithinCap, decimal KwhAboveCap, PriceBreakdown AboveCapBreakdown);
 
 public record CostResult(PricingModel PricingModel, RateCost? Actual, RateCost? Comparison);
 
 /// <summary>
-/// The one place an hour is priced: (1 + VAT) x (energy + supplier markup + grid energy charge + taxes). Scoped, so the
-/// dated values are read once per request however many hours are priced.
+/// The one place an hour is priced: (1 + VAT) x (energy + supplier markup + grid energy charge + taxes), with the
+/// exemptions of the location and the Norgespris monthly cap. Scoped, so the dated values are read once per request
+/// however many hours are priced.
 /// </summary>
 public class CostCalculator(
     IElectricityPriceRepository<ElectricityPrice> priceRepository,
@@ -56,21 +67,78 @@ public class CostCalculator(
         _preloadedExchangeRates = (from, to, rates.ToDictionary(r => r.RateDate));
     }
 
+    /// <param name="monthKwhBefore">
+    /// The kWh the location used in the same Oslo calendar month before this hour, so the Norgespris cap is applied
+    /// the same way whatever range of hours is asked for.
+    /// </param>
     public async Task<CostResult> CalculateAsync(
-        Location location, DateTime hourStartUtc, decimal consumptionKwh, CancellationToken ct)
+        Location location, DateTime hourStartUtc, decimal consumptionKwh, decimal monthKwhBefore, CancellationToken ct)
     {
         PricingModel enrolled = location.HasNorgesPriceAgreement ? PricingModel.NorgesPris : PricingModel.Spot;
-        RateCost? actual = await CalculateForModelAsync(enrolled, location, hourStartUtc, consumptionKwh, ct);
+        RateCost? actual = await CalculateForModelAsync(
+            enrolled, location, hourStartUtc, consumptionKwh, monthKwhBefore, ct);
 
         // The comparison gets the same grid charge, taxes and VAT; only the energy and the markup differ.
         PricingModel other = enrolled == PricingModel.Spot ? PricingModel.NorgesPris : PricingModel.Spot;
-        RateCost? comparison = await CalculateForModelAsync(other, location, hourStartUtc, consumptionKwh, ct);
+        RateCost? comparison = await CalculateForModelAsync(
+            other, location, hourStartUtc, consumptionKwh, monthKwhBefore, ct);
 
         return new CostResult(enrolled, actual, comparison);
     }
 
     private async Task<RateCost?> CalculateForModelAsync(
-        PricingModel model, Location location, DateTime hourStartUtc, decimal consumptionKwh, CancellationToken ct)
+        PricingModel model,
+        Location location,
+        DateTime hourStartUtc,
+        decimal consumptionKwh,
+        decimal monthKwhBefore,
+        CancellationToken ct)
+    {
+        if (model == PricingModel.Spot)
+        {
+            PriceBreakdown? spot = await TermsAsync(PricingModel.Spot, location, hourStartUtc, ct);
+            return spot is null ? null : new RateCost(spot.Total, consumptionKwh * spot.Total, spot);
+        }
+
+        decimal? cap = await CapForAsync(location, hourStartUtc, ct);
+        (decimal within, decimal above) = NorgesPrisCap.Split(monthKwhBefore, consumptionKwh, cap);
+
+        // An hour with no consumption gets the rate of the next kWh.
+        bool allAbove = within == 0m && (above > 0m || NorgesPrisCap.IsPassed(monthKwhBefore, cap));
+        if (above == 0m && !allAbove)
+        {
+            PriceBreakdown? norgesPris = await TermsAsync(PricingModel.NorgesPris, location, hourStartUtc, ct);
+            return norgesPris is null
+                ? null
+                : new RateCost(norgesPris.Total, consumptionKwh * norgesPris.Total, norgesPris);
+        }
+
+        // Above the cap the kWh are priced on spot terms, markup included.
+        PriceBreakdown? aboveCap = await TermsAsync(PricingModel.Spot, location, hourStartUtc, ct);
+        if (aboveCap is null)
+        {
+            return null;
+        }
+
+        if (allAbove)
+        {
+            return new RateCost(
+                aboveCap.Total, consumptionKwh * aboveCap.Total, aboveCap, new CapSplit(0m, above, aboveCap));
+        }
+
+        PriceBreakdown? withinCap = await TermsAsync(PricingModel.NorgesPris, location, hourStartUtc, ct);
+        if (withinCap is null)
+        {
+            return null;
+        }
+
+        decimal cost = within * withinCap.Total + above * aboveCap.Total;
+        return new RateCost(cost / consumptionKwh, cost, withinCap, new CapSplit(within, above, aboveCap));
+    }
+
+    /// <summary>The price of one kWh on the given terms, or null when a part of it is missing.</summary>
+    private async Task<PriceBreakdown?> TermsAsync(
+        PricingModel model, Location location, DateTime hourStartUtc, CancellationToken ct)
     {
         decimal? energy = model == PricingModel.NorgesPris
             ? await GetNorgesPrisEnergyAsync(hourStartUtc, ct)
@@ -80,10 +148,13 @@ public class CostCalculator(
             return null;
         }
 
+        // An exempt location does not need the value it is exempt from; the Enova fee applies everywhere.
         PriceRateBook book = await GetBookAsync(ct);
-        decimal? electricityTax = book.ValueFor(PriceRateKind.ElectricityTax, hourStartUtc);
+        decimal? electricityTax = location.ElectricityTaxExempt
+            ? 0m
+            : book.ValueFor(PriceRateKind.ElectricityTax, hourStartUtc);
         decimal? enovaFee = book.ValueFor(PriceRateKind.EnovaFee, hourStartUtc);
-        decimal? vat = book.ValueFor(PriceRateKind.Vat, hourStartUtc);
+        decimal? vat = location.VatExempt ? 0m : book.ValueFor(PriceRateKind.Vat, hourStartUtc);
         if (electricityTax is null || enovaFee is null || vat is null)
         {
             // A gap in the national data must never be hidden as a zero.
@@ -93,10 +164,18 @@ public class CostCalculator(
         // No supplier markup under Norgespris.
         decimal markup = model == PricingModel.Spot ? location.SupplierMarkupPerKwh : 0m;
 
-        PriceBreakdown breakdown = PriceCalculation.Calculate(
+        return PriceCalculation.Calculate(
             energy.Value, markup, GridRate(book, location, hourStartUtc), electricityTax.Value, enovaFee.Value, vat.Value);
+    }
 
-        return new RateCost(breakdown.Total, consumptionKwh * breakdown.Total, breakdown);
+    /// <summary>The cap of the location kind valid on the first Oslo day of the month of the hour, or null.</summary>
+    private async Task<decimal?> CapForAsync(Location location, DateTime hourStartUtc, CancellationToken ct)
+    {
+        DateOnly date = NorgesPrisSchedule.OsloDateOf(hourStartUtc);
+        PriceRateKind kind = location.IsHolidayHome
+            ? PriceRateKind.NorgesPrisCapHolidayHome
+            : PriceRateKind.NorgesPrisCapHome;
+        return (await GetBookAsync(ct)).ValueOn(kind, new DateOnly(date.Year, date.Month, 1));
     }
 
     /// <summary>The grid energy charge for the hour, or null when the location has no tariff or it has no rate yet.</summary>

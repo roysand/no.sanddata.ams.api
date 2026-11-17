@@ -38,7 +38,7 @@ public class CostCalculatorTests
         GivenSpotPrice(100m); // 100 EUR/MWh = 0.1 EUR/kWh
         GivenRate(DateOnly.FromDateTime(Hour), 11m);
 
-        CostResult result = await _calculator.CalculateAsync(LocationWith(false), Hour, 2m, CancellationToken.None);
+        CostResult result = await _calculator.CalculateAsync(LocationWith(false), Hour, 2m, 0m, CancellationToken.None);
 
         Assert.Equal(PricingModel.Spot, result.PricingModel);
         Assert.Equal(1.1m, result.Actual!.RatePerKwh);
@@ -51,7 +51,7 @@ public class CostCalculatorTests
         GivenSpotPrice(100m);
         GivenRate(DateOnly.FromDateTime(Hour), 11m);
 
-        CostResult result = await _calculator.CalculateAsync(LocationWith(false), Hour, 2m, CancellationToken.None);
+        CostResult result = await _calculator.CalculateAsync(LocationWith(false), Hour, 2m, 0m, CancellationToken.None);
 
         Assert.Equal(0.40m, result.Comparison!.RatePerKwh);
         Assert.Equal(0.80m, result.Comparison.Cost);
@@ -63,7 +63,7 @@ public class CostCalculatorTests
         GivenSpotPrice(100m);
         GivenRate(DateOnly.FromDateTime(Hour), 11m);
 
-        CostResult result = await _calculator.CalculateAsync(LocationWith(true), Hour, 2m, CancellationToken.None);
+        CostResult result = await _calculator.CalculateAsync(LocationWith(true), Hour, 2m, 0m, CancellationToken.None);
 
         Assert.Equal(PricingModel.NorgesPris, result.PricingModel);
         Assert.Equal(0.40m, result.Actual!.RatePerKwh);
@@ -73,7 +73,7 @@ public class CostCalculatorTests
     [Fact]
     public async Task Calculate_NoSpotPrice_SpotCostIsNullButFlatStillWorks()
     {
-        CostResult result = await _calculator.CalculateAsync(LocationWith(false), Hour, 2m, CancellationToken.None);
+        CostResult result = await _calculator.CalculateAsync(LocationWith(false), Hour, 2m, 0m, CancellationToken.None);
 
         Assert.Null(result.Actual);
         Assert.NotNull(result.Comparison);
@@ -84,7 +84,7 @@ public class CostCalculatorTests
     {
         GivenSpotPrice(100m);
 
-        CostResult result = await _calculator.CalculateAsync(LocationWith(false), Hour, 2m, CancellationToken.None);
+        CostResult result = await _calculator.CalculateAsync(LocationWith(false), Hour, 2m, 0m, CancellationToken.None);
 
         Assert.Null(result.Actual);
     }
@@ -95,7 +95,7 @@ public class CostCalculatorTests
         GivenSpotPrice(100m);
         GivenRate(DateOnly.FromDateTime(Hour).AddDays(-2), 10m); // e.g. weekend, last business day
 
-        CostResult result = await _calculator.CalculateAsync(LocationWith(false), Hour, 1m, CancellationToken.None);
+        CostResult result = await _calculator.CalculateAsync(LocationWith(false), Hour, 1m, 0m, CancellationToken.None);
 
         Assert.Equal(1.0m, result.Actual!.RatePerKwh);
     }
@@ -106,7 +106,7 @@ public class CostCalculatorTests
         GivenSpotPrice(100m);
         GivenRate(DateOnly.FromDateTime(Hour), 11m);
 
-        CostResult result = await _calculator.CalculateAsync(LocationWith(false), Hour, 0m, CancellationToken.None);
+        CostResult result = await _calculator.CalculateAsync(LocationWith(false), Hour, 0m, 0m, CancellationToken.None);
 
         Assert.Equal(0m, result.Actual!.Cost);
     }

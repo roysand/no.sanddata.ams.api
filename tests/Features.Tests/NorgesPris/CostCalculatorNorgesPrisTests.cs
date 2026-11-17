@@ -31,8 +31,8 @@ public class CostCalculatorNorgesPrisTests
     {
         CostCalculator calculator = Calculator(TwoRates());
 
-        CostResult before = await calculator.CalculateAsync(LocationWith(true), Before, 2m, CancellationToken.None);
-        CostResult after = await calculator.CalculateAsync(LocationWith(true), After, 2m, CancellationToken.None);
+        CostResult before = await calculator.CalculateAsync(LocationWith(true), Before, 2m, 0m, CancellationToken.None);
+        CostResult after = await calculator.CalculateAsync(LocationWith(true), After, 2m, 0m, CancellationToken.None);
 
         Assert.Equal(0.40m, before.Actual!.RatePerKwh); // the rate only: the old tax field of the row is not used
         Assert.Equal(0.80m, before.Actual.Cost);
@@ -45,8 +45,8 @@ public class CostCalculatorNorgesPrisTests
     {
         CostCalculator calculator = Calculator(TwoRates());
 
-        CostResult before = await calculator.CalculateAsync(LocationWith(false), Before, 1m, CancellationToken.None);
-        CostResult after = await calculator.CalculateAsync(LocationWith(false), After, 1m, CancellationToken.None);
+        CostResult before = await calculator.CalculateAsync(LocationWith(false), Before, 1m, 0m, CancellationToken.None);
+        CostResult after = await calculator.CalculateAsync(LocationWith(false), After, 1m, 0m, CancellationToken.None);
 
         Assert.Equal(0.40m, before.Comparison!.RatePerKwh);
         Assert.Equal(0.50m, after.Comparison!.RatePerKwh);
@@ -58,7 +58,7 @@ public class CostCalculatorNorgesPrisTests
         CostCalculator calculator = Calculator(TwoRates());
 
         CostResult result = await calculator.CalculateAsync(
-            LocationWith(true), new DateTime(2019, 6, 1, 10, 0, 0, DateTimeKind.Utc), 1m, CancellationToken.None);
+            LocationWith(true), new DateTime(2019, 6, 1, 10, 0, 0, DateTimeKind.Utc), 1m, 0m, CancellationToken.None);
 
         Assert.Null(result.Actual);
     }
@@ -72,7 +72,7 @@ public class CostCalculatorNorgesPrisTests
 
         for (int hour = 0; hour < 24 * 30; hour++)
         {
-            await calculator.CalculateAsync(location, Before.AddHours(hour), 1m, CancellationToken.None);
+            await calculator.CalculateAsync(location, Before.AddHours(hour), 1m, 0m, CancellationToken.None);
         }
 
         await rates.Received(1).GetAllAsync(Arg.Any<CancellationToken>());

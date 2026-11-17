@@ -14,4 +14,11 @@ public interface IConsumptionRepository
         Guid locationId, Guid? meterId, DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken);
 
     Task<decimal> GetHourConsumptionKwhAsync(Guid locationId, DateTime hourStartUtc, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The total kWh of the location (all meters) in the hours from <paramref name="fromUtc"/> (inclusive) to
+    /// <paramref name="toUtc"/> (exclusive).
+    /// </summary>
+    Task<decimal> GetConsumptionKwhAsync(
+        Guid locationId, DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken);
 }

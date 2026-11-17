@@ -62,7 +62,7 @@ public static class PricingMapper
 
     public static LocationPricingResponse ToLocationPricingResponse(Location location, string? gridTariffName) =>
         new(location.Id, location.Name, location.GridTariffId, gridTariffName, location.SupplierMarkupPerKwh,
-            location.GridTariffId is not null);
+            location.ElectricityTaxExempt, location.VatExempt, location.IsHolidayHome, location.GridTariffId is not null);
 
     private static GridTariffRateResponse ToGridTariffRateResponse(
         GridTariffRate rate, DateOnly today, DateOnly? inEffect) =>

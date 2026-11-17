@@ -18,8 +18,18 @@ public record GetHourlyCostQuery(
 public record PriceParts(
     decimal Energy, decimal Markup, decimal? Grid, decimal Taxes, decimal Vat, decimal Total, bool GridSet);
 
-/// <param name="RatePerKwh">The full price per kWh including VAT; the same as Parts.Total.</param>
-public record HourRateCostResponse(decimal RatePerKwh, decimal Cost, PriceParts Parts);
+/// <summary>
+/// How an hour on Norgespris terms is split by the monthly cap: Cost = KwhWithinCap x Parts.Total + KwhAboveCap x
+/// AboveCapParts.Total.
+/// </summary>
+public record CapResponse(decimal KwhWithinCap, decimal KwhAboveCap, PriceParts AboveCapParts);
+
+/// <param name="RatePerKwh">
+/// The full price per kWh including VAT; the same as Parts.Total unless the hour is split by the Norgespris cap, when it
+/// is Cost / kWh.
+/// </param>
+/// <param name="Cap">Null unless some kWh of the hour are above the Norgespris monthly cap.</param>
+public record HourRateCostResponse(decimal RatePerKwh, decimal Cost, PriceParts Parts, CapResponse? Cap);
 
 public record HourlyCostItemResponse(
     DateTime HourStart,

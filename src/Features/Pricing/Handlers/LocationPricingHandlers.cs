@@ -39,11 +39,20 @@ public class SetLocationPricingCommandHandler(
         }
 
         // Changing these recalculates every past hour of the location, as the Norgespris agreement flag does.
-        location.SetPricing(command.GridTariffId, command.SupplierMarkupPerKwh);
+        // An omitted flag keeps its value, so a call that only sets the tariff and markup changes nothing else.
+        location.SetPricing(
+            command.GridTariffId,
+            command.SupplierMarkupPerKwh,
+            command.ElectricityTaxExempt ?? location.ElectricityTaxExempt,
+            command.VatExempt ?? location.VatExempt,
+            command.IsHolidayHome ?? location.IsHolidayHome);
         await locationRepository.SaveChangesAsync(ct);
 
         LogMessages.LocationPricingChanged(
             logger, location.Id, location.GridTariffId, location.SupplierMarkupPerKwh, command.ActingUserId);
+        LogMessages.LocationPricingFlagsChanged(
+            logger, location.Id, location.ElectricityTaxExempt, location.VatExempt, location.IsHolidayHome,
+            command.ActingUserId);
 
         return Result.Success(PricingMapper.ToLocationPricingResponse(location, tariff?.Name));
     }

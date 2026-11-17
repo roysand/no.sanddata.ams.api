@@ -51,6 +51,12 @@ internal static class LogMessages
             new EventId(1706, nameof(LocationPricingChanged)),
             "Pricing of location {LocationId} set to tariff {TariffId} and markup {Markup} by {ActingUserId}");
 
+    private static readonly Action<ILogger, Guid, bool, bool, bool, Guid, Exception?> _locationPricingFlagsChanged =
+        LoggerMessage.Define<Guid, bool, bool, bool, Guid>(
+            LogLevel.Information,
+            new EventId(1708, nameof(LocationPricingFlagsChanged)),
+            "Pricing flags of location {LocationId} set to tax exempt {ElectricityTaxExempt}, VAT exempt {VatExempt}, holiday home {IsHolidayHome} by {ActingUserId}");
+
     private static readonly Action<ILogger, string, Guid, Exception?> _refused =
         LoggerMessage.Define<string, Guid>(
             LogLevel.Information,
@@ -82,6 +88,12 @@ internal static class LogMessages
     public static void LocationPricingChanged(
         ILogger logger, Guid locationId, Guid? tariffId, decimal markup, Guid actingUserId)
         => _locationPricingChanged(logger, locationId, tariffId, markup, actingUserId, null);
+
+    public static void LocationPricingFlagsChanged(
+        ILogger logger, Guid locationId, bool electricityTaxExempt, bool vatExempt, bool isHolidayHome,
+        Guid actingUserId)
+        => _locationPricingFlagsChanged(
+            logger, locationId, electricityTaxExempt, vatExempt, isHolidayHome, actingUserId, null);
 
     public static void Refused(ILogger logger, string reason, Guid actingUserId)
         => _refused(logger, reason, actingUserId, null);
