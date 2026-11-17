@@ -36,6 +36,8 @@ public class GetDayPricesQueryHandler(
         DateTime start = CostTime.LocalDayStartUtc(localDate);
         DateTime end = CostTime.LocalDayStartUtc(localDate.AddDays(1));
 
+        await costCalculator.PreloadAsync(location, start, end, ct);
+
         // The rate is read from a one-kWh calculation so it is exactly the rate used in the cost endpoints.
         var items = new List<HourPriceResponse>();
         string pricingModel = location.HasNorgesPriceAgreement ? nameof(PricingModel.NorgesPris) : nameof(PricingModel.Spot);

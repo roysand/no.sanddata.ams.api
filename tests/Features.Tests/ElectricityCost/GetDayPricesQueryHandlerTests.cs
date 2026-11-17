@@ -5,6 +5,7 @@ using Domain.Common.Entities;
 using Features.ElectricityCost.Handlers;
 using Features.ElectricityCost.Queries;
 using Features.Tests.NorgesPris;
+using Features.Tests.Pricing;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 
@@ -26,11 +27,13 @@ public class GetDayPricesQueryHandlerTests
         _locations.GetByIdAsync(_norgesPris.Id, Arg.Any<CancellationToken>()).Returns(_norgesPris);
         _rates.GetByDateAsync("EURNOK", Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
             .Returns(call => new ExchangeRate(Guid.NewGuid(), "EURNOK", call.ArgAt<DateOnly>(1), 10m));
+        _prices.ServeRangesFromSingleHours();
+        _rates.ServeRangesFromSingleDates();
     }
 
     private GetDayPricesQueryHandler Handler() => new(
         _locations,
-        new CostCalculator(_prices, _rates, NorgesPrisRates.Seeded()),
+        new CostCalculator(_prices, _rates, NorgesPrisRates.Seeded(), PriceRateStubs.Zero()),
         Substitute.For<ILogger<GetDayPricesQueryHandler>>());
 
     [Theory]

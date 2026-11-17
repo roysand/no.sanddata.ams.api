@@ -6,6 +6,7 @@ using Features.ElectricityCost.Handlers;
 using Features.ElectricityCost.Queries;
 using Features.ElectricityCost.Services;
 using Features.Tests.NorgesPris;
+using Features.Tests.Pricing;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 
@@ -25,11 +26,13 @@ public class CostHandlerTests
 
     public CostHandlerTests()
     {
-        _calculator = new CostCalculator(_prices, _rates, NorgesPrisRates.Seeded());
+        _calculator = new CostCalculator(_prices, _rates, NorgesPrisRates.Seeded(), PriceRateStubs.Zero());
         _locations.IsUserAssociatedAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
         _locations.GetByIdAsync(_location.Id, Arg.Any<CancellationToken>()).Returns(_location);
         _rates.GetByDateAsync("EURNOK", Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
             .Returns(call => new ExchangeRate(Guid.NewGuid(), "EURNOK", call.ArgAt<DateOnly>(1), 10m));
+        _prices.ServeRangesFromSingleHours();
+        _rates.ServeRangesFromSingleDates();
     }
 
     private void GivenPriceForHour(DateTime hour, decimal eurPerMwh) =>

@@ -11,7 +11,15 @@ public record GetHourlyCostQuery(
     int Page,
     int PageSize) : IQuery<Result<PagedHourlyCostResponse>>;
 
-public record HourRateCostResponse(decimal RatePerKwh, decimal Cost);
+/// <summary>
+/// The parts of the price of one kWh, in NOK including VAT in the total. Grid is null (and GridSet false) when the
+/// location has no grid tariff yet. The parts add up exactly to Total.
+/// </summary>
+public record PriceParts(
+    decimal Energy, decimal Markup, decimal? Grid, decimal Taxes, decimal Vat, decimal Total, bool GridSet);
+
+/// <param name="RatePerKwh">The full price per kWh including VAT; the same as Parts.Total.</param>
+public record HourRateCostResponse(decimal RatePerKwh, decimal Cost, PriceParts Parts);
 
 public record HourlyCostItemResponse(
     DateTime HourStart,

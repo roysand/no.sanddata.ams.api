@@ -46,4 +46,37 @@ public class ModelDeleteBehaviorTests
     [Fact]
     public void DeletingALocation_StillRemovesItsMeters() =>
         Assert.Equal(DeleteBehavior.Cascade, ForeignKey(typeof(Meter), typeof(Location)).DeleteBehavior);
+
+    [Fact]
+    public void AGridTariffInUse_CanNeverBeDeletedByCascade_FromItsRates() =>
+        Assert.Equal(DeleteBehavior.Restrict, ForeignKey(typeof(GridTariffRate), typeof(GridTariff)).DeleteBehavior);
+
+    [Fact]
+    public void AGridTariffInUse_CanNeverBeDeletedByCascade_FromALocation()
+    {
+        IForeignKey key = ForeignKey(typeof(Location), typeof(GridTariff));
+
+        Assert.Equal(DeleteBehavior.Restrict, key.DeleteBehavior);
+        Assert.False(key.IsRequired);
+    }
+
+    [Fact]
+    public void DeletingAGridTariff_NeverTouchesALocationOrItsMeasurements() =>
+        // A location refers to a tariff, never the other way round, and the link is restricted.
+        Assert.DoesNotContain(
+            BuildModel().FindEntityType(typeof(GridTariff))!.GetForeignKeys(),
+            fk => fk.PrincipalEntityType.ClrType == typeof(Location));
+
+    [Fact]
+    public void TheDatedRates_AreUniquePerKindOrTariffAndStartDate()
+    {
+        IModel model = BuildModel();
+
+        Assert.Contains(
+            model.FindEntityType(typeof(PriceRate))!.GetIndexes(),
+            i => i.IsUnique && i.Properties.Select(p => p.Name).SequenceEqual(["Kind", "ValidFrom"]));
+        Assert.Contains(
+            model.FindEntityType(typeof(GridTariffRate))!.GetIndexes(),
+            i => i.IsUnique && i.Properties.Select(p => p.Name).SequenceEqual(["GridTariffId", "ValidFrom"]));
+    }
 }

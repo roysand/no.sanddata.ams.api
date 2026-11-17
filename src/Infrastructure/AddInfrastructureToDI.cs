@@ -47,6 +47,7 @@ public static class AddInfrastructureToDI
         services.AddScoped<IExchangeRateRepository<ExchangeRate>, ExchangeRateEfRepository>();
         services.AddScoped<IConsumptionRepository, ConsumptionEfRepository>();
         services.AddScoped<INorgesPrisRateRepository, NorgesPrisRateEfRepository>();
+        services.AddScoped<IPriceRateRepository, PriceRateEfRepository>();
         services.AddSingleton(TimeProvider.System);
 
         // Electricity cost: options, external clients, calculator

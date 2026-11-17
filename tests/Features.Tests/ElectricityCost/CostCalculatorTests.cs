@@ -2,6 +2,7 @@ using Application.Common.Interfaces.Repositories;
 using Application.ElectricityCost;
 using Domain.Common.Entities;
 using Features.Tests.NorgesPris;
+using Features.Tests.Pricing;
 using NSubstitute;
 
 namespace Features.Tests.ElectricityCost;
@@ -18,7 +19,7 @@ public class CostCalculatorTests
 
     private readonly CostCalculator _calculator;
 
-    public CostCalculatorTests() => _calculator = new CostCalculator(_prices, _rates, NorgesPrisRates.Seeded(0.05m));
+    public CostCalculatorTests() => _calculator = new CostCalculator(_prices, _rates, NorgesPrisRates.Seeded(0.05m), PriceRateStubs.Zero());
 
     private static Location LocationWith(bool norgesPris) =>
         new(Guid.NewGuid(), "Home", "Addr", "SN1", "NO1", true, norgesPris);
@@ -45,15 +46,15 @@ public class CostCalculatorTests
     }
 
     [Fact]
-    public async Task Calculate_SpotLocation_ComparisonIsFlatRatePlusTax()
+    public async Task Calculate_SpotLocation_ComparisonIsTheFlatRateOnly()
     {
         GivenSpotPrice(100m);
         GivenRate(DateOnly.FromDateTime(Hour), 11m);
 
         CostResult result = await _calculator.CalculateAsync(LocationWith(false), Hour, 2m, CancellationToken.None);
 
-        Assert.Equal(0.45m, result.Comparison!.RatePerKwh);
-        Assert.Equal(0.90m, result.Comparison.Cost);
+        Assert.Equal(0.40m, result.Comparison!.RatePerKwh);
+        Assert.Equal(0.80m, result.Comparison.Cost);
     }
 
     [Fact]
@@ -65,7 +66,7 @@ public class CostCalculatorTests
         CostResult result = await _calculator.CalculateAsync(LocationWith(true), Hour, 2m, CancellationToken.None);
 
         Assert.Equal(PricingModel.NorgesPris, result.PricingModel);
-        Assert.Equal(0.45m, result.Actual!.RatePerKwh);
+        Assert.Equal(0.40m, result.Actual!.RatePerKwh);
         Assert.Equal(1.1m, result.Comparison!.RatePerKwh);
     }
 

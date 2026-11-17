@@ -17,6 +17,13 @@ public class LocationConfiguration : IEntityTypeConfiguration<Location>
         builder.Property(l => l.Zone).IsRequired().HasMaxLength(10);
         builder.Property(l => l.IsActive);
         builder.Property(l => l.HasNorgesPriceAgreement);
+        builder.Property(l => l.SupplierMarkupPerKwh).IsRequired().HasPrecision(9, 4).HasDefaultValue(0m);
+
+        builder.HasOne<GridTariff>()
+            .WithMany()
+            .HasForeignKey(l => l.GridTariffId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasMany(l => l.Users)
             .WithMany(u => u.Locations)

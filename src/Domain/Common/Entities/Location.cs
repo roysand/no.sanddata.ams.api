@@ -8,6 +8,13 @@ public class Location : Entity
     public string Zone { get; private set; } = null!;
     public bool IsActive { get; private set; }
     public bool HasNorgesPriceAgreement { get; private set; }
+
+    /// <summary>The grid tariff the location pays; null until an administrator has set one.</summary>
+    public Guid? GridTariffId { get; private set; }
+
+    /// <summary>Supplier markup in NOK per kWh excluding VAT; added on spot terms only.</summary>
+    public decimal SupplierMarkupPerKwh { get; private set; }
+
     public ApiKey ApiKey { get; private set; } = null!;
     private readonly List<User> _users = new();
     public IReadOnlyCollection<User> Users => _users.AsReadOnly();
@@ -42,6 +49,13 @@ public class Location : Entity
     }
 
     public void SetActive(bool isActive) => IsActive = isActive;
+
+    /// <summary>Administrator-only. Changing these changes how every past hour of the location is priced.</summary>
+    public void SetPricing(Guid? gridTariffId, decimal supplierMarkupPerKwh)
+    {
+        GridTariffId = gridTariffId;
+        SupplierMarkupPerKwh = supplierMarkupPerKwh;
+    }
 
     public void AssignApiKey(ApiKey apiKey) => ApiKey = apiKey;
 
