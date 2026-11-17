@@ -60,6 +60,21 @@ public static class PricingMapper
         GridTariffRate rate, IEnumerable<GridTariffRate> allRatesOfTheTariff, DateOnly today) =>
         ToGridTariffRateResponse(rate, today, LatestStarted(allRatesOfTheTariff.Select(r => r.ValidFrom), today));
 
+    /// <summary>The step tables of a tariff (any order of rows), oldest first, each with its status.</summary>
+    public static IReadOnlyList<CapacityStepTableResponse> ToCapacityStepTables(
+        IEnumerable<GridCapacityStep> steps, DateOnly today)
+    {
+        IGrouping<DateOnly, GridCapacityStep>[] tables = steps.GroupBy(s => s.ValidFrom).OrderBy(g => g.Key).ToArray();
+        DateOnly? inEffect = LatestStarted(tables.Select(t => t.Key), today);
+
+        return tables
+            .Select(t => new CapacityStepTableResponse(
+                t.Key,
+                StatusOf(t.Key, today, inEffect),
+                t.OrderBy(s => s.LowerKw).Select(s => new CapacityStepResponse(s.LowerKw, s.UpperKw, s.MonthlyAmount)).ToList()))
+            .ToList();
+    }
+
     public static LocationPricingResponse ToLocationPricingResponse(Location location, string? gridTariffName) =>
         new(location.Id, location.Name, location.GridTariffId, gridTariffName, location.SupplierMarkupPerKwh,
             location.ElectricityTaxExempt, location.VatExempt, location.IsHolidayHome, location.GridTariffId is not null);

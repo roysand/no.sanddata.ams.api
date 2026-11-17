@@ -62,6 +62,44 @@ internal sealed class FakePriceRateRepository : IPriceRateRepository
         return Task.FromResult(true);
     }
 
+    public List<GridCapacityStep> CapacitySteps { get; } = [];
+
+    public Task<IReadOnlyList<GridCapacityStep>> GetCapacityStepsAsync(
+        Guid gridTariffId, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<GridCapacityStep>>(CapacitySteps
+            .Where(s => s.GridTariffId == gridTariffId)
+            .OrderBy(s => s.ValidFrom).ThenBy(s => s.LowerKw)
+            .ToList());
+
+    public Task<IReadOnlyList<GridCapacityStep>> GetCapacityStepTableAsync(
+        Guid gridTariffId, DateOnly validFrom, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<GridCapacityStep>>(CapacitySteps
+            .Where(s => s.GridTariffId == gridTariffId && s.ValidFrom == validFrom)
+            .ToList());
+
+    public Task<bool> TryInsertCapacityStepsAsync(
+        IReadOnlyList<GridCapacityStep> steps, CancellationToken cancellationToken)
+    {
+        GridCapacityStep first = steps[0];
+        if (LoseTheRace
+            || CapacitySteps.Any(s => s.GridTariffId == first.GridTariffId && s.ValidFrom == first.ValidFrom))
+        {
+            return Task.FromResult(false);
+        }
+
+        CapacitySteps.AddRange(steps);
+        SaveCalls++;
+        return Task.FromResult(true);
+    }
+
+    public void RemoveCapacitySteps(IEnumerable<GridCapacityStep> steps)
+    {
+        foreach (GridCapacityStep step in steps.ToList())
+        {
+            CapacitySteps.Remove(step);
+        }
+    }
+
     public void InsertGridTariff(GridTariff tariff) => Tariffs.Add(tariff);
 
     public void RemovePriceRate(PriceRate rate) => PriceRates.Remove(rate);

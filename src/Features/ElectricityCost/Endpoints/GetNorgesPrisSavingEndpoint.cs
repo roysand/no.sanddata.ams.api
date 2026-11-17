@@ -28,7 +28,8 @@ public class GetNorgesPrisSavingEndpoint : Endpoint<GetNorgesPrisSavingRequest, 
                              "means Norgespris cost more. An hour without a spot price or exchange rate is left out and " +
                              "hoursCounted says how many hours were counted out of hoursWithConsumption. For a location " +
                              "without the agreement it is what the agreement would have saved. The monthly Norgespris cap " +
-                             "(5,000 kWh, 1,000 for a holiday home) is not applied.";
+                             "(5,000 kWh, 1,000 for a holiday home) is applied: kWh above it are on spot terms on both " +
+                             "sides and add nothing.";
             s.Response(200, "Saving retrieved successfully");
             s.Response(404, "Location not found");
         });

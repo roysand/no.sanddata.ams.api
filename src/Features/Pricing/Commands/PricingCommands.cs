@@ -37,4 +37,22 @@ public record SetLocationPricingCommand(
     Guid ActingUserId)
     : ICommand<Result<LocationPricingResponse>>;
 
+/// <param name="UpperKw">Null for the top step.</param>
+/// <param name="MonthlyAmount">NOK per month excluding VAT.</param>
+public record CapacityStepInput(decimal LowerKw, decimal? UpperKw, decimal MonthlyAmount);
+
+/// <param name="Steps">The whole table, lowest step first.</param>
+/// <param name="ConfirmPastDate">Must be true when ValidFrom is today or earlier: past charges are recalculated.</param>
+public record AddCapacityStepsCommand(
+    Guid GridTariffId,
+    DateOnly ValidFrom,
+    IReadOnlyList<CapacityStepInput> Steps,
+    bool ConfirmPastDate,
+    Guid ActingUserId) : ICommand<Result<CapacityStepTableResponse>>;
+
+public record DeleteCapacityStepsCommand(Guid GridTariffId, DateOnly ValidFrom, Guid ActingUserId)
+    : ICommand<Result<CapacityStepsDeleted>>;
+
+public record CapacityStepsDeleted(Guid GridTariffId, DateOnly ValidFrom);
+
 public record PricingDeleted(Guid Id);

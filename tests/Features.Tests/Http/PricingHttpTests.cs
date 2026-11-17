@@ -19,6 +19,9 @@ public class PricingHttpTests
     private static readonly GridTariffResponse Tariff = new(TariffId, "Elvia", [TariffRate]);
     private static readonly LocationPricingResponse LocationPricing = new(LocationId, "Home", TariffId, "Elvia", 0.02m, false, false, true, true);
 
+    private static readonly CapacityStepTableResponse StepTable = new(
+        new DateOnly(2027, 1, 1), "Upcoming", [new CapacityStepResponse(0m, 2m, 120m), new CapacityStepResponse(2m, null, 200m)]);
+
     private static Task<EndpointHost> StartHost(HostCaller caller = HostCaller.Admin) =>
         EndpointHost.StartAsync(
             dispatcher =>
@@ -41,6 +44,12 @@ public class PricingHttpTests
                     .Returns(Result.Success<IReadOnlyList<LocationPricingResponse>>([LocationPricing]));
                 dispatcher.Send(Arg.Any<SetLocationPricingCommand>(), Arg.Any<CancellationToken>())
                     .Returns(Result.Success(LocationPricing));
+                dispatcher.Send(Arg.Any<ListCapacityStepsQuery>(), Arg.Any<CancellationToken>())
+                    .Returns(Result.Success<IReadOnlyList<CapacityStepTableResponse>>([StepTable]));
+                dispatcher.Send(Arg.Any<AddCapacityStepsCommand>(), Arg.Any<CancellationToken>())
+                    .Returns(Result.Success(StepTable));
+                dispatcher.Send(Arg.Any<DeleteCapacityStepsCommand>(), Arg.Any<CancellationToken>())
+                    .Returns(Result.Success(new CapacityStepsDeleted(TariffId, new DateOnly(2027, 1, 1))));
             },
             caller);
 
@@ -48,6 +57,8 @@ public class PricingHttpTests
 
     private const string PriceRateBody = """{ "kind": "ElectricityTax", "validFrom": "2027-01-01", "value": 0.08 }""";
     private const string TariffRateBody = """{ "validFrom": "2027-01-01", "dayRatePerKwh": 0.35, "nightRatePerKwh": 0.22 }""";
+    private const string StepsBody =
+        """{ "validFrom": "2027-01-01", "steps": [ { "lowerKw": 0, "upperKw": 2, "monthlyAmount": 120 }, { "lowerKw": 2, "upperKw": null, "monthlyAmount": 200 } ] }""";
     private const string LocationBody = """{ "gridTariffId": null, "supplierMarkupPerKwh": 0.02 }""";
 
     /// <summary>Every Pricing endpoint with a valid request and the status an Admin gets.</summary>
@@ -61,7 +72,10 @@ public class PricingHttpTests
         { "POST", $"/api/admin/grid-tariffs/{TariffId}/rates", TariffRateBody, HttpStatusCode.Created },
         { "DELETE", $"/api/admin/grid-tariffs/{TariffId}/rates/{RateId}", null, HttpStatusCode.NoContent },
         { "GET", "/api/admin/location-pricing", null, HttpStatusCode.OK },
-        { "PUT", $"/api/admin/location-pricing/{LocationId}", LocationBody, HttpStatusCode.OK }
+        { "PUT", $"/api/admin/location-pricing/{LocationId}", LocationBody, HttpStatusCode.OK },
+        { "GET", $"/api/admin/grid-tariffs/{TariffId}/capacity-steps", null, HttpStatusCode.OK },
+        { "POST", $"/api/admin/grid-tariffs/{TariffId}/capacity-steps", StepsBody, HttpStatusCode.Created },
+        { "DELETE", $"/api/admin/grid-tariffs/{TariffId}/capacity-steps/2027-01-01", null, HttpStatusCode.NoContent }
     };
 
     private static Task<HttpResponseMessage> Send(EndpointHost host, string method, string url, string? body) =>
@@ -283,5 +297,18 @@ public class PricingHttpTests
         Assert.Equal(expected, add.StatusCode);
         Assert.Equal(expected, delete.StatusCode);
         Assert.Equal(expected, set.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("""{ "validFrom": "2027-01-01", "steps": [] }""")]
+    [InlineData("""{ "validFrom": "2027-01-01", "steps": [ { "lowerKw": 1, "upperKw": null, "monthlyAmount": 120 } ] }""")]
+    [InlineData("""{ "steps": [ { "lowerKw": 0, "upperKw": null, "monthlyAmount": 120 } ] }""")]
+    public async Task AddCapacitySteps_ABrokenTable_IsA400(string body)
+    {
+        await using EndpointHost host = await StartHost();
+
+        HttpResponseMessage response = await Send(host, "POST", $"/api/admin/grid-tariffs/{TariffId}/capacity-steps", body);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 }
