@@ -102,7 +102,7 @@ All unknowns from the plan are resolved below. Figures for 2026 were checked aga
 
 ## D15. Out of scope here
 
-Tariff delete or rename, VAT or tax exemptions by area, the supplier monthly fee, the grid fixed fee and capacity charge, the Norgespris monthly cap, and every web app change. The Admin screens for this data belong to the UI feature in `specs/_backlog`.
+Tariff delete or rename, the supplier monthly fee, and every web app change. (Originally also the exemptions, the Norgespris cap and the capacity charge; these moved into stories 6 and 7, see D18-D25.) The Admin screens for this data belong to the UI feature in `specs/_backlog`.
 
 ## D16. The tax field of a Norgespris rate
 
@@ -117,3 +117,122 @@ Tariff delete or rename, VAT or tax exemptions by area, the supplier monthly fee
 **Decision**: `PriceRateKind` is exposed as a string in every request and response record of the Pricing slice and parsed (case-insensitive) in the validator, as the existing `Role` of the link endpoint is.
 
 **Rationale**: the API does not configure a JSON string-enum converter, so an enum property would be written and read as a number. Adding a global converter would change every other endpoint.
+
+## Addendum 2026-11-17: user stories 6 and 7
+
+Checked against Elvia's tariffblad 1.0 (valid from 2026-01-01 and 2026-07-01) and an Elvia bill for October 2026; the
+figures are in the spec under "Reference data for the tests".
+
+## D18. Exemptions are location flags
+
+**Decision**: `Location` gets `ElectricityTaxExempt` and `VatExempt` (default false). `CostCalculator` uses 0 for the
+electricity tax when the first is set and 0 for VAT when the second is set; the Enova fee is always added. The flags
+are set by the Admin location-pricing endpoint, never derived from the price zone.
+
+**Rationale**: FR-021, FR-022. The tax exemption follows municipalities (tiltakssonen) and the VAT exemption counties
+(Nordland, Troms, Finnmark); neither matches NO4, so the zone cannot decide.
+
+**Alternatives**: derive from the zone (wrong for most of NO4 for the tax, and at the borders for VAT); a municipality
+list on the location (data the API does not have and a list to keep up to date for two flags).
+
+## D19. The cap values are PriceRate kinds
+
+**Decision**: two new `PriceRateKind` values, `NorgesPrisCapHome` and `NorgesPrisCapHolidayHome`, value in kWh per
+month, managed through the existing price-rate endpoints and `DatedRatePolicy`. The validator allows up to 99,999 kWh
+for these kinds (the column is `decimal(9,4)`), 100 for the fees and 1 for VAT. The cap for a month is the value valid
+on the first Oslo day of the month (`PriceRateBook.ValueOn(kind, DateOnly)`). Seeded: 5,000 and 1,000 from 2025-10-01,
+the start of Norgespris.
+
+**Rationale**: FR-023. They are one national number from a start date, exactly what `PriceRate` holds, so no new table,
+repository or endpoints (Constitution VIII). Picking the value on the 1st keeps a month from mixing two caps.
+
+**Alternatives**: a separate cap table (same behaviour, more code); fields on `NorgesPrisRate` (couples two values that
+change at different times and touches the Norgespris slice).
+
+## D20. Applying the cap: the caller passes the month kWh before the hour
+
+**Decision**: `CostCalculator.CalculateAsync` gets a parameter `monthKwhBefore`: the kWh the location used in the same
+Oslo calendar month before this hour. The pure `NorgesPrisCap.Split(monthKwhBefore, hourKwh, cap)` returns
+`(WithinCap, AboveCap)`. On Norgespris terms (the actual of a Norgespris location and the comparison of a spot
+location) the within part is priced at the Norgespris rate and the above part on spot terms with the markup. Spot terms
+are never split. Callers:
+
+- `HourlyCostProvider` reads the hourly consumption from the Oslo start of the month of `fromUtc` (same query, earlier
+  start), keeps a running sum that resets at each Oslo month start, and returns only the requested hours.
+- `GetCurrentHourCostQueryHandler` and `GetDayPricesQueryHandler` get the month sum before the hour (or before the day,
+  then adding the measured kWh of each hour) from one new aggregate query
+  `IConsumptionRepository.GetConsumptionKwhAsync(locationId, fromUtc, toUtc)`.
+- The saving uses `HourlyCostProvider`, so it follows the cap with no change of its own (FR-025).
+
+**Rationale**: FR-024. The calculator stays one hour at a time and needs no consumption repository; the month context is
+the caller's, and every caller already has the consumption. Reading from the month start means an hour has the same
+price in every range (story 6, scenario 4).
+
+**Alternatives**: the calculator loads the month itself (a second consumption read per request, and the calculator would
+depend on consumption); apply the cap per day or per request range (gives a different price for the same hour depending
+on the range asked for).
+
+## D21. Result shape of a split hour
+
+**Decision**: `RateCost` gains `CapSplit? Cap` with `KwhWithinCap`, `KwhAboveCap` and `AboveCapBreakdown`. `Breakdown`
+stays the parts of the kWh within the cap (the Norgespris terms); when the whole hour is above the cap, `Breakdown` is
+the spot-terms parts and `KwhWithinCap` is 0. `Cost` = within x Norgespris total + above x spot total, exactly.
+`RatePerKwh` = `Cost` / kWh (for a 0 kWh hour, the rate of the next kWh). `Cap` is null on spot terms and when the hour
+is fully within the cap. The JSON gets an additive `cap` object next to `parts`.
+
+**Rationale**: FR-007 says the parts add up exactly; averaging two breakdowns would need a division per part. Keeping
+two exact breakdowns plus the kWh split keeps every figure exact and checkable, and the frontend keeps reading
+`ratePerKwh` and `cost`.
+
+## D22. Day prices with the cap
+
+**Decision**: `/prices` shows, per hour, the rate of the next kWh given the month kWh before the hour (measured
+consumption up to that hour). Once the month has passed the cap, a Norgespris location sees the spot rate.
+
+**Rationale**: that is what the next kWh costs, which is the question the price list answers. Future hours use the
+month kWh measured so far.
+
+## D23. Capacity steps: one table of dated step rows
+
+**Decision**: `GridCapacityStep` (tariff, valid from, lower kW, upper kW or null for the top step, monthly amount
+excluding VAT). The Admin adds a whole step table for a start date in one request; the validator requires it to start
+at 0, be contiguous (each lower bound equals the previous upper bound), strictly increasing, and have exactly one top
+step without an upper bound, which is the last one. `DatedRatePolicy` applies per (tariff, start date): `DateExists`,
+`NotNewest`, `ConfirmationRequired`, and only an upcoming table can be deleted (all its rows together).
+
+**Rationale**: FR-027. The steps of one date belong together and change together (Elvia changed every amount on
+2026-07-01), so they are added and removed as one table under the existing dated rules.
+
+**Alternatives**: one row per date with the steps as JSON (cannot be checked by the database and is awkward in EF
+queries); steps without dates (loses history, the problem spec 007 solved).
+
+## D24. The capacity calculation
+
+**Decision**: a pure `CapacityCharge.Calculate(hours, steps, vatFraction, monthEnded)`. `hours` are the hourly kWh of one
+Oslo calendar month (one hour's kWh is its average kW). Steps: daily peak per Oslo date = the highest hour; the three
+highest peaks on different days (fewer if fewer days have data); average; step where lower <= average < upper (top
+step: lower <= average). Amount = step amount x (1 + VAT), where VAT is the value on the first day of the month, or 0
+for a VAT-exempt location. Returns the peaks (date, hour, kW), the average, the step, the amount excluding and
+including VAT, the kW to the next step, and `Provisional = !monthEnded`. No steps or no tariff -> `Set = false`.
+
+**Rationale**: FR-028 to FR-031 and the Elvia definitions (dognmaks = the clock hour with the highest kWh in a day;
+kWh/h = kW). Fewer than three days averaging what exists was decided by the product owner on 2026-11-17. The border
+rule (lower inclusive) is an assumption to confirm with Elvia.
+
+## D25. The capacity endpoint
+
+**Decision**: `GET /api/electricity-cost/capacity?locationId=&month=YYYY-MM` (month optional, default the current Oslo
+month) in the ElectricityCost slice, for users linked to the location like the other cost endpoints. One consumption
+read for the month and one step read for the tariff. Not added to the hourly or daily figures (FR-030).
+
+**Rationale**: the charge is monthly; showing it next to the hourly figures without spreading it keeps FR-006 (daily =
+sum of hours) true.
+
+## D26. Test data
+
+**Decision**: tests use the Elvia figures stored excluding taxes and VAT (day 0.2899 / night 0.1699 from 2026-07-01,
+0.2099 / 0.1299 from 2026-01-01; the step tables of both dates) and reproduce the October 2026 bill lines within 0.01 kr
+per line. Capacity examples: peaks 6.2, 5.1 and 4.9 kW give 5.4 kW, step 5-10, 336 kr, 420 kr with VAT (the bill);
+an average of exactly 5.00 kW gives step 5-10; two days with peaks 4.0 and 6.0 give 5.0 kW; two highest hours on one day
+count once. Cap examples: a holiday home with 999.35 kWh (the bill) stays within; the same month plus 200.65 kWh puts
+1,000 kWh at Norgespris and 200 kWh on spot terms, with the crossing hour split.

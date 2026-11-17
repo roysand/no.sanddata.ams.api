@@ -11,7 +11,16 @@ namespace Features.Pricing.Endpoints;
 
 /// <param name="LocationId">The location, from the route.</param>
 /// <param name="GridTariffId">The grid tariff, or null to clear it.</param>
-public record SetLocationPricingRequest(Guid LocationId, Guid? GridTariffId, decimal SupplierMarkupPerKwh);
+/// <param name="ElectricityTaxExempt">Optional; omitted keeps the current value.</param>
+/// <param name="VatExempt">Optional; omitted keeps the current value.</param>
+/// <param name="IsHolidayHome">Optional; omitted keeps the current value.</param>
+public record SetLocationPricingRequest(
+    Guid LocationId,
+    Guid? GridTariffId,
+    decimal SupplierMarkupPerKwh,
+    bool? ElectricityTaxExempt = null,
+    bool? VatExempt = null,
+    bool? IsHolidayHome = null);
 
 public class ListLocationPricingEndpoint : EndpointWithoutRequest<IReadOnlyList<LocationPricingResponse>>
 {
@@ -69,10 +78,12 @@ public class SetLocationPricingEndpoint : Endpoint<SetLocationPricingRequest, Lo
         Roles(RoleNames.Admin);
         Summary(s =>
         {
-            s.Summary = "Set the grid tariff and supplier markup of a location (admin)";
-            s.Description = "supplierMarkupPerKwh is NOK per kWh excluding VAT, added on spot terms only. Changing either " +
-                             "recalculates every past hour of the location, because costs are calculated from the current " +
-                             "settings, as for the Norgespris agreement flag.";
+            s.Summary = "Set the grid tariff, supplier markup, exemptions and holiday-home flag of a location (admin)";
+            s.Description = "supplierMarkupPerKwh is NOK per kWh excluding VAT, added on spot terms only. " +
+                             "electricityTaxExempt (tiltakssonen), vatExempt (Nordland, Troms, Finnmark) and isHolidayHome " +
+                             "(the lower Norgespris monthly cap) are optional; an omitted flag keeps its value. Changing " +
+                             "any of them recalculates every past hour of the location, because costs are calculated from " +
+                             "the current settings, as for the Norgespris agreement flag.";
             s.Response(200, "Settings changed");
             s.Response(400, "Invalid markup");
             s.Response(401, "Not signed in");
@@ -86,7 +97,15 @@ public class SetLocationPricingEndpoint : Endpoint<SetLocationPricingRequest, Lo
         var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
         Result<LocationPricingResponse> result = await _dispatcher.Send(
-            new SetLocationPricingCommand(req.LocationId, req.GridTariffId, req.SupplierMarkupPerKwh, userId), ct);
+            new SetLocationPricingCommand(
+                req.LocationId,
+                req.GridTariffId,
+                req.SupplierMarkupPerKwh,
+                req.ElectricityTaxExempt,
+                req.VatExempt,
+                req.IsHolidayHome,
+                userId),
+            ct);
 
         if (!result.IsSuccess)
         {

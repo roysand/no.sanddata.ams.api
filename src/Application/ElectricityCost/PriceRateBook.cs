@@ -22,9 +22,12 @@ public class PriceRateBook
     }
 
     /// <summary>The value of the kind for the hour, or null when the hour is before the earliest row of that kind.</summary>
-    public decimal? ValueFor(PriceRateKind kind, DateTime hourStartUtc)
+    public decimal? ValueFor(PriceRateKind kind, DateTime hourStartUtc) =>
+        ValueOn(kind, NorgesPrisSchedule.OsloDateOf(hourStartUtc));
+
+    /// <summary>The value of the kind on an Oslo date, or null when the date is before the earliest row of that kind.</summary>
+    public decimal? ValueOn(PriceRateKind kind, DateOnly date)
     {
-        DateOnly date = NorgesPrisSchedule.OsloDateOf(hourStartUtc);
         PriceRate? found = null;
         foreach (PriceRate rate in _rates)
         {

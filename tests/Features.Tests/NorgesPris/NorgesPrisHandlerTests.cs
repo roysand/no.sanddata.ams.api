@@ -261,9 +261,9 @@ public class NorgesPrisHandlerTests
         var location = new Location(Guid.NewGuid(), "Home", "Addr", "SN1", "NO1", true, true);
         var hour = new DateTime(2027, 2, 1, 10, 0, 0, DateTimeKind.Utc);
 
-        CostResult withNewRate = await calculator().CalculateAsync(location, hour, 1m, CancellationToken.None);
+        CostResult withNewRate = await calculator().CalculateAsync(location, hour, 1m, 0m, CancellationToken.None);
         await DeleteHandler(store).Handle(new DeleteNorgesPrisRateCommand(added.Value.Id, Admin), CancellationToken.None);
-        CostResult afterDelete = await calculator().CalculateAsync(location, hour, 1m, CancellationToken.None);
+        CostResult afterDelete = await calculator().CalculateAsync(location, hour, 1m, 0m, CancellationToken.None);
 
         Assert.Equal(0.50m, withNewRate.Actual!.RatePerKwh);
         Assert.Equal(0.40m, afterDelete.Actual!.RatePerKwh);

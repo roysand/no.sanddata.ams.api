@@ -15,6 +15,15 @@ public class Location : Entity
     /// <summary>Supplier markup in NOK per kWh excluding VAT; added on spot terms only.</summary>
     public decimal SupplierMarkupPerKwh { get; private set; }
 
+    /// <summary>No electricity tax (households in the tiltakssone); the Enova fee still applies.</summary>
+    public bool ElectricityTaxExempt { get; private set; }
+
+    /// <summary>No VAT on electricity (households in Nordland, Troms and Finnmark).</summary>
+    public bool VatExempt { get; private set; }
+
+    /// <summary>A holiday home (fritidsbolig): picks the holiday-home Norgespris monthly cap.</summary>
+    public bool IsHolidayHome { get; private set; }
+
     public ApiKey ApiKey { get; private set; } = null!;
     private readonly List<User> _users = new();
     public IReadOnlyCollection<User> Users => _users.AsReadOnly();
@@ -51,10 +60,18 @@ public class Location : Entity
     public void SetActive(bool isActive) => IsActive = isActive;
 
     /// <summary>Administrator-only. Changing these changes how every past hour of the location is priced.</summary>
-    public void SetPricing(Guid? gridTariffId, decimal supplierMarkupPerKwh)
+    public void SetPricing(
+        Guid? gridTariffId,
+        decimal supplierMarkupPerKwh,
+        bool electricityTaxExempt,
+        bool vatExempt,
+        bool isHolidayHome)
     {
         GridTariffId = gridTariffId;
         SupplierMarkupPerKwh = supplierMarkupPerKwh;
+        ElectricityTaxExempt = electricityTaxExempt;
+        VatExempt = vatExempt;
+        IsHolidayHome = isHolidayHome;
     }
 
     public void AssignApiKey(ApiKey apiKey) => ApiKey = apiKey;

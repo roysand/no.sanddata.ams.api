@@ -14,6 +14,16 @@ a supplier markup, set through a new Admin endpoint. The calculator returns a br
 existing rate and cost fields become the totals including VAT, so the other handlers and the frontend keep working. A new
 endpoint gives the Norgespris saving per period. No UI change is in this feature (see `specs/_backlog`).
 
+**Addendum 2026-11-17 (user stories 6 and 7, after checking against an Elvia bill).** Stories 1-5 are built and merged;
+their design below is unchanged. Story 6 adds three Admin-set location flags (electricity-tax exempt, VAT exempt,
+holiday home) and two new `PriceRate` kinds for the Norgespris monthly cap (permanent home, holiday home, in kWh). The
+calculator applies the exemptions, and for Norgespris terms prices the kWh of an Oslo calendar month up to the cap at
+the Norgespris rate and the rest on spot terms; every caller passes the kWh the location used earlier in the month
+before the hour, so the crossing hour is split. Story 7 (phase 2) adds dated capacity-step tables per grid tariff and a
+pure calculation of the monthly capacity charge from the three highest daily peaks, with a new read endpoint. Two new
+migrations, one per story: `AddExemptionsAndNorgesPrisCap` (story 6, also widens `PriceRate.Kind` to 40 characters)
+and one for the capacity steps (story 7).
+
 ## Technical Context
 
 **Language/Version**: C# 14 / .NET 10, ASP.NET Core 10
@@ -33,6 +43,13 @@ endpoint gives the Norgespris saving per period. No UI change is in this feature
 **Constraints**: Oslo time decides day or night, weekday, holidays and which dated value applies. Amounts are `decimal`, never rounded in the calculation. A missing price part is unavailable, never zero.
 
 **Scale/Scope**: a handful of dated rows per kind. 3 new tables, 2 location columns, about 10 endpoints, one calculator change.
+Addendum: 1 new table (`GridCapacityStep`), 3 location columns, 2 new `PriceRateKind` values, 1 changed endpoint
+(location pricing), 3 new endpoints (capacity steps list/add/delete) and 1 new read endpoint (capacity charge).
+
+**Addendum performance**: the cap needs the kWh used earlier in the month. `HourlyCostProvider` reads the hourly
+consumption from the Oslo start of the month of the range (one query, as today, with an earlier start); the current-hour
+and day-price handlers get that sum from one new aggregate query. The capacity charge reads one month of hourly
+consumption (at most 744 rows) once.
 
 ## Constitution Check
 
@@ -48,7 +65,8 @@ endpoint gives the Norgespris saving per period. No UI change is in this feature
 | VI. Structured logging | Pass. `LogMessages` for `Pricing` with a new range 1700-1799, added to `CLAUDE.md` and `DevelopmentGuide.md`. |
 | VII. Manual mapping | Pass. Static mappers per slice. |
 | VIII. Minimal footprint | Pass. One generic `PriceRate` table for the three national values instead of three tables; no tariff delete or rename; no cache beyond a lazily loaded field on the scoped calculator; phase 2 items (monthly fees, capacity, cap) are not built. |
-| Migrations | Pass. One migration `AddFullElectricityPrice`; never edited after it has been applied. |
+| Migrations | Pass. One migration `AddFullElectricityPrice`; never edited after it has been applied. The addendum adds new migrations (one per story) instead of editing the applied one. |
+| Addendum (stories 6-7) | Pass. Flags on `Location` (Domain); the cap split and the capacity calculation are pure classes in Application; the step tables live with the grid tariff in `Pricing`; the capacity read endpoint sits in `ElectricityCost` next to the saving. Cap values reuse the `PriceRate` table and its endpoints (two new kinds, no new table). Capacity steps are a new table because a step table has several rows per date. No new packages. |
 
 No violations; nothing to justify.
 
@@ -107,6 +125,41 @@ CLAUDE.md, DevelopmentGuide.md               # CHANGED: EventId table (1700-1799
 ```
 
 **Structure Decision**: the existing solution; a new `Features/Pricing` folder inside `Features.csproj`.
+
+### Addendum source changes (stories 6 and 7)
+
+```text
+src/
+├── Domain/Common/
+│   ├── PriceRateKind.cs                     # CHANGED: + NorgesPrisCapHome, NorgesPrisCapHolidayHome (kWh per month)
+│   └── Entities/
+│       ├── Location.cs                      # CHANGED: ElectricityTaxExempt, VatExempt, IsHolidayHome; SetPricing(...) takes them
+│       └── GridCapacityStep.cs              # NEW: tariff, valid from, lower kW, upper kW (null = top), monthly amount excl. VAT
+├── Application/
+│   ├── Common/Interfaces/Repositories/
+│   │   ├── IPriceRateRepository.cs          # CHANGED: capacity steps read/insert/delete
+│   │   └── IConsumptionRepository.cs        # CHANGED: GetConsumptionKwhAsync(locationId, fromUtc, toUtc) (sum)
+│   └── ElectricityCost/
+│       ├── NorgesPrisCap.cs                 # NEW: pure split of an hour's kWh into within / above the cap
+│       ├── CapacityCharge.cs                # NEW: pure daily peaks -> top 3 -> average -> step -> amount
+│       ├── PriceRateBook.cs                 # CHANGED: ValueOn(kind, DateOnly) for the cap on the 1st of the month
+│       └── CostCalculator.cs                # CHANGED: exemptions; monthKwhBefore parameter; RateCost.CapSplit
+├── Infrastructure/
+│   ├── Database/Configuration/{GridCapacityStep,Location}Configuration.cs
+│   ├── Database/Repositories/{PriceRateEfRepository,ConsumptionRepository}.cs
+│   └── Database/Migrations/<ts>_AddExemptionsAndNorgesPrisCap.cs, <ts>_<story 7>.cs (+Designer, Snapshot)
+└── Features/
+    ├── Pricing/                             # CHANGED: location pricing flags; capacity-step endpoints; cap kinds in validator
+    └── ElectricityCost/
+        ├── Services/HourlyCostProvider.cs   # CHANGED: reads from the month start, passes the running month kWh
+        ├── Handlers/{GetCurrentHourCost,GetDayPrices}QueryHandler.cs   # CHANGED: month kWh before the hour
+        ├── Mappers/CostMapper.cs            # CHANGED: additive cap object
+        └── {Queries,Handlers,Endpoints}/GetCapacityCharge*.cs          # NEW (phase 2)
+
+tests/Features.Tests/
+├── ElectricityCost/                         # NorgesPrisCap, CapacityCharge, exemptions, Elvia bill October 2026
+└── Pricing/                                 # flags, cap kinds, capacity-step rules and endpoints
+```
 
 ## Complexity Tracking
 

@@ -53,3 +53,34 @@ Take one real hour and one real day from your electricity bill and your grid bil
 ## 10. Nothing else broke
 
 `/daily` totals equal the sum of the hourly `cost` values; `/prices` shows the total including VAT for each hour; a month of hourly costs responds as fast as before (the number of database queries does not grow with the hours).
+
+## Addendum: stories 6 and 7
+
+Expected after `dotnet ef database update`: the migration `AddExemptionsAndNorgesPrisCap` adds the three location
+columns (false), widens `PriceRate.Kind` to 40 characters and adds the two cap rows (5000 and 1000 kWh from
+2025-10-01). The `GridCapacityStep` table comes with story 7 in its own migration.
+
+### 11. Reproduce the Elvia bill (SC-004, SC-008)
+
+Enter Elvia's tariff as in the spec's reference data (rates 0.2899 / 0.1699 from 2026-07-01, and the step table), mark
+the location as a holiday home. For October 2026, sum the hourly `parts` per day and night kWh and compare with the bill
+lines (energiledd day 129.60, night 136.29, elavgift 31.88 + 57.19, Enova 4.47 + 8.03): each within 0.01 kr.
+
+### 12. Exemptions (story 6)
+
+Set `electricityTaxExempt: true` on a test location: `parts.taxes` becomes 0.0100 (Enova only). Set `vatExempt: true`:
+`parts.vat` is 0. Clear both: the figures return. An omitted flag in the PUT keeps its value.
+
+### 13. Norgespris cap (story 6)
+
+On a scratch database, lower `NorgesPrisCapHolidayHome` with a new row for the current month (`confirmPastDate: true`)
+to a value just above the month's consumption so far, then request `/hourly`: the hour that crosses the cap has `cap`
+with both kWh parts and `cost` = within x `parts.total` + above x `aboveCapParts.total`; later hours are on spot terms.
+Request a range that starts mid-month: the same hours have the same figures. The saving no longer counts kWh above the
+cap.
+
+### 14. Capacity charge (story 7)
+
+Add Elvia's step table to the tariff, then `GET /api/electricity-cost/capacity?locationId=...&month=2026-10`: three peaks
+on different days, their average, the step, and for 5-10 kW `amount` 420.00. The current month is `provisional: true`.
+A location without a tariff gives `set: false`. Check the Admin refusals as for the other dated values.

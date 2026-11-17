@@ -17,7 +17,7 @@ public class PricingHttpTests
     private static readonly PriceRateResponse PriceRate = new(RateId, "ElectricityTax", new DateOnly(2027, 1, 1), 0.08m, "Upcoming");
     private static readonly GridTariffRateResponse TariffRate = new(RateId, new DateOnly(2027, 1, 1), 0.35m, 0.22m, "Upcoming");
     private static readonly GridTariffResponse Tariff = new(TariffId, "Elvia", [TariffRate]);
-    private static readonly LocationPricingResponse LocationPricing = new(LocationId, "Home", TariffId, "Elvia", 0.02m, true);
+    private static readonly LocationPricingResponse LocationPricing = new(LocationId, "Home", TariffId, "Elvia", 0.02m, false, false, true, true);
 
     private static Task<EndpointHost> StartHost(HostCaller caller = HostCaller.Admin) =>
         EndpointHost.StartAsync(

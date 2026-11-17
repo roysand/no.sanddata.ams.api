@@ -6,6 +6,7 @@ using Domain.Common.Entities;
 using Features.ElectricityCost.Logging;
 using Features.ElectricityCost.Mappers;
 using Features.ElectricityCost.Queries;
+using Features.ElectricityCost.Services;
 using Microsoft.Extensions.Logging;
 
 namespace Features.ElectricityCost.Handlers;
@@ -35,7 +36,9 @@ public class GetCurrentHourCostQueryHandler(
         var hourStart = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0, DateTimeKind.Utc);
 
         decimal kwh = await consumptionRepository.GetHourConsumptionKwhAsync(query.LocationId, hourStart, ct);
-        CostResult cost = await costCalculator.CalculateAsync(location, hourStart, kwh, ct);
+        decimal monthKwhBefore = await consumptionRepository.GetConsumptionKwhAsync(
+            query.LocationId, CostTime.LocalMonthStartUtc(hourStart), hourStart, ct);
+        CostResult cost = await costCalculator.CalculateAsync(location, hourStart, kwh, monthKwhBefore, ct);
 
         LogMessages.CostQueried(logger, query.UserId, query.LocationId);
 

@@ -45,4 +45,17 @@ public class ConsumptionEfRepository : IConsumptionRepository
 
         return rows.Sum(h => h.ConsumptionKwh);
     }
+
+    public async Task<decimal> GetConsumptionKwhAsync(
+        Guid locationId, DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken)
+    {
+        // Summed here with the same per-hour conversion as the hourly rows (ConsumptionKwh is computed in C#, so it
+        // cannot be summed in SQL), so the month total matches the running sum of HourlyCostProvider exactly.
+        // At most one month of hours per meter.
+        List<HourConsumption> rows = await _context.Set<HourConsumption>()
+            .Where(h => h.LocationId == locationId && h.BucketStart >= fromUtc && h.BucketStart < toUtc)
+            .ToListAsync(cancellationToken);
+
+        return rows.Sum(h => h.ConsumptionKwh);
+    }
 }

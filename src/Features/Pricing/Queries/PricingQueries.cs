@@ -19,6 +19,9 @@ public record LocationPricingResponse(
     Guid? GridTariffId,
     string? GridTariffName,
     decimal SupplierMarkupPerKwh,
+    bool ElectricityTaxExempt,
+    bool VatExempt,
+    bool IsHolidayHome,
     bool IsComplete);
 
 public record ListPriceRatesQuery(PriceRateKind? Kind, Guid ActingUserId)
