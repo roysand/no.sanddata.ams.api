@@ -57,6 +57,18 @@ internal static class LogMessages
             new EventId(1708, nameof(LocationPricingFlagsChanged)),
             "Pricing flags of location {LocationId} set to tax exempt {ElectricityTaxExempt}, VAT exempt {VatExempt}, holiday home {IsHolidayHome} by {ActingUserId}");
 
+    private static readonly Action<ILogger, Guid, DateOnly, int, Guid, Exception?> _capacityStepsAdded =
+        LoggerMessage.Define<Guid, DateOnly, int, Guid>(
+            LogLevel.Information,
+            new EventId(1709, nameof(CapacityStepsAdded)),
+            "Capacity step table of tariff {TariffId} added from {ValidFrom} with {StepCount} steps by {ActingUserId}");
+
+    private static readonly Action<ILogger, Guid, DateOnly, Guid, Exception?> _capacityStepsDeleted =
+        LoggerMessage.Define<Guid, DateOnly, Guid>(
+            LogLevel.Information,
+            new EventId(1710, nameof(CapacityStepsDeleted)),
+            "Capacity step table of tariff {TariffId} starting {ValidFrom} deleted by {ActingUserId}");
+
     private static readonly Action<ILogger, string, Guid, Exception?> _refused =
         LoggerMessage.Define<string, Guid>(
             LogLevel.Information,
@@ -94,6 +106,13 @@ internal static class LogMessages
         Guid actingUserId)
         => _locationPricingFlagsChanged(
             logger, locationId, electricityTaxExempt, vatExempt, isHolidayHome, actingUserId, null);
+
+    public static void CapacityStepsAdded(
+        ILogger logger, Guid tariffId, DateOnly validFrom, int stepCount, Guid actingUserId)
+        => _capacityStepsAdded(logger, tariffId, validFrom, stepCount, actingUserId, null);
+
+    public static void CapacityStepsDeleted(ILogger logger, Guid tariffId, DateOnly validFrom, Guid actingUserId)
+        => _capacityStepsDeleted(logger, tariffId, validFrom, actingUserId, null);
 
     public static void Refused(ILogger logger, string reason, Guid actingUserId)
         => _refused(logger, reason, actingUserId, null);

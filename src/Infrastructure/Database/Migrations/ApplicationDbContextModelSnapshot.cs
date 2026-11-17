@@ -172,6 +172,47 @@ namespace Infrastructure.Database.Migrations
                     b.ToTable("ExchangeRate", "public");
                 });
 
+            modelBuilder.Entity("Domain.Common.Entities.GridCapacityStep", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AddedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("GridTariffId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("LowerKw")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("numeric(9,4)");
+
+                    b.Property<decimal>("MonthlyAmount")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("numeric(9,4)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("UpperKw")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("numeric(9,4)");
+
+                    b.Property<DateOnly>("ValidFrom")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GridTariffId", "ValidFrom", "LowerKw")
+                        .IsUnique();
+
+                    b.ToTable("GridCapacityStep", "public");
+                });
+
             modelBuilder.Entity("Domain.Common.Entities.GridTariff", b =>
                 {
                     b.Property<Guid>("Id")
@@ -699,6 +740,15 @@ namespace Infrastructure.Database.Migrations
                         .IsRequired();
 
                     b.Navigation("Location");
+                });
+
+            modelBuilder.Entity("Domain.Common.Entities.GridCapacityStep", b =>
+                {
+                    b.HasOne("Domain.Common.Entities.GridTariff", null)
+                        .WithMany()
+                        .HasForeignKey("GridTariffId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Domain.Common.Entities.GridTariffRate", b =>

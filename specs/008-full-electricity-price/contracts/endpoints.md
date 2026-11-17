@@ -129,8 +129,9 @@ Example body (Elvia from 2026-07-01, excluding VAT): `{ "validFrom": "2026-07-01
 
 ### New: `GET /api/electricity-cost/capacity?locationId={id}&month=YYYY-MM` (phase 2)
 
-Signed-in user linked to the location (`404` otherwise). `month` optional, default the current Oslo month; `400` for a
-malformed month.
+Signed-in user linked to the location (`404` otherwise; `401` without a token). `month` optional, default the current
+Oslo month; `400` for a malformed month. A step table applies to a whole month from the first month it has started by
+(a table starting 2026-11-15 applies from December).
 
 **200**
 

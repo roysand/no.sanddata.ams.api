@@ -1,5 +1,6 @@
 using Domain.Common;
 using FastEndpoints;
+using Features.Pricing.Commands;
 using Features.Pricing.Endpoints;
 using Features.Pricing.Mappers;
 using FluentValidation;
@@ -106,4 +107,65 @@ public class SetLocationPricingValidator : Validator<SetLocationPricingRequest>
             .Must(value => PricingLimits.IsAmount(value, PricingLimits.MaxPerKwh))
             .WithMessage("Markup must be between 0 and 100 with at most 4 decimals")
             .WithErrorCode("Validation.InvalidMarkup");
+}
+
+public class AddCapacityStepsValidator : Validator<AddCapacityStepsRequest>
+{
+    private const decimal MaxKwOrAmount = 99999m;
+    private const int MaxSteps = 50;
+
+    public AddCapacityStepsValidator()
+    {
+        RuleFor(x => x.ValidFrom)
+            .NotEqual(default(DateOnly))
+            .WithMessage("A start date is required")
+            .WithErrorCode("Validation.ValidFromRequired");
+
+        RuleFor(x => x.Steps)
+            .Must(steps => steps is { Count: > 0 and <= MaxSteps })
+            .WithMessage($"Between 1 and {MaxSteps} steps are required")
+            .WithErrorCode("Validation.InvalidSteps");
+
+        RuleFor(x => x.Steps)
+            .Must(steps => steps is null || steps.All(s =>
+                PricingLimits.IsAmount(s.LowerKw, MaxKwOrAmount)
+                && (s.UpperKw is null || PricingLimits.IsAmount(s.UpperKw.Value, MaxKwOrAmount))
+                && PricingLimits.IsAmount(s.MonthlyAmount, MaxKwOrAmount)))
+            .WithMessage("kW and amounts must be between 0 and 99999 with at most 4 decimals")
+            .WithErrorCode("Validation.InvalidStepValue");
+
+        RuleFor(x => x.Steps)
+            .Must(IsAContiguousTable)
+            .When(x => x.Steps is { Count: > 0 })
+            .WithMessage("The steps must start at 0 kW, each must end above where it starts, each must start where the " +
+                         "previous one ends, and only the last may have no upper bound")
+            .WithErrorCode("Validation.StepsNotContiguous");
+    }
+
+    private static bool IsAContiguousTable(IReadOnlyList<CapacityStepInput> steps)
+    {
+        if (steps[0].LowerKw != 0m || steps[^1].UpperKw is not null)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < steps.Count - 1; i++)
+        {
+            if (steps[i].UpperKw is not { } upper || upper <= steps[i].LowerKw || steps[i + 1].LowerKw != upper)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+}
+
+public class DeleteCapacityStepsValidator : Validator<DeleteCapacityStepsRequest>
+{
+    public DeleteCapacityStepsValidator() =>
+        RuleFor(x => x.ValidFrom)
+            .NotEqual(default(DateOnly))
+            .WithMessage("A start date is required")
+            .WithErrorCode("Validation.ValidFromRequired");
 }

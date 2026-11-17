@@ -12,6 +12,16 @@ public record GridTariffRateResponse(
 
 public record GridTariffResponse(Guid Id, string Name, IReadOnlyList<GridTariffRateResponse> Rates);
 
+/// <param name="UpperKw">Null for the top step.</param>
+/// <param name="MonthlyAmount">NOK per month excluding VAT.</param>
+public record CapacityStepResponse(decimal LowerKw, decimal? UpperKw, decimal MonthlyAmount);
+
+/// <param name="Status">Superseded, InEffect (one per tariff) or Upcoming, from today in Norway.</param>
+public record CapacityStepTableResponse(DateOnly ValidFrom, string Status, IReadOnlyList<CapacityStepResponse> Steps);
+
+public record ListCapacityStepsQuery(Guid GridTariffId, Guid ActingUserId)
+    : IQuery<Result<IReadOnlyList<CapacityStepTableResponse>>>;
+
 /// <param name="IsComplete">True when a grid tariff is set; without one the grid part of the price is left out.</param>
 public record LocationPricingResponse(
     Guid LocationId,

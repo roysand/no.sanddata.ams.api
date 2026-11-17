@@ -73,6 +73,48 @@ public class PriceRateEfRepository(ApplicationDbContext context) : IPriceRateRep
         }
     }
 
+    public async Task<IReadOnlyList<GridCapacityStep>> GetCapacityStepsAsync(
+        Guid gridTariffId, CancellationToken cancellationToken) =>
+        await context.GridCapacityStep.AsNoTracking()
+            .Where(s => s.GridTariffId == gridTariffId)
+            .OrderBy(s => s.ValidFrom).ThenBy(s => s.LowerKw)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<GridCapacityStep>> GetCapacityStepTableAsync(
+        Guid gridTariffId, DateOnly validFrom, CancellationToken cancellationToken) =>
+        await context.GridCapacityStep
+            .Where(s => s.GridTariffId == gridTariffId && s.ValidFrom == validFrom)
+            .ToListAsync(cancellationToken);
+
+    public async Task<bool> TryInsertCapacityStepsAsync(
+        IReadOnlyList<GridCapacityStep> steps, CancellationToken cancellationToken)
+    {
+        context.GridCapacityStep.AddRange(steps);
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (DbUpdateException)
+        {
+            foreach (GridCapacityStep step in steps)
+            {
+                context.Entry(step).State = EntityState.Detached;
+            }
+
+            GridCapacityStep first = steps[0];
+            if (await context.GridCapacityStep.AnyAsync(
+                    s => s.GridTariffId == first.GridTariffId && s.ValidFrom == first.ValidFrom, cancellationToken))
+            {
+                return false;
+            }
+
+            throw;
+        }
+    }
+
+    public void RemoveCapacitySteps(IEnumerable<GridCapacityStep> steps) => context.GridCapacityStep.RemoveRange(steps);
+
     public void InsertGridTariff(GridTariff tariff) => context.GridTariff.Add(tariff);
 
     public void RemovePriceRate(PriceRate rate) => context.PriceRate.Remove(rate);
