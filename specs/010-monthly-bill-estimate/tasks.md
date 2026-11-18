@@ -296,11 +296,26 @@ end; the total = so far + projected.
   `specs/010-monthly-bill-estimate/contracts/endpoints.md`), that the markup fix raises Norgespris figures, and that
   `isComplete` on location pricing now needs the fee. (Done 2026-11-18: a "For the frontend" section, and the status
   now says the API is built and only the frontend spec is left.)
-- [ ] T038 Verify on a scratch copy of the local database, as in spec 008 T058 (clone with
+- [X] T038 Verify on a scratch copy of the local database, as in spec 008 T058 (clone with
   `CREATE DATABASE ... TEMPLATE`, run the new code on another port, never touch the real `amsdb`; remove the clone
-  afterwards): apply the migration and run quickstart.md sections 2 to 5. (Open 2026-11-18: no local database was
-  running, Docker was stopped and nothing listened on port 5432. Start the local database and run it, or do it
-  together with T040.)
+  afterwards): apply the migration and run quickstart.md sections 2 to 5. (Done 2026-11-18 on `main` after #31, on a
+  scratch copy `amsdb_t038`, since dropped; the real `amsdb` was not touched (still 7 migrations, no readings). The
+  copy was made with `pg_dump` / `pg_restore` instead of `TEMPLATE`, because TimescaleDB's background scheduler keeps
+  a connection open to `amsdb` and stopping it would touch the real database. The local database has no readings, so
+  the copy got synthetic hourly readings for HA43 (1 kWh an hour from 2026-10-11, peaks of 6 kWh on three October
+  days and 3 kWh on three November days); spot prices exist only for 2026-10-10 to 11-11 and exchange rates for six
+  dates. The API ran on port 5299 with a throwaway JWT key and no ENTSO-E token, so no user password changed and no
+  spot prices were fetched; all 12 migrations applied. Results, checked against an independent hand calculation:
+  section 3 tariff, rates and capacity steps created, HA43 set to markup 0.0319 and fee 27.20 -> `isComplete` true,
+  markup 0.03192 -> 400, fee -1 -> 400, regular user -> 403, the other location without a fee incomplete; section 2
+  a Norgespris hour 1.25 x (0.40 + 0.0319 + 0.2899 + 0.0813) = 1.003875 per kWh, markup on both sides; section 4
+  October `Final`, 935.52 kr, every line equal to the hand value to the last decimal, 745 hours, 520 kWh (250 day,
+  270 night), step 5-10 kW, spot energy + credit = 520 x 0.40 x 1.25, credit VAT 0; section 5 November `Estimate`,
+  954.91 kr = 688.94 so far + 265.97 projected, 289 projected hours based on 7 days, step 2-5 kW provisional, every
+  line equal to the hand value; next month 400, a user not linked 404, malformed month 400; the current-month bill
+  in 12 ms, as fast as the November daily costs (SC-008). `isComplete` was false on both months only because the
+  local spot prices and exchange rates have gaps, which marks the spot and credit split incomplete while the total
+  stays exact.)
 - [X] T039 Commit on `feature/010-monthly-bill-estimate`, push, and open a pull request against `main` that describes
   the markup fix and its effect on existing figures, the new fee setting (every location is incomplete until it is
   set), the bill endpoint, and the projection rules. (Done as one pull request per story instead, all merged
