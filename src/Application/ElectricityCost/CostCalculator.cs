@@ -71,17 +71,26 @@ public class CostCalculator(
     /// The kWh the location used in the same Oslo calendar month before this hour, so the Norgespris cap is applied
     /// the same way whatever range of hours is asked for.
     /// </param>
+    /// <param name="fallbackSpotEnergy">
+    /// The spot energy, NOK per kWh excluding VAT, to assume when the hour has no spot price yet (a projected hour);
+    /// never used for an hour that has one.
+    /// </param>
     public async Task<CostResult> CalculateAsync(
-        Location location, DateTime hourStartUtc, decimal consumptionKwh, decimal monthKwhBefore, CancellationToken ct)
+        Location location,
+        DateTime hourStartUtc,
+        decimal consumptionKwh,
+        decimal monthKwhBefore,
+        CancellationToken ct,
+        decimal? fallbackSpotEnergy = null)
     {
         PricingModel enrolled = location.HasNorgesPriceAgreement ? PricingModel.NorgesPris : PricingModel.Spot;
         RateCost? actual = await CalculateForModelAsync(
-            enrolled, location, hourStartUtc, consumptionKwh, monthKwhBefore, ct);
+            enrolled, location, hourStartUtc, consumptionKwh, monthKwhBefore, fallbackSpotEnergy, ct);
 
         // The comparison gets the same grid charge, taxes and VAT; only the energy and the markup differ.
         PricingModel other = enrolled == PricingModel.Spot ? PricingModel.NorgesPris : PricingModel.Spot;
         RateCost? comparison = await CalculateForModelAsync(
-            other, location, hourStartUtc, consumptionKwh, monthKwhBefore, ct);
+            other, location, hourStartUtc, consumptionKwh, monthKwhBefore, fallbackSpotEnergy, ct);
 
         return new CostResult(enrolled, actual, comparison);
     }
@@ -92,11 +101,12 @@ public class CostCalculator(
         DateTime hourStartUtc,
         decimal consumptionKwh,
         decimal monthKwhBefore,
+        decimal? fallbackSpotEnergy,
         CancellationToken ct)
     {
         if (model == PricingModel.Spot)
         {
-            PriceBreakdown? spot = await TermsAsync(PricingModel.Spot, location, hourStartUtc, ct);
+            PriceBreakdown? spot = await TermsAsync(PricingModel.Spot, location, hourStartUtc, fallbackSpotEnergy, ct);
             return spot is null ? null : new RateCost(spot.Total, consumptionKwh * spot.Total, spot);
         }
 
@@ -107,14 +117,14 @@ public class CostCalculator(
         bool allAbove = within == 0m && (above > 0m || NorgesPrisCap.IsPassed(monthKwhBefore, cap));
         if (above == 0m && !allAbove)
         {
-            PriceBreakdown? norgesPris = await TermsAsync(PricingModel.NorgesPris, location, hourStartUtc, ct);
+            PriceBreakdown? norgesPris = await TermsAsync(PricingModel.NorgesPris, location, hourStartUtc, null, ct);
             return norgesPris is null
                 ? null
                 : new RateCost(norgesPris.Total, consumptionKwh * norgesPris.Total, norgesPris);
         }
 
         // Above the cap the kWh are priced on spot terms, markup included.
-        PriceBreakdown? aboveCap = await TermsAsync(PricingModel.Spot, location, hourStartUtc, ct);
+        PriceBreakdown? aboveCap = await TermsAsync(PricingModel.Spot, location, hourStartUtc, fallbackSpotEnergy, ct);
         if (aboveCap is null)
         {
             return null;
@@ -126,7 +136,7 @@ public class CostCalculator(
                 aboveCap.Total, consumptionKwh * aboveCap.Total, aboveCap, new CapSplit(0m, above, aboveCap));
         }
 
-        PriceBreakdown? withinCap = await TermsAsync(PricingModel.NorgesPris, location, hourStartUtc, ct);
+        PriceBreakdown? withinCap = await TermsAsync(PricingModel.NorgesPris, location, hourStartUtc, null, ct);
         if (withinCap is null)
         {
             return null;
@@ -138,11 +148,11 @@ public class CostCalculator(
 
     /// <summary>The price of one kWh on the given terms, or null when a part of it is missing.</summary>
     private async Task<PriceBreakdown?> TermsAsync(
-        PricingModel model, Location location, DateTime hourStartUtc, CancellationToken ct)
+        PricingModel model, Location location, DateTime hourStartUtc, decimal? fallbackSpotEnergy, CancellationToken ct)
     {
         decimal? energy = model == PricingModel.NorgesPris
             ? await GetNorgesPrisEnergyAsync(hourStartUtc, ct)
-            : await GetSpotEnergyAsync(location.Zone, hourStartUtc, ct);
+            : await GetSpotEnergyAsync(location.Zone, hourStartUtc, fallbackSpotEnergy, ct);
         if (energy is null)
         {
             return null;
@@ -214,12 +224,21 @@ public class CostCalculator(
         return rate?.RatePerKwh;
     }
 
-    private async Task<decimal?> GetSpotEnergyAsync(string priceRegion, DateTime hourStartUtc, CancellationToken ct)
+    /// <summary>
+    /// The spot energy of the hour in NOK per kWh excluding VAT (the spot price at the exchange rate the calculation
+    /// uses), or null when the price or the rate is missing.
+    /// </summary>
+    public Task<decimal?> SpotEnergyAsync(Location location, DateTime hourStartUtc, CancellationToken ct) =>
+        GetSpotEnergyAsync(location.Zone, hourStartUtc, null, ct);
+
+    private async Task<decimal?> GetSpotEnergyAsync(
+        string priceRegion, DateTime hourStartUtc, decimal? fallbackSpotEnergy, CancellationToken ct)
     {
         ElectricityPrice? price = await GetPriceAsync(priceRegion, hourStartUtc, ct);
         if (price is null)
         {
-            return null;
+            // An hour without a published price yet: the assumed price, when the caller gives one.
+            return fallbackSpotEnergy;
         }
 
         // Norges Bank publishes business days only - fall back to the most recent earlier rate.
