@@ -20,6 +20,18 @@ public class PriceCalculationTests
     }
 
     [Fact]
+    public void TheTaxesAndTheVatRate_AreKeptApartForTheBillLines()
+    {
+        PriceBreakdown price = PriceCalculation.Calculate(0.80m, 0.02m, 0.30m, 0.0713m, 0.0100m, 0.25m);
+
+        Assert.Equal(0.0713m, price.ElectricityTax);
+        Assert.Equal(0.0100m, price.EnovaFee);
+        Assert.Equal(price.Taxes, price.ElectricityTax + price.EnovaFee);
+        Assert.Equal(0.25m, price.VatRate);
+        Assert.Equal(price.Total, price.Energy + price.Markup + price.Grid!.Value + price.Taxes + price.Vat);
+    }
+
+    [Fact]
     public void ANorgespris_Hour_IsTheFullPriceByHand()
     {
         // energy 0.40 + markup 0 + grid 0.30 + taxes 0.0813 = 0.7813; VAT = 0.195325; total 0.976625

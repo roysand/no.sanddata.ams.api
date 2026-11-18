@@ -15,6 +15,12 @@ public class Location : Entity
     /// <summary>Supplier markup in NOK per kWh excluding VAT; added on every kWh, Norgespris included.</summary>
     public decimal SupplierMarkupPerKwh { get; private set; }
 
+    /// <summary>
+    /// The supplier monthly fee in NOK per month excluding VAT, a full month on every bill; null until an administrator
+    /// has set it (0 for a supplier without a fee).
+    /// </summary>
+    public decimal? SupplierMonthlyFee { get; private set; }
+
     /// <summary>No electricity tax (households in the tiltakssone); the Enova fee still applies.</summary>
     public bool ElectricityTaxExempt { get; private set; }
 
@@ -73,6 +79,9 @@ public class Location : Entity
         VatExempt = vatExempt;
         IsHolidayHome = isHolidayHome;
     }
+
+    /// <summary>Administrator-only. Not dated, like the markup: a change applies to past months too.</summary>
+    public void SetSupplierMonthlyFee(decimal? supplierMonthlyFee) => SupplierMonthlyFee = supplierMonthlyFee;
 
     public void AssignApiKey(ApiKey apiKey) => ApiKey = apiKey;
 
