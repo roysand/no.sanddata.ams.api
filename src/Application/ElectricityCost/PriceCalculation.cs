@@ -12,7 +12,7 @@ public record PriceBreakdown(
 public static class PriceCalculation
 {
     /// <param name="energy">Spot price or Norgespris rate, NOK per kWh excluding VAT.</param>
-    /// <param name="markup">Supplier markup, NOK per kWh excluding VAT (0 on Norgespris terms).</param>
+    /// <param name="markup">Supplier markup, NOK per kWh excluding VAT, on spot and Norgespris terms alike.</param>
     /// <param name="grid">Grid energy charge excluding taxes and VAT, or null when not set.</param>
     /// <param name="electricityTax">Electricity tax, NOK per kWh.</param>
     /// <param name="enovaFee">Enova fee, NOK per kWh.</param>

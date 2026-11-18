@@ -12,7 +12,7 @@ public class Location : Entity
     /// <summary>The grid tariff the location pays; null until an administrator has set one.</summary>
     public Guid? GridTariffId { get; private set; }
 
-    /// <summary>Supplier markup in NOK per kWh excluding VAT; added on spot terms only.</summary>
+    /// <summary>Supplier markup in NOK per kWh excluding VAT; added on every kWh, Norgespris included.</summary>
     public decimal SupplierMarkupPerKwh { get; private set; }
 
     /// <summary>No electricity tax (households in the tiltakssone); the Enova fee still applies.</summary>

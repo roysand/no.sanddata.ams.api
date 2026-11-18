@@ -236,6 +236,33 @@ public class NorgesPrisSavingTests
     }
 
     [Fact]
+    public async Task TheMarkup_IsOnBothSides_SoItDoesNotChangeTheSaving()
+    {
+        // The supplier charges the markup under Norgespris too, so spot terms minus Norgespris terms is still
+        // 2 kWh x (1.00 - 0.40) = 1.2 with a markup of 0.05 (no VAT or taxes in this stub).
+        var location = new Location(Guid.NewGuid(), "Home", "Addr", "SN1", "NO1", true, true);
+        location.SetPricing(null, 0.05m, false, false, false);
+        _locations.IsUserAssociatedAsync(Arg.Any<Guid>(), location.Id, Arg.Any<CancellationToken>()).Returns(true);
+        _locations.GetByIdAsync(location.Id, Arg.Any<CancellationToken>()).Returns(location);
+        _prices.GetByRegionAndHourAsync("NO1", Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(call => new ElectricityPrice(Guid.NewGuid(), "NO1", call.ArgAt<DateTime>(1), 100m));
+        _rates.GetByDateAsync("EURNOK", Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
+            .Returns(call => new ExchangeRate(Guid.NewGuid(), "EURNOK", call.ArgAt<DateOnly>(1), 10m));
+        _prices.ServeRangesFromSingleHours();
+        _rates.ServeRangesFromSingleDates();
+        _consumption.GetHourlyAsync(location.Id, null, Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(new List<HourConsumption>
+            {
+                new() { LocationId = location.Id, BucketStart = Utc("2026-11-16T09:00:00Z"), AvgPowerWatts = 2000 }
+            });
+
+        Result<NorgesPrisSavingResponse> result = await Handler()
+            .Handle(new GetNorgesPrisSavingQuery(Guid.NewGuid(), location.Id), CancellationToken.None);
+
+        Assert.Equal(1.2m, Period(result.Value, "Today").Saving);
+    }
+
+    [Fact]
     public async Task TheHandler_AUserNotLinkedToTheLocation_GetsNotFound()
     {
         _locations.IsUserAssociatedAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(false);

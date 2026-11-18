@@ -161,11 +161,14 @@ public class CostCalculator(
             return null;
         }
 
-        // No supplier markup under Norgespris.
-        decimal markup = model == PricingModel.Spot ? location.SupplierMarkupPerKwh : 0m;
-
+        // The supplier charges its markup on every kWh, also under Norgespris (spec 010, user story 1).
         return PriceCalculation.Calculate(
-            energy.Value, markup, GridRate(book, location, hourStartUtc), electricityTax.Value, enovaFee.Value, vat.Value);
+            energy.Value,
+            location.SupplierMarkupPerKwh,
+            GridRate(book, location, hourStartUtc),
+            electricityTax.Value,
+            enovaFee.Value,
+            vat.Value);
     }
 
     /// <summary>The cap of the location kind valid on the first Oslo day of the month of the hour, or null.</summary>
