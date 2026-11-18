@@ -1,7 +1,8 @@
 # Backlog: Unique location names
 
-Status: idea, not specified yet. Found by Roy during the manual test of 006 (T029), 2026-10-25. Roy decided on
-2026-10-28 to do this later. Discuss before running `speckit-specify`.
+Status: specified as `specs/009-unique-location-names` on 2026-11-18 (unique across all locations; existing
+duplicates renamed by hand before the deploy). Remove this note when 009 is merged. Originally: found by Roy
+during the manual test of 006 (T029), 2026-10-25; Roy decided on 2026-10-28 to do this later.
 
 (The second finding of that test, the three location lists on `GET /api/users`, was fixed on 2026-10-28.)
 
