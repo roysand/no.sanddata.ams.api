@@ -283,21 +283,29 @@ end; the total = so far + projected.
 
 ## Phase 7: Polish and cross-cutting
 
-- [ ] T035 Run `dotnet build` (no new warnings), `dotnet test` twice in a row (zero failures), and
+- [X] T035 Run `dotnet build` (no new warnings), `dotnet test` twice in a row (zero failures), and
   `dotnet format --verify-no-changes --include <every .cs file this feature added or changed>` (from
   `git diff --name-only main` and `git ls-files --others --exclude-standard`, excluding migrations). Revert unrelated
-  formatter changes.
-- [ ] T036 [P] Add the bill endpoint and the fee to the docs that list the cost endpoints and the pricing settings
+  formatter changes. (Done 2026-11-18 on `main` after #30: 689 of 689 tests pass, twice; format clean on the 29 .cs
+  files spec 010 changed since `b9997d6`; the build has the same six warnings as `b9997d6`, so none are new.)
+- [X] T036 [P] Add the bill endpoint and the fee to the docs that list the cost endpoints and the pricing settings
   (`grep -rln "electricity-cost/capacity" *.md` and update those files the same way); no EventId table change.
-- [ ] T037 [P] Update `specs/_backlog/monthly-bill-estimate.md` for the frontend: the final response shape (link to
+  (Done 2026-11-18: no top-level doc lists the cost or pricing endpoints, they are described in the spec folders and
+  in Scalar, so nothing to change.)
+- [X] T037 [P] Update `specs/_backlog/monthly-bill-estimate.md` for the frontend: the final response shape (link to
   `specs/010-monthly-bill-estimate/contracts/endpoints.md`), that the markup fix raises Norgespris figures, and that
-  `isComplete` on location pricing now needs the fee.
+  `isComplete` on location pricing now needs the fee. (Done 2026-11-18: a "For the frontend" section, and the status
+  now says the API is built and only the frontend spec is left.)
 - [ ] T038 Verify on a scratch copy of the local database, as in spec 008 T058 (clone with
   `CREATE DATABASE ... TEMPLATE`, run the new code on another port, never touch the real `amsdb`; remove the clone
-  afterwards): apply the migration and run quickstart.md sections 2 to 5.
-- [ ] T039 Commit on `feature/010-monthly-bill-estimate`, push, and open a pull request against `main` that describes
+  afterwards): apply the migration and run quickstart.md sections 2 to 5. (Open 2026-11-18: no local database was
+  running, Docker was stopped and nothing listened on port 5432. Start the local database and run it, or do it
+  together with T040.)
+- [X] T039 Commit on `feature/010-monthly-bill-estimate`, push, and open a pull request against `main` that describes
   the markup fix and its effect on existing figures, the new fee setting (every location is incomplete until it is
-  set), the bill endpoint, and the projection rules.
+  set), the bill endpoint, and the projection rules. (Done as one pull request per story instead, all merged
+  2026-11-18: #27 markup under Norgespris, #28 the bill for a finished month and the fee column, #29 the estimate,
+  #30 the fee setting. This phase goes in its own pull request from `chore/010-polish`.)
 - [ ] T040 After deploying: set the fee (27.20) and confirm the markup (0.0319; 0.03192 has 5 decimals and is refused) of the holiday home in production,
   then run quickstart step 6 (July 2026 against the invoice) if T001 found the data. Record the result here and in
   `specs/010-monthly-bill-estimate/checklists/requirements.md`.

@@ -1,8 +1,33 @@
 # Backlog: Estimated bill for the month
 
-Status: specified as `specs/010-monthly-bill-estimate` on 2026-11-18. Remove this note when 010 is merged. Originally
-written 2026-11-18 as input for `/speckit-specify`. A matching frontend spec ("Expected
-bill" card) follows in `no.sanddata.ams.frontend` once this API spec is settled.
+Status: the API side is built (spec `specs/010-monthly-bill-estimate`, PRs #27 to #30, merged 2026-11-18). What is
+left is the frontend spec ("Expected bill" card) in `no.sanddata.ams.frontend`; see "For the frontend" below. Remove
+this note once that spec is written. Originally written 2026-11-18 as input for `/speckit-specify`.
+
+## For the frontend
+
+- **Endpoint:** `GET /api/electricity-cost/bill?locationId={id}&month=yyyy-MM` (month optional; the current Oslo month
+  when omitted). Full shape and field meanings:
+  [`specs/010-monthly-bill-estimate/contracts/endpoints.md`](../010-monthly-bill-estimate/contracts/endpoints.md) and
+  [`data-model.md`](../010-monthly-bill-estimate/data-model.md).
+- **What to show:** `total.amount` (the expected bill), with `total.soFar` and `total.projected`; the two parts
+  `strom` and `nettleie` with their `lines` in the order given, to mirror the invoice. Amounts include VAT and are not
+  rounded: round to whole kroner (or øre) in the UI.
+- **Estimate or final:** `status` is `Estimate` for the current month and `Final` after it ends. For an estimate,
+  `projection.basedOnDays` (0 to 7) says how much data the projection rests on; early in a new location's life it is
+  low and the card should say the figure is uncertain. `capacity.provisional` is true until the month ends: the step
+  can still rise.
+- **Not set, never zero:** a line with `set: false` (monthly fee, grid tariff or capacity steps missing) has null
+  amounts and is left out of the totals; `isComplete: false` then says the total is too low. Show "not set" or a hint,
+  never 0.
+- **Norgespris credit:** the `NorgesPrisCredit` line is negative (it lowers the bill) and has 0 % VAT, as on the
+  invoice; it can be positive in a month where spot was below the Norgespris rate.
+- **Changed elsewhere by this feature:** every hourly, daily, current-hour and day-price figure of a Norgespris
+  location with a supplier markup rose by markup × 1.25 per kWh (the påslag is now charged under Norgespris), and
+  the Norgespris saving no longer contains the markup. On the Admin pricing page, `supplierMonthlyFee` is new
+  (NOK per month excluding VAT, optional, an omitted value keeps the current fee) and `isComplete` now needs both a
+  grid tariff and the fee. The markup has at most 4 decimals: the July invoice's 3.99 øre incl. VAT is entered as
+  0.0319.
 
 ## What the user wants
 
