@@ -16,13 +16,14 @@ namespace Features.Tests.Pricing;
 /// User story 6: the electricity-tax and VAT exemptions and the Norgespris monthly cap, against values worked out by
 /// hand. Spot is 100 EUR/MWh at 10 NOK per EUR (1.00 NOK per kWh), Norgespris 0.40, markup 0.02, grid 0.30 day and
 /// 0.20 night, electricity tax 0.0713, Enova fee 0.0100, VAT 25 percent. Per kWh, on a weekday day hour:
-/// spot terms (1.00 + 0.02 + 0.30 + 0.0813) x 1.25 = 1.751625; Norgespris terms (0.40 + 0.30 + 0.0813) x 1.25 = 0.976625.
+/// spot terms (1.00 + 0.02 + 0.30 + 0.0813) x 1.25 = 1.751625; Norgespris terms, markup included,
+/// (0.40 + 0.02 + 0.30 + 0.0813) x 1.25 = 1.001625.
 /// Caps: 5,000 kWh for a home, 1,000 kWh for a holiday home.
 /// </summary>
 public class CapAndExemptionTests
 {
     private const decimal SpotTotal = 1.751625m;
-    private const decimal NorgesPrisTotal = 0.976625m;
+    private const decimal NorgesPrisTotal = 1.001625m;
 
     private static readonly Guid Tariff = Guid.NewGuid();
 
@@ -114,12 +115,12 @@ public class CapAndExemptionTests
     [Fact]
     public async Task ALocationExemptFromBoth_PaysTheEnovaFeeOnly()
     {
-        // 1.00 + 0.02 + 0.30 + 0.0100 = 1.33, and the same on the comparison side: 0.40 + 0.30 + 0.0100 = 0.71
+        // 1.00 + 0.02 + 0.30 + 0.0100 = 1.33, and the same on the comparison side: 0.40 + 0.02 + 0.30 + 0.0100 = 0.73
         CostResult result = await Calculator().CalculateAsync(
             LocationWith(false, taxExempt: true, vatExempt: true), WeekdayAfternoon, 1m, 0m, CancellationToken.None);
 
         Assert.Equal(1.33m, result.Actual!.RatePerKwh);
-        Assert.Equal(0.71m, result.Comparison!.RatePerKwh);
+        Assert.Equal(0.73m, result.Comparison!.RatePerKwh);
     }
 
     [Fact]
@@ -154,14 +155,15 @@ public class CapAndExemptionTests
     [Fact]
     public async Task TheHourThatCrossesTheCap_IsSplitByKwh()
     {
-        // 999 kWh before: 1 kWh within, 2 above. 1 x 0.976625 + 2 x 1.751625 = 4.479875
+        // 999 kWh before: 1 kWh within, 2 above. 1 x 1.001625 + 2 x 1.751625 = 4.504875
         CostResult result = await Calculator().CalculateAsync(
             LocationWith(true, holidayHome: true), WeekdayAfternoon, 3m, 999m, CancellationToken.None);
 
         RateCost actual = result.Actual!;
-        Assert.Equal(4.479875m, actual.Cost);
-        Assert.Equal(4.479875m / 3m, actual.RatePerKwh);
+        Assert.Equal(4.504875m, actual.Cost);
+        Assert.Equal(4.504875m / 3m, actual.RatePerKwh);
         Assert.Equal(NorgesPrisTotal, actual.Breakdown.Total);
+        Assert.Equal(0.02m, actual.Breakdown.Markup);
         Assert.Equal(new CapSplit(1m, 2m, actual.Cap!.AboveCapBreakdown), actual.Cap);
         Assert.Equal(SpotTotal, actual.Cap.AboveCapBreakdown.Total);
         Assert.Equal(0.02m, actual.Cap.AboveCapBreakdown.Markup);
@@ -261,7 +263,7 @@ public class CapAndExemptionTests
             .GetAsync(cabin, Utc("2026-11-30T23:00:00Z"), Utc("2026-12-03T00:00:00Z"), CancellationToken.None);
 
         HourCost hour = Assert.Single(fromMidMonth);
-        Assert.Equal(4.479875m, hour.Cost.Actual!.Cost);
+        Assert.Equal(4.504875m, hour.Cost.Actual!.Cost);
         Assert.Equal(hour.Cost.Actual.Cost, wholeMonth.Single(h => h.HourStart == hour.HourStart).Cost.Actual!.Cost);
     }
 
@@ -315,8 +317,8 @@ public class CapAndExemptionTests
         Result<DayPricesResponse> result = await handler.Handle(
             new GetDayPricesQuery(Guid.NewGuid(), cabin.Id, new DateTime(2026, 12, 2)), CancellationToken.None);
 
-        // 00:00 Oslo is a night hour: Norgespris (0.40 + 0.20 + 0.0813) x 1.25, spot (1.00 + 0.02 + 0.20 + 0.0813) x 1.25.
-        Assert.Equal(0.851625m, result.Value.Items[0].RatePerKwh);
+        // 00:00 Oslo is a night hour: Norgespris (0.40 + 0.02 + 0.20 + 0.0813) x 1.25, spot (1.00 + 0.02 + 0.20 + 0.0813) x 1.25.
+        Assert.Equal(0.876625m, result.Value.Items[0].RatePerKwh);
         Assert.Equal(1.626625m, result.Value.Items[1].RatePerKwh);
     }
 

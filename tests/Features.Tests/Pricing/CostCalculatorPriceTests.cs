@@ -81,20 +81,20 @@ public class CostCalculatorPriceTests
     }
 
     [Fact]
-    public async Task ANorgesPrisHour_HasNoMarkupAndTheNorgesPrisRateAsEnergy()
+    public async Task ANorgesPrisHour_HasTheMarkupAndTheNorgesPrisRateAsEnergy()
     {
-        // (0.40 + 0 + 0.30 + 0.0813) x 1.25 = 0.976625
+        // The supplier charges its markup under Norgespris too: (0.40 + 0.02 + 0.30 + 0.0813) x 1.25 = 1.001625
         CostResult result = await Calculator().CalculateAsync(
             LocationWith(true, Tariff, 0.02m), WeekdayAfternoon, 1m, 0m, CancellationToken.None);
 
         Assert.Equal(PricingModel.NorgesPris, result.PricingModel);
-        Assert.Equal(0.976625m, result.Actual!.RatePerKwh);
-        Assert.Equal(0m, result.Actual.Breakdown.Markup);
+        Assert.Equal(1.001625m, result.Actual!.RatePerKwh);
+        Assert.Equal(0.02m, result.Actual.Breakdown.Markup);
         Assert.Equal(0.40m, result.Actual.Breakdown.Energy);
     }
 
     [Fact]
-    public async Task TheComparison_DiffersOnlyInTheEnergyAndTheMarkup()
+    public async Task TheComparison_DiffersOnlyInTheEnergy()
     {
         CostResult result = await Calculator().CalculateAsync(
             LocationWith(true, Tariff, 0.02m), WeekdayAfternoon, 1m, 0m, CancellationToken.None);
@@ -104,18 +104,30 @@ public class CostCalculatorPriceTests
         Assert.Equal(1.751625m, result.Comparison.RatePerKwh);
         Assert.Equal(1.00m, comparison.Energy);
         Assert.Equal(0.02m, comparison.Markup);
+        Assert.Equal(actual.Markup, comparison.Markup);
         Assert.Equal(actual.Grid, comparison.Grid);
         Assert.Equal(actual.Taxes, comparison.Taxes);
     }
 
     [Fact]
-    public async Task ASpotLocationComparison_IsNorgesPrisTermsWithNoMarkup()
+    public async Task ASpotLocationComparison_IsNorgesPrisTermsWithTheMarkup()
     {
         CostResult result = await Calculator().CalculateAsync(
             LocationWith(false, Tariff, 0.02m), WeekdayAfternoon, 1m, 0m, CancellationToken.None);
 
-        Assert.Equal(0.976625m, result.Comparison!.RatePerKwh);
-        Assert.Equal(0m, result.Comparison.Breakdown.Markup);
+        Assert.Equal(1.001625m, result.Comparison!.RatePerKwh);
+        Assert.Equal(0.02m, result.Comparison.Breakdown.Markup);
+    }
+
+    [Fact]
+    public async Task ANorgesPrisLocationWithNoMarkup_KeepsTheNorgesPrisPriceWithoutIt()
+    {
+        // A supplier without a markup under Norgespris is a markup of 0: (0.40 + 0.30 + 0.0813) x 1.25 = 0.976625
+        CostResult result = await Calculator().CalculateAsync(
+            LocationWith(true, Tariff, 0m), WeekdayAfternoon, 1m, 0m, CancellationToken.None);
+
+        Assert.Equal(0.976625m, result.Actual!.RatePerKwh);
+        Assert.Equal(0m, result.Actual.Breakdown.Markup);
     }
 
     [Fact]

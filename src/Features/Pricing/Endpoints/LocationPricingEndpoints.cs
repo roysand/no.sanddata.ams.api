@@ -79,7 +79,7 @@ public class SetLocationPricingEndpoint : Endpoint<SetLocationPricingRequest, Lo
         Summary(s =>
         {
             s.Summary = "Set the grid tariff, supplier markup, exemptions and holiday-home flag of a location (admin)";
-            s.Description = "supplierMarkupPerKwh is NOK per kWh excluding VAT, added on spot terms only. " +
+            s.Description = "supplierMarkupPerKwh is NOK per kWh excluding VAT, added on every kWh, Norgespris included. " +
                              "electricityTaxExempt (tiltakssonen), vatExempt (Nordland, Troms, Finnmark) and isHolidayHome " +
                              "(the lower Norgespris monthly cap) are optional; an omitted flag keeps its value. Changing " +
                              "any of them recalculates every past hour of the location, because costs are calculated from " +

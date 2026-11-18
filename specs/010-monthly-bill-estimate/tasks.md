@@ -79,24 +79,30 @@ files with a shell heredoc, avoid apostrophes in the text.
 
 ### Tests for User Story 1
 
-- [ ] T007 [P] [US1] Update `tests/Features.Tests/NorgesPris/CostCalculatorNorgesPrisTests.cs`: Norgespris-terms
+- [X] T007 [P] [US1] Update `tests/Features.Tests/NorgesPris/CostCalculatorNorgesPrisTests.cs`: Norgespris-terms
   breakdown has `Markup` = the location markup (was 0); an hour that crosses the cap has the markup on both the
-  within-cap and above-cap kWh; markup 0 gives the old figures.
-- [ ] T008 [P] [US1] Update `tests/Features.Tests/ElectricityCost/NorgesPrisSavingTests.cs`: with a markup set, the
+  within-cap and above-cap kWh; markup 0 gives the old figures. (Done 2026-11-18: the markup tests were in
+  `tests/Features.Tests/Pricing/CostCalculatorPriceTests.cs` and `tests/Features.Tests/Pricing/CapAndExemptionTests.cs`,
+  not in this file; both were updated, Norgespris terms per kWh 0.976625 -> 1.001625 with markup 0.02, and a new test
+  shows that markup 0 keeps the old price.)
+- [X] T008 [P] [US1] Update `tests/Features.Tests/ElectricityCost/NorgesPrisSavingTests.cs`: with a markup set, the
   saving equals Σ kWh × (spot − Norgespris) × (1 + VAT) for hours below the cap (the markup no longer appears), and 0
-  for kWh above the cap.
+  for kWh above the cap. (Done 2026-11-18: new handler test with markup 0.05 gives the same 1.2 saving; the
+  above-cap case is covered by `TheSaving_AddsNothingAboveTheCap` in `CapAndExemptionTests.cs`.)
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] In `src/Application/ElectricityCost/CostCalculator.cs` `TermsAsync`, replace
+- [X] T009 [US1] In `src/Application/ElectricityCost/CostCalculator.cs` `TermsAsync`, replace
   `model == PricingModel.Spot ? location.SupplierMarkupPerKwh : 0m` with `location.SupplierMarkupPerKwh` and remove
   the "No supplier markup under Norgespris" comment.
-- [ ] T010 [P] [US1] Fix the doc comments that say the markup is spot-only: `Location.SupplierMarkupPerKwh` in
+- [X] T010 [P] [US1] Fix the doc comments that say the markup is spot-only: `Location.SupplierMarkupPerKwh` in
   `src/Domain/Common/Entities/Location.cs`, the `markup` param of `PriceCalculation.Calculate` in
   `src/Application/ElectricityCost/PriceCalculation.cs`, and the `SetLocationPricingEndpoint` description in
   `src/Features/Pricing/Endpoints/LocationPricingEndpoints.cs` ("added on all kWh, Norgespris included").
-- [ ] T011 [US1] Run `dotnet test`; fix any other test that asserted a 0 markup on Norgespris terms
-  (`grep -rn "Markup" tests/Features.Tests`), changing the expectation, never the rule.
+- [X] T011 [US1] Run `dotnet test`; fix any other test that asserted a 0 markup on Norgespris terms
+  (`grep -rn "Markup" tests/Features.Tests`), changing the expectation, never the rule. (Done 2026-11-18: 10 tests
+  failed before the fix, 636 of 636 pass after it, twice in a row; `dotnet format --verify-no-changes` clean on the 7
+  touched files.)
 
 **Checkpoint**: US1 is done and can be merged and deployed on its own. Every Norgespris figure rises by the markup;
 say so in the pull request.
