@@ -49,22 +49,24 @@ files with a shell heredoc, avoid apostrophes in the text.
 
 **Purpose**: the fee column and the extra breakdown fields. No behaviour changes yet.
 
-- [ ] T002 Add `decimal? SupplierMonthlyFee { get; private set; }` to `src/Domain/Common/Entities/Location.cs` with a
+- [X] T002 Add `decimal? SupplierMonthlyFee { get; private set; }` to `src/Domain/Common/Entities/Location.cs` with a
   doc comment (NOK per month excluding VAT; null = not set) and an optional trailing parameter
   `decimal? supplierMonthlyFee` on `SetPricing(...)`; keep existing callers compiling (pass the current value through
-  where they do not set it).
-- [ ] T003 Map it in `src/Infrastructure/Database/Configuration/LocationConfiguration.cs`:
+  where they do not set it). (Done 2026-11-18 differently: a separate `SetSupplierMonthlyFee(decimal?)` instead of a
+  parameter on `SetPricing`, so a caller that omits the fee can never clear it by accident.)
+- [X] T003 Map it in `src/Infrastructure/Database/Configuration/LocationConfiguration.cs`:
   `builder.Property(l => l.SupplierMonthlyFee).HasPrecision(9, 4).IsRequired(false);`.
-- [ ] T004 Create the migration per `DatabaseMigrations.md`: `dotnet ef migrations add AddSupplierMonthlyFee --project
+- [X] T004 Create the migration per `DatabaseMigrations.md`: `dotnet ef migrations add AddSupplierMonthlyFee --project
   src/Infrastructure/Infrastructure.csproj --startup-project src/api/api.csproj --output-dir Database/Migrations`.
-  Review: one nullable `numeric(9,4)` column on `Location`, nothing else. Do not hand-edit the snapshot.
-- [ ] T005 [P] Add `ElectricityTax`, `EnovaFee` and `VatRate` to `PriceBreakdown` in
+  Review: one nullable `numeric(9,4)` column on `Location`, nothing else. Do not hand-edit the snapshot. (Done:
+  `20261118215303_AddSupplierMonthlyFee`, one `AddColumn`, reviewed.)
+- [X] T005 [P] Add `ElectricityTax`, `EnovaFee` and `VatRate` to `PriceBreakdown` in
   `src/Application/ElectricityCost/PriceCalculation.cs` (research R2); `Calculate` fills them (`Taxes` stays
   `electricityTax + enovaFee`, `VatRate` is `vatFraction`). Fix the other constructor call sites
   (`grep -rn "new PriceBreakdown(" src tests`). The API mapping in `CostMapper` is unchanged.
-- [ ] T006 [P] Extend `tests/Features.Tests/ElectricityCost/CostCalculatorTests.cs` (or the existing
+- [X] T006 [P] Extend `tests/Features.Tests/ElectricityCost/CostCalculatorTests.cs` (or the existing
   `PriceCalculation` tests): the three new fields equal the inputs, and `Energy + Markup + Grid + Taxes + Vat = Total`
-  still holds exactly.
+  still holds exactly. (Done in `tests/Features.Tests/Pricing/PriceCalculationTests.cs`.)
 
 **Checkpoint**: builds, tests pass, the migration exists; no endpoint output has changed.
 
@@ -119,7 +121,7 @@ tolerances.
 
 ### Tests for User Story 2
 
-- [ ] T012 [P] [US2] Create `tests/Features.Tests/ElectricityCost/MonthlyBillBuilderTests.cs` with hand-calculated
+- [X] T012 [P] [US2] Create `tests/Features.Tests/ElectricityCost/MonthlyBillBuilderTests.cs` with hand-calculated
   cases on `HourCost` lists built through `PriceCalculation.Calculate`: a spot location (no credit line; spot energy
   line = actual energy); a Norgespris location below the cap (credit = −Σ kWh × (spot − NP) × (1 + v), credit VAT 0);
   an hour where spot < NP (positive credit contribution); a month above the cap (no credit on the above kWh); a
@@ -129,48 +131,52 @@ tolerances.
   (`Set = false`, amounts null, left out of the totals, bill incomplete). Every case asserts the invariants of
   data-model.md: `Amount = SoFar + Projected = AmountExclVat + Vat` per line, part and total, and SC-003
   (spot energy + credit + markup = Σ (energy + markup) × (1 + VAT) × kWh of the hours).
-- [ ] T013 [P] [US2] In the same file, the July 2026 invoice test (research R9): 744 Oslo hours of July 2026;
+- [X] T013 [P] [US2] In the same file, the July 2026 invoice test (research R9): 744 Oslo hours of July 2026;
   95.58 kWh spread over the weekday 06-22 hours (holidays per `NorwegianHolidays`) and 144.73 kWh over the others,
   with one 6 kWh hour on each of three different days inside those budgets; spot energy 1.24416, Norgespris 0.40,
   markup 0.03192, fee 27.20, grid 0.2899 / 0.1699, tax 0.0713, Enova 0.0100, VAT 0.25, step 5-10 kW at 336. Assert:
   total 673.55 ± 0.10; fee 34.00, markup 9.59, grid day 34.64, grid night 30.74, capacity 420.00, tax 8.51 + 12.90,
   Enova 1.20 + 1.81, each ± 0.02; spot energy 373.74, credit −253.58, Strøm 417.33, Nettleie 256.22, each ± 1.00;
   spot energy + credit 120.16 ± 0.02; quantities 95.58 / 144.73 kWh.
-- [ ] T014 [P] [US2] Create `tests/Features.Tests/ElectricityCost/MonthlyBillHandlerTests.cs` (finished-month
+- [X] T014 [P] [US2] Create `tests/Features.Tests/ElectricityCost/MonthlyBillHandlerTests.cs` (finished-month
   cases): a past month is `Final` with `Projection` null and every `Projected` 0; a user not linked → `Location.NotFound`
   and `LocationAccessDenied` logged; a month after now → `Bill.MonthNotStarted`; omitted month → current Oslo month;
   the capacity line equals `GetCapacityChargeQueryHandler`'s amount for the same data; the dated rates are loaded once
   (FR-017, assert on the fake repository call count).
-- [ ] T015 [P] [US2] Create `tests/Features.Tests/Http/MonthlyBillHttpTests.cs` via `EndpointHost`: 200 for a linked
+- [X] T015 [P] [US2] Create `tests/Features.Tests/Http/MonthlyBillHttpTests.cs` via `EndpointHost`: 200 for a linked
   user, 400 `Validation.InvalidMonth` for `month=2026-13` and `month=07-2026`, 401 without a token, 404 for another
   user's location.
 
 ### Implementation for User Story 2
 
-- [ ] T016 [US2] Create `src/Features/ElectricityCost/Queries/GetMonthlyBillQuery.cs`:
+- [X] T016 [US2] Create `src/Features/ElectricityCost/Queries/GetMonthlyBillQuery.cs`:
   `GetMonthlyBillQuery(Guid UserId, Guid LocationId, DateOnly? Month) : IQuery<Result<MonthlyBillResponse>>` and the
   response records of contracts/endpoints.md: `MonthlyBillResponse`, `BillHoursResponse`, `BillProjectionResponse`,
   `BillCapacityResponse` (reuse `CapacityStepRangeResponse`), `BillPartResponse`, `BillLineResponse`,
   `BillTotalResponse`, with XML doc comments as in `GetCapacityChargeQuery.cs`. `Status` and `Code` are strings
   (`Final`/`Estimate`; the line codes in contract order).
-- [ ] T017 [US2] Create the pure `src/Features/ElectricityCost/Services/MonthlyBillBuilder.cs` (research R3, R4, R5,
+- [X] T017 [US2] Create the pure `src/Features/ElectricityCost/Services/MonthlyBillBuilder.cs` (research R3, R4, R5,
   data-model "Bill line"): input = the location, the so-far `HourCost` list, an optional projected `HourCost` list,
   the `CapacityChargeResult`, the VAT fraction on the first Oslo day of the month, and the month; output = an internal
   model with the two parts and the total. Per hour: day/night by `GridPeriods.For`; within/above from
   `Actual.Cap` (all within when null); spot terms from `Comparison.Breakdown` on a Norgespris location; accumulate
   so-far and projected amounts excluding VAT and VAT separately per line. Fixed lines (fee, capacity) carry the full
   amount in so-far. Lines not set have null amounts and are left out of the sums. No rounding. No repositories.
-- [ ] T018 [US2] Create `src/Features/ElectricityCost/Mappers/BillMapper.cs`: static mapping from the builder model to
+- [X] T018 [US2] Create `src/Features/ElectricityCost/Mappers/BillMapper.cs`: static mapping from the builder model to
   `MonthlyBillResponse` (unit price = amount / quantity, null when quantity is 0 or not set).
-- [ ] T019 [US2] Create `src/Features/ElectricityCost/Handlers/GetMonthlyBillQueryHandler.cs` following
+- [X] T019 [US2] Create `src/Features/ElectricityCost/Handlers/GetMonthlyBillQueryHandler.cs` following
   `GetCapacityChargeQueryHandler`: access check and `LocationAccessDenied`; month from the query or the current Oslo
   month via `TimeProvider` and `CostTime`; `Bill.MonthNotStarted` (`Error.BadRequest`) when the month starts after
   now; so-far hours from `HourlyCostProvider.GetAsync(location, monthStart, min(monthEnd, currentHourStart))`; the
   capacity charge with `CapacityCharge.TableFor` / `Calculate` over those hours; VAT via `PriceRateBook.ValueOn`
-  (0 when exempt); build, map, log `CostQueried`. For a finished month no projection (US3 adds it).
-- [ ] T020 [P] [US2] Create `src/Features/ElectricityCost/Validators/GetMonthlyBillValidator.cs`, a copy of
+  (0 when exempt); build, map, log `CostQueried`. For a finished month no projection (US3 adds it). (Done
+  2026-11-18. Two deviations: the month that has not started is `Error.Validation` (there is no `Error.BadRequest`;
+  the endpoint maps it to 400), and the VAT of the month comes from the new `CostCalculator.RateBookAsync`, so the
+  dated rates are loaded once per request (FR-017), not once more as the capacity handler does. Until US3 the current
+  month returns `Estimate` with the hours so far only and `projection: null`.)
+- [X] T020 [P] [US2] Create `src/Features/ElectricityCost/Validators/GetMonthlyBillValidator.cs`, a copy of
   `GetCapacityChargeValidator` for `GetMonthlyBillRequest`.
-- [ ] T021 [US2] Create `src/Features/ElectricityCost/Endpoints/GetMonthlyBillEndpoint.cs`:
+- [X] T021 [US2] Create `src/Features/ElectricityCost/Endpoints/GetMonthlyBillEndpoint.cs`:
   `GetMonthlyBillRequest(Guid LocationId, string? Month = null)`, `Get("/api/electricity-cost/bill")`, JWT, tag
   `ElectricityCost`, a summary and description from contracts/endpoints.md (the lines, the credit at 0 % VAT, final vs
   estimate, not set vs incomplete), responses 200/400/401/404; error mapping as in `GetCapacityChargeEndpoint`.

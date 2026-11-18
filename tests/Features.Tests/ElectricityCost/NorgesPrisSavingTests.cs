@@ -21,7 +21,7 @@ public class NorgesPrisSavingTests
         DateTime.Parse(iso, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal);
 
     private static RateCost Cost(decimal total, decimal kwh = 1m) =>
-        new(total, kwh * total, new PriceBreakdown(total, 0m, null, 0m, 0m, total, false));
+        new(total, kwh * total, new PriceBreakdown(total, 0m, null, 0m, 0m, total, false, 0m, 0m, 0m));
 
     /// <summary>One consumed hour on a Norgespris location: the actual is Norgespris terms, the comparison is spot.</summary>
     private static HourCost NorgesPrisHour(string utc, decimal? norgesPris, decimal? spot, decimal kwh = 1m) =>

@@ -324,6 +324,10 @@ namespace Infrastructure.Database.Migrations
                         .HasColumnType("numeric(9,4)")
                         .HasDefaultValue(0m);
 
+                    b.Property<decimal?>("SupplierMonthlyFee")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("numeric(9,4)");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 

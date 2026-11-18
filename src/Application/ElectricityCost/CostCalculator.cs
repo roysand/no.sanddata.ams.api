@@ -192,6 +192,12 @@ public class CostCalculator(
         return GridPeriods.For(hourStartUtc) == GridPeriod.Day ? rate.DayRatePerKwh : rate.NightRatePerKwh;
     }
 
+    /// <summary>
+    /// The dated values this calculator prices with, loaded once per instance, so a caller that needs a monthly value
+    /// (for example the VAT on the first day of a month) does not load them a second time.
+    /// </summary>
+    public Task<PriceRateBook> RateBookAsync(CancellationToken ct) => GetBookAsync(ct);
+
     private Task<PriceRateBook> GetBookAsync(CancellationToken ct) => _book ??= LoadBookAsync(ct);
 
     private async Task<PriceRateBook> LoadBookAsync(CancellationToken ct) =>
