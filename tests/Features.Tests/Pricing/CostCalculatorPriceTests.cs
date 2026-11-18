@@ -196,6 +196,33 @@ public class CostCalculatorPriceTests
     }
 
     [Fact]
+    public async Task TheFallbackSpotPrice_IsUsedOnlyForAnHourWithoutAPrice()
+    {
+        _prices.GetByRegionAndHourAsync("NO1", WeekdayAfternoon, Arg.Any<CancellationToken>())
+            .Returns((ElectricityPrice?)null);
+        Location location = LocationWith(false, Tariff, 0.02m);
+        CostCalculator calculator = Calculator();
+
+        CostResult missing = await calculator.CalculateAsync(
+            location, WeekdayAfternoon, 1m, 0m, CancellationToken.None, fallbackSpotEnergy: 0.50m);
+        CostResult published = await calculator.CalculateAsync(
+            location, SundayAfternoon, 1m, 0m, CancellationToken.None, fallbackSpotEnergy: 0.50m);
+        CostResult neither = await calculator.CalculateAsync(location, WeekdayAfternoon, 1m, 0m, CancellationToken.None);
+
+        Assert.Equal(0.50m, missing.Actual!.Breakdown.Energy);
+        Assert.Equal(1.00m, published.Actual!.Breakdown.Energy); // the published price wins
+        Assert.Null(neither.Actual);
+    }
+
+    [Fact]
+    public async Task SpotEnergy_IsTheSpotPriceAtTheExchangeRate()
+    {
+        Location location = LocationWith(false, Tariff, 0m);
+
+        Assert.Equal(1.00m, await Calculator().SpotEnergyAsync(location, WeekdayAfternoon, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task AMissingExchangeRate_MakesTheSpotSideUnavailable()
     {
         _fx.GetByDateAsync("EURNOK", Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())

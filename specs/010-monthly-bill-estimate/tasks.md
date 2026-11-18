@@ -196,15 +196,16 @@ end; the total = so far + projected.
 
 ### Tests for User Story 3
 
-- [ ] T022 [P] [US3] Create `tests/Features.Tests/ElectricityCost/ConsumptionProjectionTests.cs` (research R6): a full
+- [X] T022 [P] [US3] Create `tests/Features.Tests/ElectricityCost/ConsumptionProjectionTests.cs` (research R6): a full
   7-day window repeats last week hour by hour by (Oslo weekday, hour); the window reaches into the previous month on
   day 1; the 25-hour day averages the two 02:00 hours; the 23-hour day's missing key gets the window's average kWh per
   hour; a window with 3 days of readings uses them and the fallback for the rest; no readings → 0 kWh and
   `BasedOnHours` 0; `BasedOnDays = BasedOnHours / 24`.
-- [ ] T023 [P] [US3] Add to `tests/Features.Tests/NorgesPris/CostCalculatorNorgesPrisTests.cs` (or
+- [X] T023 [P] [US3] Add to `tests/Features.Tests/NorgesPris/CostCalculatorNorgesPrisTests.cs` (or
   `CostCalculatorTests.cs`): `fallbackSpotEnergy` is used only for an hour without a spot price row; with a price row
   it is ignored; without either the spot terms are null as before; `SpotEnergyAsync` returns the converted spot energy.
-- [ ] T024 [P] [US3] Add current-month cases to `tests/Features.Tests/ElectricityCost/MonthlyBillHandlerTests.cs`:
+  (Done 2026-11-18 in `tests/Features.Tests/Pricing/CostCalculatorPriceTests.cs`, where the calculator tests live.)
+- [X] T024 [P] [US3] Add current-month cases to `tests/Features.Tests/ElectricityCost/MonthlyBillHandlerTests.cs`:
   `Estimate` status; so-far = a finished-month calculation of the same hours (SC-004); `Projection.FromUtc` = start
   of the current Oslo hour and `Projection.Hours` = hours to month end; `AssumedSpotPricePerKwh` = plain average of the
   window's spot energy; published prices are used for hours that have them; a Norgespris location whose projection
@@ -214,23 +215,25 @@ end; the total = so far + projected.
 
 ### Implementation for User Story 3
 
-- [ ] T025 [US3] In `src/Application/ElectricityCost/CostCalculator.cs`: add the optional parameter
+- [X] T025 [US3] In `src/Application/ElectricityCost/CostCalculator.cs`: add the optional parameter
   `decimal? fallbackSpotEnergy = null` to `CalculateAsync` and thread it to `GetSpotEnergyAsync`, used only when
   `GetPriceAsync` returns null (the exchange rate is not needed then); make the spot-energy lookup available as
   `public Task<decimal?> SpotEnergyAsync(Location location, DateTime hourStartUtc, CancellationToken ct)`. Existing
   callers are unchanged.
-- [ ] T026 [P] [US3] Create the pure `src/Features/ElectricityCost/Services/ConsumptionProjection.cs`:
+- [X] T026 [P] [US3] Create the pure `src/Features/ElectricityCost/Services/ConsumptionProjection.cs`:
   `Project(IReadOnlyList<(DateTime HourStartUtc, decimal Kwh)> window, IReadOnlyList<DateTime> remainingHourStarts)`
   → projected `(HourStartUtc, Kwh)` list and `BasedOnHours`, per research R6 (Oslo weekday and hour through
   `CostTime`/`TimeZoneInfo`).
-- [ ] T027 [US3] Extend `GetMonthlyBillQueryHandler` for the current month (research R5, R7): window =
+- [X] T027 [US3] Extend `GetMonthlyBillQueryHandler` for the current month (research R5, R7): window =
   [currentHourStart − 168 h, currentHourStart) read with one `IConsumptionRepository.GetHourlyAsync`; remaining hour
   starts from `currentHourStart` to month end (real UTC hours, so the clock-change day has 23 or 25);
   `CostCalculator.PreloadAsync(location, windowStart, monthEnd)` after the so-far pass; assumed spot price = plain
   average of `SpotEnergyAsync` over the window hours that have one (null if none); price each projected hour with
   `CalculateAsync(location, hour, kwh, runningMonthKwh, fallbackSpotEnergy)`, continuing the running month kWh from
   the so-far total; pass the projected `HourCost` list and `ProjectionResponse` data to the builder; capacity stays
-  so-far and provisional.
+  so-far and provisional. (Done 2026-11-18. `fallbackSpotEnergy` is an optional parameter after the cancellation
+  token, so the three existing callers are unchanged; the handler now also takes `IConsumptionRepository` for the
+  window. 676 of 676 tests pass, twice.)
 
 **Checkpoint**: the current month returns an estimate; T022 to T024 pass.
 

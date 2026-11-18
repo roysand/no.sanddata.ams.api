@@ -30,6 +30,9 @@ public class MonthlyBillHandlerTests
     private readonly IPriceRateRepository _rates;
     private readonly ILogger<GetMonthlyBillQueryHandler> _logger = Substitute.For<ILogger<GetMonthlyBillQueryHandler>>();
     private readonly List<HourConsumption> _readings = [];
+
+    /// <summary>The spot price in EUR/MWh of an hour, or null when it has not been published; 100 by default.</summary>
+    private Func<DateTime, decimal?> _spot = _ => 100m;
     private readonly Location _cabin;
 
     public MonthlyBillHandlerTests()
@@ -42,7 +45,9 @@ public class MonthlyBillHandlerTests
             .Returns([new GridCapacityStep(Guid.NewGuid(), Tariff, new DateOnly(2026, 1, 1), 0m, null, 100m, Guid.Empty)]);
 
         _prices.GetByRegionAndHourAsync("NO1", Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
-            .Returns(call => new ElectricityPrice(Guid.NewGuid(), "NO1", call.ArgAt<DateTime>(1), 100m));
+            .Returns(call => _spot(call.ArgAt<DateTime>(1)) is { } eur
+                ? new ElectricityPrice(Guid.NewGuid(), "NO1", call.ArgAt<DateTime>(1), eur)
+                : null);
         _fx.GetByDateAsync("EURNOK", Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
             .Returns(call => new ExchangeRate(Guid.NewGuid(), "EURNOK", call.ArgAt<DateOnly>(1), 10m));
         _prices.ServeRangesFromSingleHours();
@@ -74,6 +79,7 @@ public class MonthlyBillHandlerTests
         var calculator = new CostCalculator(_prices, _fx, NorgesPrisRates.Seeded(), _rates);
         return new GetMonthlyBillQueryHandler(
             _locations,
+            _consumption,
             _rates,
             new HourlyCostProvider(_consumption, calculator),
             calculator,
@@ -204,5 +210,155 @@ public class MonthlyBillHandlerTests
         await _rates.Received(1).GetGridTariffRatesAsync(Arg.Any<CancellationToken>());
         await _prices.Received(1).GetByRegionAndHourRangeAsync(
             Arg.Any<string>(), Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>());
+    }
+
+    // ---- the current month: the projection (user story 3) -----------------------------------------------------
+
+    // Now is Thursday 2026-12-10 12:30 UTC. The current hour starts 12:00 UTC; the window is the 168 hours from
+    // 2026-12-03 12:00 UTC; December ends 2026-12-31 23:00 UTC, so 515 hours are projected.
+    private static readonly DateTime CurrentHour = Utc("2026-12-10T12:00:00Z");
+    private static readonly DateTime WindowStart = Utc("2026-12-03T12:00:00Z");
+
+    private void ReadingsEveryHour(DateTime from, DateTime to, decimal kwh)
+    {
+        for (DateTime hour = from; hour < to; hour = hour.AddHours(1))
+        {
+            Reading(hour.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture), kwh);
+        }
+    }
+
+    private Location SpotHome()
+    {
+        var home = new Location(Guid.NewGuid(), "Home", "Addr", "SN2", "NO1", true, false);
+        home.SetPricing(Tariff, 0.02m, false, false, false);
+        home.SetSupplierMonthlyFee(27.20m);
+        _locations.IsUserAssociatedAsync(Arg.Any<Guid>(), home.Id, Arg.Any<CancellationToken>()).Returns(true);
+        _locations.GetByIdAsync(home.Id, Arg.Any<CancellationToken>()).Returns(home);
+        return home;
+    }
+
+    [Fact]
+    public async Task TheCurrentMonth_ProjectsEveryHourFromTheCurrentHourToTheMonthEnd()
+    {
+        ReadingsEveryHour(WindowStart, CurrentHour, 1m);
+
+        MonthlyBillResponse bill = (await Bill(null)).Value;
+
+        Assert.Equal("Estimate", bill.Status);
+        BillProjectionResponse projection = Assert.IsType<BillProjectionResponse>(bill.Projection);
+        Assert.Equal(CurrentHour, projection.FromUtc);
+        Assert.Equal(515, projection.Hours);
+        Assert.Equal(515m, projection.Kwh); // 1 kWh in every hour of last week
+        Assert.Equal(168, projection.BasedOnHours);
+        Assert.Equal(7m, projection.BasedOnDays);
+        Assert.Equal(1.00m, projection.AssumedSpotPricePerKwh);
+        Assert.True(bill.Capacity.Provisional);
+        Assert.Equal(168m + 515m, Line(bill, "SpotEnergy").Quantity);
+        Assert.Equal(bill.Total.Amount, bill.Total.SoFar + bill.Total.Projected);
+        Assert.All(bill.Strom.Lines.Concat(bill.Nettleie.Lines).Where(l => l.Set),
+            l => Assert.Equal(l.Amount, l.SoFar + l.Projected));
+    }
+
+    [Fact]
+    public async Task TheSoFarAmounts_AreTheFinishedMonthCalculationOfTheSameHours()
+    {
+        ReadingsEveryHour(Utc("2026-12-01T00:00:00Z"), CurrentHour, 0.5m);
+        var calculator = new CostCalculator(_prices, _fx, NorgesPrisRates.Seeded(), _rates);
+        IReadOnlyList<HourCost> hours = await new HourlyCostProvider(_consumption, calculator)
+            .GetAsync(_cabin, Utc("2026-11-30T23:00:00Z"), CurrentHour, CancellationToken.None);
+        CapacityChargeResult capacity = CapacityCharge.Calculate(
+            hours.Select(h => (h.HourStart, h.ConsumptionKwh)),
+            [new GridCapacityStep(Guid.NewGuid(), Tariff, new DateOnly(2026, 1, 1), 0m, null, 100m, Guid.Empty)],
+            0.25m);
+        MonthlyBill expected = MonthlyBillBuilder.Build(_cabin, hours, [], capacity, 0.25m);
+
+        MonthlyBillResponse bill = (await Bill(null)).Value;
+
+        foreach (BillLine line in expected.Strom.Lines.Concat(expected.Nettleie.Lines))
+        {
+            Assert.Equal(line.Amount, Line(bill, line.Code.ToString()).SoFar);
+        }
+
+        Assert.Equal(expected.Amount, bill.Total.SoFar);
+    }
+
+    [Fact]
+    public async Task PublishedPricesAreUsed_AndTheWindowAverageForTheOtherHours()
+    {
+        // Window hours 50 EUR/MWh (0.50 NOK/kWh); published from the current hour to 2026-12-11 23:00 UTC (35 hours)
+        // at 80 (0.80); nothing published after that. Projected spot energy: (35 x 0.80 + 480 x 0.50) x 1.25 = 335.
+        Location home = SpotHome();
+        _readings.Clear();
+        for (DateTime hour = WindowStart; hour < CurrentHour; hour = hour.AddHours(1))
+        {
+            _readings.Add(new HourConsumption
+            {
+                LocationId = home.Id, MeterId = Guid.Empty, BucketStart = hour, AvgPowerWatts = 1000
+            });
+        }
+
+        DateTime published = Utc("2026-12-11T23:00:00Z");
+        _spot = hour => hour < WindowStart ? 100m : hour < CurrentHour ? 50m : hour < published ? 80m : null;
+
+        MonthlyBillResponse bill = (await Handler().Handle(
+            new GetMonthlyBillQuery(Guid.NewGuid(), home.Id, null), CancellationToken.None)).Value;
+
+        Assert.Equal(0.50m, bill.Projection!.AssumedSpotPricePerKwh);
+        Assert.Equal(335m, Line(bill, "SpotEnergy").Projected);
+        Assert.Equal(168m * 0.50m * 1.25m, Line(bill, "SpotEnergy").SoFar);
+        Assert.True(bill.IsComplete);
+    }
+
+    [Fact]
+    public async Task AProjectionThatPassesTheCap_PricesTheExcessOnSpotTermsWithNoCredit()
+    {
+        // 3 kWh an hour: 504 kWh so far (window only), 1,545 projected; the holiday-home cap is 1,000 kWh.
+        ReadingsEveryHour(WindowStart, CurrentHour, 3m);
+
+        MonthlyBillResponse bill = (await Bill(null)).Value;
+
+        Assert.Equal(1000m, Line(bill, "NorgesPrisCredit").Quantity);
+        Assert.Equal(504m + 1545m, Line(bill, "SpotEnergy").Quantity);
+        Assert.Equal(-1000m * 0.60m * 1.25m, Line(bill, "NorgesPrisCredit").Amount);
+    }
+
+    [Fact]
+    public async Task ANorgesPrisTotal_DoesNotDependOnTheAssumedSpotPrice()
+    {
+        ReadingsEveryHour(WindowStart, CurrentHour, 1m);
+        _spot = hour => hour < CurrentHour ? 50m : null;
+        MonthlyBillResponse cheap = (await Bill(null)).Value;
+
+        _spot = hour => hour < CurrentHour ? 150m : null;
+        MonthlyBillResponse dear = (await Bill(null)).Value;
+
+        Assert.NotEqual(cheap.Projection!.AssumedSpotPricePerKwh, dear.Projection!.AssumedSpotPricePerKwh);
+        Assert.NotEqual(cheap.Strom.Amount, dear.Strom.Amount);
+        Assert.Equal(cheap.Total.Amount, dear.Total.Amount);
+    }
+
+    [Fact]
+    public async Task OnTheFirstDayOfTheMonth_TheWindowIsTheLastWeekOfThePreviousMonth()
+    {
+        // 2026-12-01 06:30 Oslo is 05:30 UTC: the window is 2026-11-24 05:00 to 2026-12-01 05:00 UTC.
+        ReadingsEveryHour(Utc("2026-11-24T05:00:00Z"), Utc("2026-12-01T05:00:00Z"), 2m);
+
+        MonthlyBillResponse bill = (await Bill(null, now: "2026-12-01T05:30:00Z")).Value;
+
+        Assert.Equal(168, bill.Projection!.BasedOnHours);
+        Assert.Equal(2m * bill.Projection.Hours, bill.Projection.Kwh);
+        Assert.Equal(6, bill.Hours.Passed); // 23:00 to 05:00 UTC
+        Assert.Equal(6m * 2m, Line(bill, "SpotEnergy").Quantity - bill.Projection.Kwh);
+    }
+
+    [Fact]
+    public async Task ALocationWithoutReadings_ProjectsZeroKwh_BasedOnZeroDays()
+    {
+        MonthlyBillResponse bill = (await Bill(null)).Value;
+
+        Assert.Equal(0m, bill.Projection!.Kwh);
+        Assert.Equal(0, bill.Projection.BasedOnHours);
+        Assert.Equal(0m, bill.Projection.BasedOnDays);
+        Assert.Equal(515, bill.Projection.Hours);
     }
 }
