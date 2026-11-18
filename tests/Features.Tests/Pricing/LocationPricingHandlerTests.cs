@@ -28,19 +28,22 @@ public class LocationPricingHandlerTests
     // ---- set --------------------------------------------------------------------------------------------------
 
     [Fact]
-    public async Task Set_StoresTheTariffAndTheMarkup_AndSavesOnce()
+    public async Task Set_StoresTheTariffTheMarkupAndTheFee_AndSavesOnce()
     {
         Location location = LocationNamed("Home");
         var tariff = new GridTariff(Guid.NewGuid(), "Elvia");
         _rates.Tariffs.Add(tariff);
         _locations.GetByIdAsync(location.Id, Arg.Any<CancellationToken>()).Returns(location);
 
-        Result<LocationPricingResponse> result = await SetHandler()
-            .Handle(new SetLocationPricingCommand(location.Id, tariff.Id, 0.0250m, null, null, null, Admin), CancellationToken.None);
+        Result<LocationPricingResponse> result = await SetHandler().Handle(
+            new SetLocationPricingCommand(location.Id, tariff.Id, 0.0250m, null, null, null, Admin, 27.20m),
+            CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(tariff.Id, location.GridTariffId);
         Assert.Equal(0.0250m, location.SupplierMarkupPerKwh);
+        Assert.Equal(27.20m, location.SupplierMonthlyFee);
+        Assert.Equal(27.20m, result.Value.SupplierMonthlyFee);
         Assert.Equal("Elvia", result.Value.GridTariffName);
         Assert.True(result.Value.IsComplete);
         await _locations.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
@@ -96,6 +99,7 @@ public class LocationPricingHandlerTests
         _rates.Tariffs.Add(tariff);
         Location configured = LocationNamed("Cabin");
         configured.SetPricing(tariff.Id, 0.0300m, false, false, false);
+        configured.SetSupplierMonthlyFee(27.20m);
         Location bare = LocationNamed("Home");
         _locations.GetAllWithKeyAsync(Arg.Any<CancellationToken>()).Returns([bare, configured]);
 
@@ -158,5 +162,72 @@ public class LocationPricingHandlerTests
         Assert.True(location.VatExempt);
         Assert.True(location.IsHolidayHome);
         Assert.Equal(0.01m, location.SupplierMarkupPerKwh);
+    }
+
+    // ---- the supplier monthly fee (spec 010, user story 4) --------------------------------------------------------
+
+    [Fact]
+    public async Task Set_AnOmittedFee_KeepsTheCurrentFee()
+    {
+        Location location = LocationNamed("Cabin");
+        location.SetSupplierMonthlyFee(27.20m);
+        _locations.GetByIdAsync(location.Id, Arg.Any<CancellationToken>()).Returns(location);
+
+        await SetHandler().Handle(
+            new SetLocationPricingCommand(location.Id, null, 0.02m, null, null, null, Admin), CancellationToken.None);
+
+        Assert.Equal(27.20m, location.SupplierMonthlyFee);
+    }
+
+    [Fact]
+    public async Task Set_AZeroFee_IsAFeeThatIsSet()
+    {
+        var tariff = new GridTariff(Guid.NewGuid(), "Elvia");
+        _rates.Tariffs.Add(tariff);
+        Location location = LocationNamed("Cabin");
+        _locations.GetByIdAsync(location.Id, Arg.Any<CancellationToken>()).Returns(location);
+
+        Result<LocationPricingResponse> result = await SetHandler().Handle(
+            new SetLocationPricingCommand(location.Id, tariff.Id, 0m, null, null, null, Admin, 0m),
+            CancellationToken.None);
+
+        Assert.Equal(0m, result.Value.SupplierMonthlyFee);
+        Assert.True(result.Value.IsComplete);
+    }
+
+    [Fact]
+    public async Task ATariffWithoutAFee_IsIncomplete()
+    {
+        var tariff = new GridTariff(Guid.NewGuid(), "Elvia");
+        _rates.Tariffs.Add(tariff);
+        Location location = LocationNamed("Cabin");
+        _locations.GetByIdAsync(location.Id, Arg.Any<CancellationToken>()).Returns(location);
+
+        Result<LocationPricingResponse> result = await SetHandler().Handle(
+            new SetLocationPricingCommand(location.Id, tariff.Id, 0.02m, null, null, null, Admin),
+            CancellationToken.None);
+
+        Assert.Null(result.Value.SupplierMonthlyFee);
+        Assert.False(result.Value.IsComplete);
+    }
+
+    [Fact]
+    public async Task Set_LogsTheFeeWithTheActingUser()
+    {
+        ILogger<SetLocationPricingCommandHandler> logger = Substitute.For<ILogger<SetLocationPricingCommandHandler>>();
+        logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
+        Location location = LocationNamed("Cabin");
+        _locations.GetByIdAsync(location.Id, Arg.Any<CancellationToken>()).Returns(location);
+
+        await new SetLocationPricingCommandHandler(_locations, _rates, logger).Handle(
+            new SetLocationPricingCommand(location.Id, null, 0.02m, null, null, null, Admin, 27.20m),
+            CancellationToken.None);
+
+        logger.Received(1).Log(
+            LogLevel.Information,
+            Arg.Is<EventId>(e => e.Id == 1706),
+            Arg.Is<object>(state => state.ToString()!.Contains("27.2") && state.ToString()!.Contains(Admin.ToString())),
+            null,
+            Arg.Any<Func<object, Exception?, string>>());
     }
 }

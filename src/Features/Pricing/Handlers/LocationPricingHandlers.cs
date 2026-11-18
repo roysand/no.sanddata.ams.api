@@ -46,10 +46,16 @@ public class SetLocationPricingCommandHandler(
             command.ElectricityTaxExempt ?? location.ElectricityTaxExempt,
             command.VatExempt ?? location.VatExempt,
             command.IsHolidayHome ?? location.IsHolidayHome);
+        location.SetSupplierMonthlyFee(command.SupplierMonthlyFee ?? location.SupplierMonthlyFee);
         await locationRepository.SaveChangesAsync(ct);
 
         LogMessages.LocationPricingChanged(
-            logger, location.Id, location.GridTariffId, location.SupplierMarkupPerKwh, command.ActingUserId);
+            logger,
+            location.Id,
+            location.GridTariffId,
+            location.SupplierMarkupPerKwh,
+            location.SupplierMonthlyFee,
+            command.ActingUserId);
         LogMessages.LocationPricingFlagsChanged(
             logger, location.Id, location.ElectricityTaxExempt, location.VatExempt, location.IsHolidayHome,
             command.ActingUserId);

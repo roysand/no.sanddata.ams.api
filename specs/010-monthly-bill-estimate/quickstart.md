@@ -19,14 +19,14 @@ Expected: tests pass (including the synthetic July 2026 test, SC-001); the migra
 
 ## 2. Markup under Norgespris (US1)
 
-Request `GET /api/electricity-cost/hourly` for an hour of the Norgespris location with markup 0.03192. Expected:
-`actual.parts.markup` = 0.03192 and `actual.ratePerKwh` = 1.25 × (0.40 + 0.03192 + grid + 0.0813). The saving
+Request `GET /api/electricity-cost/hourly` for an hour of the Norgespris location with markup 0.0319. Expected:
+`actual.parts.markup` = 0.0319 and `actual.ratePerKwh` = 1.25 × (0.40 + 0.0319 + grid + 0.0813). The saving
 (`/saving`) for a day equals Σ kWh × (spot − 0.40) × 1.25 for hours below the cap.
 
 ## 3. Set the fee (US4)
 
 `GET /api/admin/location-pricing` shows the location with `supplierMonthlyFee: null`, `isComplete: false`.
-`PUT /api/admin/location-pricing/{id}` with `{ "gridTariffId": "...", "supplierMarkupPerKwh": 0.03192,
+`PUT /api/admin/location-pricing/{id}` with `{ "gridTariffId": "...", "supplierMarkupPerKwh": 0.0319,
 "supplierMonthlyFee": 27.20 }` → `isComplete: true`. `-1` → 400. As a regular user → 403.
 
 ## 4. Finished month (US2)
@@ -44,7 +44,8 @@ Nettleie lines with the October 2026 Elvia bill in spec 008 ("Reference data for
 ## 6. July 2026 against the invoice (SC-001)
 
 Confirm first that July 2026 readings, spot prices, exchange rates and the rates valid in July are in the database,
-and that markup 0.03192 and fee 27.20 are set. Then `GET /api/electricity-cost/bill?locationId={id}&month=2026-07`
+and that markup 0.0319 and fee 27.20 are set. (The invoice's 3.99 øre incl. VAT is 0.03192 excl. VAT, but a markup
+is stored with 4 decimals; 0.0319 gives a markup line about 0.01 kr below the invoice, within the tolerance.) Then `GET /api/electricity-cost/bill?locationId={id}&month=2026-07`
 and compare with the invoice table in the spec:
 
 | Check | Expected | Tolerance |
