@@ -135,4 +135,24 @@ public class PricingValidatorTests
             valid,
             new SetLocationPricingValidator()
                 .Validate(new SetLocationPricingRequest(Guid.NewGuid(), null, (decimal)markup)).IsValid);
+
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData(0d, true)]
+    [InlineData(27.20, true)]
+    [InlineData(10000d, true)]
+    [InlineData(-0.01, false)]
+    [InlineData(10000.01, false)]
+    [InlineData(27.20001, false)]
+    public void SetLocationPricing_TheMonthlyFeeLimits(double? fee, bool valid)
+    {
+        FluentValidation.Results.ValidationResult result = new SetLocationPricingValidator().Validate(
+            new SetLocationPricingRequest(Guid.NewGuid(), null, 0m, SupplierMonthlyFee: (decimal?)fee));
+
+        Assert.Equal(valid, result.IsValid);
+        if (!valid)
+        {
+            Assert.Equal("Validation.InvalidMonthlyFee", Assert.Single(result.Errors).ErrorCode);
+        }
+    }
 }

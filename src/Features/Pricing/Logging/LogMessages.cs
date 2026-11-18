@@ -45,11 +45,11 @@ internal static class LogMessages
             new EventId(1705, nameof(GridTariffRateDeleted)),
             "Grid tariff rate {RateId} of tariff {TariffId} starting {ValidFrom} deleted by {ActingUserId}");
 
-    private static readonly Action<ILogger, Guid, Guid?, decimal, Guid, Exception?> _locationPricingChanged =
-        LoggerMessage.Define<Guid, Guid?, decimal, Guid>(
+    private static readonly Action<ILogger, Guid, Guid?, decimal, decimal?, Guid, Exception?> _locationPricingChanged =
+        LoggerMessage.Define<Guid, Guid?, decimal, decimal?, Guid>(
             LogLevel.Information,
             new EventId(1706, nameof(LocationPricingChanged)),
-            "Pricing of location {LocationId} set to tariff {TariffId} and markup {Markup} by {ActingUserId}");
+            "Pricing of location {LocationId} set to tariff {TariffId}, markup {Markup} and monthly fee {MonthlyFee} by {ActingUserId}");
 
     private static readonly Action<ILogger, Guid, bool, bool, bool, Guid, Exception?> _locationPricingFlagsChanged =
         LoggerMessage.Define<Guid, bool, bool, bool, Guid>(
@@ -98,8 +98,8 @@ internal static class LogMessages
         => _gridTariffRateDeleted(logger, rateId, tariffId, validFrom, actingUserId, null);
 
     public static void LocationPricingChanged(
-        ILogger logger, Guid locationId, Guid? tariffId, decimal markup, Guid actingUserId)
-        => _locationPricingChanged(logger, locationId, tariffId, markup, actingUserId, null);
+        ILogger logger, Guid locationId, Guid? tariffId, decimal markup, decimal? monthlyFee, Guid actingUserId)
+        => _locationPricingChanged(logger, locationId, tariffId, markup, monthlyFee, actingUserId, null);
 
     public static void LocationPricingFlagsChanged(
         ILogger logger, Guid locationId, bool electricityTaxExempt, bool vatExempt, bool isHolidayHome,

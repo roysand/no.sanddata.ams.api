@@ -327,10 +327,11 @@ public class MonthlyBillBuilderTests
     {
         // Fjordkraft and Elvia, July 2026, a holiday home on Norgespris: 95.58 kWh on weekday day hours and 144.73 kWh
         // at night and weekends, the invoice spot price 155.52 ore incl. VAT (1.24416 excl.) on every hour, three daily
-        // peaks of 6 kWh (step 5-10 kW, 336 excl. VAT), markup 3.99 ore incl. VAT, fee 34.00 kr incl. VAT.
+        // peaks of 6 kWh (step 5-10 kW, 336 excl. VAT), markup 3.99 ore incl. VAT, fee 34.00 kr incl. VAT. The markup
+        // is 0.03192 excl. VAT on the invoice, but a markup is stored with 4 decimals, so the location has 0.0319.
         _spotEurPerMwh = 124.416m;
         IPriceRateRepository rates = Rates(PriceRateStubs.Grid(Tariff, "2026-07-01", 0.2899m, 0.1699m));
-        Location cabin = LocationWith(true, Tariff, fee: 27.20m, markup: 0.03192m);
+        Location cabin = LocationWith(true, Tariff, fee: 27.20m, markup: 0.0319m);
 
         DateTime monthStart = Utc("2026-06-30T22:00:00Z"); // 1 July 00:00 Oslo (summer time)
         List<DateTime> all = Enumerable.Range(0, 744).Select(h => monthStart.AddHours(h)).ToList();

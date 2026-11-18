@@ -17,7 +17,8 @@ public class PricingHttpTests
     private static readonly PriceRateResponse PriceRate = new(RateId, "ElectricityTax", new DateOnly(2027, 1, 1), 0.08m, "Upcoming");
     private static readonly GridTariffRateResponse TariffRate = new(RateId, new DateOnly(2027, 1, 1), 0.35m, 0.22m, "Upcoming");
     private static readonly GridTariffResponse Tariff = new(TariffId, "Elvia", [TariffRate]);
-    private static readonly LocationPricingResponse LocationPricing = new(LocationId, "Home", TariffId, "Elvia", 0.02m, false, false, true, true);
+    private static readonly LocationPricingResponse LocationPricing = new(
+        LocationId, "Home", TariffId, "Elvia", 0.02m, 27.20m, false, false, true, true);
 
     private static readonly CapacityStepTableResponse StepTable = new(
         new DateOnly(2027, 1, 1), "Upcoming", [new CapacityStepResponse(0m, 2m, 120m), new CapacityStepResponse(2m, null, 200m)]);
@@ -254,6 +255,37 @@ public class PricingHttpTests
         Assert.Null(commands[0].GridTariffId);
         Assert.Equal(0.02m, commands[0].SupplierMarkupPerKwh);
         Assert.Equal(TariffId, commands[1].GridTariffId);
+    }
+
+    [Fact]
+    public async Task SetLocationPricing_PassesTheMonthlyFee_AndOmittedIsNull()
+    {
+        await using EndpointHost host = await StartHost();
+
+        await host.Client.PutAsync(
+            $"/api/admin/location-pricing/{LocationId}",
+            Json("""{ "gridTariffId": null, "supplierMarkupPerKwh": 0.0319, "supplierMonthlyFee": 27.20 }"""));
+        await host.Client.PutAsync($"/api/admin/location-pricing/{LocationId}", Json(LocationBody));
+
+        SetLocationPricingCommand[] commands = host.Dispatcher.ReceivedCalls()
+            .Select(call => call.GetArguments()[0])
+            .OfType<SetLocationPricingCommand>()
+            .ToArray();
+        Assert.Equal(27.20m, commands[0].SupplierMonthlyFee);
+        Assert.Null(commands[1].SupplierMonthlyFee);
+    }
+
+    [Fact]
+    public async Task SetLocationPricing_ANegativeFee_IsRefusedBeforeAnyHandlerRuns()
+    {
+        await using EndpointHost host = await StartHost();
+
+        HttpResponseMessage response = await host.Client.PutAsync(
+            $"/api/admin/location-pricing/{LocationId}",
+            Json("""{ "gridTariffId": null, "supplierMarkupPerKwh": 0, "supplierMonthlyFee": -1 }"""));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Null(Received<SetLocationPricingCommand>(host));
     }
 
     [Theory]

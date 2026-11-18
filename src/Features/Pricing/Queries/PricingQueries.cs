@@ -22,13 +22,18 @@ public record CapacityStepTableResponse(DateOnly ValidFrom, string Status, IRead
 public record ListCapacityStepsQuery(Guid GridTariffId, Guid ActingUserId)
     : IQuery<Result<IReadOnlyList<CapacityStepTableResponse>>>;
 
-/// <param name="IsComplete">True when a grid tariff is set; without one the grid part of the price is left out.</param>
+/// <param name="SupplierMonthlyFee">NOK per month excluding VAT; null until it is set.</param>
+/// <param name="IsComplete">
+/// True when a grid tariff and the supplier monthly fee are set; without the tariff the grid part of the price is left
+/// out, and without the fee the bill shows the fee as not set.
+/// </param>
 public record LocationPricingResponse(
     Guid LocationId,
     string Name,
     Guid? GridTariffId,
     string? GridTariffName,
     decimal SupplierMarkupPerKwh,
+    decimal? SupplierMonthlyFee,
     bool ElectricityTaxExempt,
     bool VatExempt,
     bool IsHolidayHome,

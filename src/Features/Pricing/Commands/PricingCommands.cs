@@ -27,6 +27,7 @@ public record DeleteGridTariffRateCommand(Guid GridTariffId, Guid RateId, Guid A
 /// <param name="ElectricityTaxExempt">Null keeps the current value.</param>
 /// <param name="VatExempt">Null keeps the current value.</param>
 /// <param name="IsHolidayHome">Null keeps the current value.</param>
+/// <param name="SupplierMonthlyFee">NOK per month excluding VAT; null keeps the current value.</param>
 public record SetLocationPricingCommand(
     Guid LocationId,
     Guid? GridTariffId,
@@ -34,7 +35,8 @@ public record SetLocationPricingCommand(
     bool? ElectricityTaxExempt,
     bool? VatExempt,
     bool? IsHolidayHome,
-    Guid ActingUserId)
+    Guid ActingUserId,
+    decimal? SupplierMonthlyFee = null)
     : ICommand<Result<LocationPricingResponse>>;
 
 /// <param name="UpperKw">Null for the top step.</param>

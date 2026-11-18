@@ -13,6 +13,7 @@ internal static class PricingLimits
     public const decimal MaxPerKwh = 100m;
     public const decimal MaxVatFraction = 1m;
     public const decimal MaxCapKwh = 99999m;
+    public const decimal MaxMonthlyFee = 10000m;
     public const string KindNames = "ElectricityTax, EnovaFee, Vat, NorgesPrisCapHome, NorgesPrisCapHolidayHome";
 
     /// <summary>The largest value of a kind: a VAT fraction, a cap in kWh per month, or NOK per kWh for the fees.</summary>
@@ -102,11 +103,18 @@ public class AddGridTariffRateValidator : Validator<AddGridTariffRateRequest>
 
 public class SetLocationPricingValidator : Validator<SetLocationPricingRequest>
 {
-    public SetLocationPricingValidator() =>
+    public SetLocationPricingValidator()
+    {
         RuleFor(x => x.SupplierMarkupPerKwh)
             .Must(value => PricingLimits.IsAmount(value, PricingLimits.MaxPerKwh))
             .WithMessage("Markup must be between 0 and 100 with at most 4 decimals")
             .WithErrorCode("Validation.InvalidMarkup");
+
+        RuleFor(x => x.SupplierMonthlyFee)
+            .Must(value => value is null || PricingLimits.IsAmount(value.Value, PricingLimits.MaxMonthlyFee))
+            .WithMessage("Monthly fee must be between 0 and 10000 with at most 4 decimals")
+            .WithErrorCode("Validation.InvalidMonthlyFee");
+    }
 }
 
 public class AddCapacityStepsValidator : Validator<AddCapacityStepsRequest>

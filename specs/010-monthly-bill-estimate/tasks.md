@@ -249,29 +249,33 @@ end; the total = so far + projected.
 
 ### Tests for User Story 4
 
-- [ ] T028 [P] [US4] Extend `tests/Features.Tests/Pricing/LocationPricingHandlerTests.cs`: the fee is saved; an
+- [X] T028 [P] [US4] Extend `tests/Features.Tests/Pricing/LocationPricingHandlerTests.cs`: the fee is saved; an
   omitted fee keeps the current value; `IsComplete` is false without a fee and true with tariff and fee; the
   `LocationPricingChanged` log carries the fee and the acting user.
-- [ ] T029 [P] [US4] Extend `tests/Features.Tests/Pricing/PricingValidatorTests.cs`: `-0.01` and `10000.01` refused
+- [X] T029 [P] [US4] Extend `tests/Features.Tests/Pricing/PricingValidatorTests.cs`: `-0.01` and `10000.01` refused
   with `Validation.InvalidMonthlyFee`; `0`, `27.20`, `10000` and omitted accepted.
-- [ ] T030 [P] [US4] Extend `tests/Features.Tests/Http/PricingHttpTests.cs`: `PUT` with `supplierMonthlyFee` as Admin
+- [X] T030 [P] [US4] Extend `tests/Features.Tests/Http/PricingHttpTests.cs`: `PUT` with `supplierMonthlyFee` as Admin
   → 200 with the fee in the body; as a regular user → 403; `GET` lists `supplierMonthlyFee`.
 
 ### Implementation for User Story 4
 
-- [ ] T031 [US4] Add `decimal? SupplierMonthlyFee = null` to `SetLocationPricingRequest` in
+- [X] T031 [US4] Add `decimal? SupplierMonthlyFee = null` to `SetLocationPricingRequest` in
   `src/Features/Pricing/Endpoints/LocationPricingEndpoints.cs` and to `SetLocationPricingCommand` in
   `src/Features/Pricing/Commands/PricingCommands.cs`; pass it through in the endpoint; describe it in the endpoint
   summary (NOK per month excluding VAT, omitted keeps the value, 0 for a supplier without a fee).
-- [ ] T032 [US4] In `src/Features/Pricing/Validators/PricingValidators.cs` `SetLocationPricingValidator`: when set,
+- [X] T032 [US4] In `src/Features/Pricing/Validators/PricingValidators.cs` `SetLocationPricingValidator`: when set,
   0 ≤ fee ≤ 10000, error code `Validation.InvalidMonthlyFee`.
-- [ ] T033 [US4] In `src/Features/Pricing/Handlers/LocationPricingHandlers.cs`: pass
+- [X] T033 [US4] In `src/Features/Pricing/Handlers/LocationPricingHandlers.cs`: pass
   `command.SupplierMonthlyFee ?? location.SupplierMonthlyFee` to `SetPricing`; add the fee to
   `LogMessages.LocationPricingChanged` (EventId 1706) in `src/Features/Pricing/Logging/LogMessages.cs`.
-- [ ] T034 [US4] Add `decimal? SupplierMonthlyFee` to `LocationPricingResponse` in
+- [X] T034 [US4] Add `decimal? SupplierMonthlyFee` to `LocationPricingResponse` in
   `src/Features/Pricing/Queries/PricingQueries.cs` (update the `IsComplete` doc comment) and in
   `PricingMapper.ToLocationPricingResponse` (`src/Features/Pricing/Mappers/PricingMapper.cs`):
-  `IsComplete = GridTariffId is not null && SupplierMonthlyFee is not null`.
+  `IsComplete = GridTariffId is not null && SupplierMonthlyFee is not null`. (Done 2026-11-18. The fee is the last,
+  optional parameter of `SetLocationPricingCommand` so the existing callers are unchanged, and the handler sets it
+  through `Location.SetSupplierMonthlyFee`. The 403 for a regular user was already covered by the Admin-route theory in
+  `PricingHttpTests`. Found: the markup has at most 4 decimals (validator and `numeric(9,4)`), so the invoice markup
+  0.03192 is stored as 0.0319; the July test now uses 0.0319 and still matches. 689 of 689 tests pass, twice.)
 
 **Checkpoint**: an Admin sets the fee; the bill's fee line shows it.
 
@@ -294,7 +298,7 @@ end; the total = so far + projected.
 - [ ] T039 Commit on `feature/010-monthly-bill-estimate`, push, and open a pull request against `main` that describes
   the markup fix and its effect on existing figures, the new fee setting (every location is incomplete until it is
   set), the bill endpoint, and the projection rules.
-- [ ] T040 After deploying: set the fee (27.20) and confirm the markup (0.03192) of the holiday home in production,
+- [ ] T040 After deploying: set the fee (27.20) and confirm the markup (0.0319; 0.03192 has 5 decimals and is refused) of the holiday home in production,
   then run quickstart step 6 (July 2026 against the invoice) if T001 found the data. Record the result here and in
   `specs/010-monthly-bill-estimate/checklists/requirements.md`.
 

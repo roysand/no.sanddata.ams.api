@@ -272,8 +272,8 @@ monthly fee line of 34.00 kr; mark the location as exempt from VAT and confirm t
   projection is based on, not as a range.
 - Before relying on the July 2026 acceptance test, the location's July readings, July's spot prices and exchange
   rates, and the rates valid in July (grid tariff 2026-07-01, taxes, Norgespris rate, the 1,000 kWh cap) must be in
-  the database. The supplier markup (0.03192 kr) and the monthly fee (27.20 kr) excluding VAT must be set on the
-  location.
+  the database. The supplier markup (0.03192 kr, stored as 0.0319 because a markup has at most 4 decimals) and the
+  monthly fee (27.20 kr) excluding VAT must be set on the location.
 - The spot price on the invoice comes from the supplier's own source; the app's spot price and exchange rate may
   differ slightly. For a Norgespris location below the cap this moves amounts between the Strøm energy line and the
   credit without changing the total, so the total has a tighter tolerance than those two lines.
