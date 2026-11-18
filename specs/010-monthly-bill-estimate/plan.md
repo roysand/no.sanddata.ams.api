@@ -119,9 +119,10 @@ and its pure builders sit in `Services/` next to `SavingCalculator`, which they 
 ## Delivery order
 
 1. US1 markup fix (calculator, doc comments, endpoint descriptions, two test files). Ship alone if wanted.
-2. US4 fee (domain, migration, pricing slice).
+2. Foundational: the fee column and migration, the extra breakdown fields.
 3. US2 finished-month bill (builder, handler without projection, endpoint) — verify SC-001 here.
 4. US3 projection (projection service, calculator fallback, handler).
+5. US4 fee setting in the pricing slice — any time after step 2, before the production check.
 
 ## Complexity Tracking
 
