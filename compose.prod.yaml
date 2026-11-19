@@ -37,6 +37,9 @@ services:
       Bootstrap__OwnerPassword: ${BOOTSTRAP_OWNER_PASSWORD}
       # ENTSO-E Transparency Platform token for day-ahead spot prices. Without it no prices are fetched.
       EntsoE__SecurityToken: ${ENTSOE_SECURITY_TOKEN}
+      # AES key for the OSO water heater subscription keys; generate with openssl rand -base64 32.
+      # Without it a water heater cannot be connected. Losing it means connecting the heater again.
+      WaterHeater__KeyEncryptionKey: ${WATER_HEATER_KEY_ENCRYPTION_KEY}
     depends_on:
       postgres:
         condition: service_healthy

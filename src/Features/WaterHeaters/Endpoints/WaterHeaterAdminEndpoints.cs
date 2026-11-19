@@ -1,0 +1,168 @@
+using System.Security.Claims;
+using Application.CQRS;
+using Domain.Common;
+using FastEndpoints;
+using Features.WaterHeaters.Commands;
+using Features.WaterHeaters.Queries;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
+
+namespace Features.WaterHeaters.Endpoints;
+
+/// <summary>HTTP status of a water heater error (contracts/endpoints.md).</summary>
+public static class WaterHeaterErrorStatus
+{
+    /// <param name="error">The failed result's error.</param>
+    /// <param name="onConnect">
+    /// True on connect, where a rejected key is the caller's bad input (400); elsewhere the stored key has gone bad at
+    /// OSO's end, an upstream failure (502).
+    /// </param>
+    public static int Of(Error error, bool onConnect) => error.Code switch
+    {
+        "WaterHeater.Rejected" => onConnect ? 400 : 502,
+        "WaterHeater.InvalidResponse" or "WaterHeater.KeyUnreadable" => 502,
+        "WaterHeater.Unavailable" or "WaterHeater.EncryptionNotConfigured" => 503,
+        _ => error.Type switch
+        {
+            ErrorType.NotFound => 404,
+            ErrorType.Conflict => 409,
+            _ => 400
+        }
+    };
+}
+
+/// <param name="LocationId">The location, from the route.</param>
+/// <param name="SubscriptionKey">The OSO subscription key. Stored encrypted, never returned or logged.</param>
+/// <param name="DeviceId">The heater's device id (hexadecimal) from the OSO app or website.</param>
+public record ConnectWaterHeaterRequest(Guid LocationId, string SubscriptionKey, string DeviceId)
+{
+    public override string ToString() => $"ConnectWaterHeaterRequest(LocationId={LocationId})";
+}
+
+public class ConnectWaterHeaterEndpoint : Endpoint<ConnectWaterHeaterRequest, WaterHeaterSettingsResponse>
+{
+    private readonly IDispatcher _dispatcher;
+
+    public ConnectWaterHeaterEndpoint(IDispatcher dispatcher) => _dispatcher = dispatcher;
+
+    public override void Configure()
+    {
+        Put("/api/admin/locations/{locationId}/water-heater");
+        Tags("WaterHeater");
+        Description(b => b.WithTags("WaterHeater"));
+        AuthSchemes(JwtBearerDefaults.AuthenticationScheme);
+        Roles(RoleNames.Admin);
+        Summary(s =>
+        {
+            s.Summary = "Connect or replace the OSO water heater of a location (admin)";
+            s.Description = "Checks the subscription key and device id with OSO before saving. The key is stored " +
+                             "encrypted and is never returned; the device id is shown only shortened. Connecting " +
+                             "again replaces the old key and device id. The request body is never logged.";
+            s.Response(200, "Connected");
+            s.Response(400, "Missing or invalid key or device id, or OSO rejected them (WaterHeater.Rejected)");
+            s.Response(401, "Not signed in");
+            s.Response(403, "Administrator role required");
+            s.Response(404, "Location not found");
+            s.Response(409, "The device is connected to another location (WaterHeater.DeviceInUse)");
+            s.Response(502, "OSO answered in an unexpected way (WaterHeater.InvalidResponse)");
+            s.Response(503, "OSO unavailable (WaterHeater.Unavailable), or no encryption key on the server " +
+                            "(WaterHeater.EncryptionNotConfigured)");
+        });
+    }
+
+    public override async Task HandleAsync(ConnectWaterHeaterRequest req, CancellationToken ct)
+    {
+        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+        Result<WaterHeaterSettingsResponse> result = await _dispatcher.Send(
+            new ConnectWaterHeaterCommand(userId, req.LocationId, req.SubscriptionKey, req.DeviceId), ct);
+
+        if (!result.IsSuccess)
+        {
+            AddError(result.Error.Description, result.Error.Code);
+            ThrowIfAnyErrors(WaterHeaterErrorStatus.Of(result.Error, onConnect: true));
+        }
+
+        Response = result.Value;
+    }
+}
+
+public class GetWaterHeaterSettingsEndpoint : EndpointWithoutRequest<WaterHeaterSettingsResponse>
+{
+    private readonly IDispatcher _dispatcher;
+
+    public GetWaterHeaterSettingsEndpoint(IDispatcher dispatcher) => _dispatcher = dispatcher;
+
+    public override void Configure()
+    {
+        Get("/api/admin/locations/{locationId}/water-heater");
+        Tags("WaterHeater");
+        Description(b => b.WithTags("WaterHeater"));
+        AuthSchemes(JwtBearerDefaults.AuthenticationScheme);
+        Roles(RoleNames.Admin);
+        Summary(s =>
+        {
+            s.Summary = "Read the water heater connection of a location (admin)";
+            s.Description = "The shortened device id and when it was connected and last changed. Does not call OSO.";
+            s.Response(200, "Connection found");
+            s.Response(401, "Not signed in");
+            s.Response(403, "Administrator role required");
+            s.Response(404, "Location not found, or no water heater connected (WaterHeater.NotConnected)");
+        });
+    }
+
+    public override async Task HandleAsync(CancellationToken ct)
+    {
+        Result<WaterHeaterSettingsResponse> result =
+            await _dispatcher.Send(new GetWaterHeaterSettingsQuery(Route<Guid>("locationId")), ct);
+
+        if (!result.IsSuccess)
+        {
+            AddError(result.Error.Description, result.Error.Code);
+            ThrowIfAnyErrors(WaterHeaterErrorStatus.Of(result.Error, onConnect: false));
+        }
+
+        Response = result.Value;
+    }
+}
+
+public class RemoveWaterHeaterEndpoint : EndpointWithoutRequest
+{
+    private readonly IDispatcher _dispatcher;
+
+    public RemoveWaterHeaterEndpoint(IDispatcher dispatcher) => _dispatcher = dispatcher;
+
+    public override void Configure()
+    {
+        Delete("/api/admin/locations/{locationId}/water-heater");
+        Tags("WaterHeater");
+        Description(b => b.WithTags("WaterHeater"));
+        AuthSchemes(JwtBearerDefaults.AuthenticationScheme);
+        Roles(RoleNames.Admin);
+        Summary(s =>
+        {
+            s.Summary = "Remove the water heater connection of a location (admin)";
+            s.Description = "Deletes the key and device id and stops sampling. Power samples already stored are kept.";
+            s.Response(204, "Removed");
+            s.Response(401, "Not signed in");
+            s.Response(403, "Administrator role required");
+            s.Response(404, "Location not found, or no water heater connected (WaterHeater.NotConnected)");
+        });
+    }
+
+    public override async Task HandleAsync(CancellationToken ct)
+    {
+        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+        Result<WaterHeaterRemoved> result =
+            await _dispatcher.Send(new RemoveWaterHeaterCommand(userId, Route<Guid>("locationId")), ct);
+
+        if (!result.IsSuccess)
+        {
+            AddError(result.Error.Description, result.Error.Code);
+            ThrowIfAnyErrors(WaterHeaterErrorStatus.Of(result.Error, onConnect: false));
+        }
+
+        HttpContext.Response.StatusCode = StatusCodes.Status204NoContent;
+    }
+}

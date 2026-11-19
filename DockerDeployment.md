@@ -146,6 +146,7 @@ JWT_ISSUER=AmsApi
 JWT_AUDIENCE=AmsApiClients
 BOOTSTRAP_OWNER_PASSWORD=<choose-a-strong-password-for-the-first-admin-login>
 ENTSOE_SECURITY_TOKEN=<your-entso-e-security-token>
+WATER_HEATER_KEY_ENCRYPTION_KEY=<openssl rand -base64 32>
 ```
 
 > `ENTSOE_SECURITY_TOKEN` is the ENTSO-E Transparency Platform token used to fetch day-ahead spot prices.
@@ -155,6 +156,14 @@ ENTSOE_SECURITY_TOKEN=<your-entso-e-security-token>
 > "Restful API access"; approval takes about 3 business days), then create it under My Account.
 
 > Generate a strong `JWT_SECRET_KEY` with e.g. `openssl rand -base64 48`.
+
+> `WATER_HEATER_KEY_ENCRYPTION_KEY` (32 random bytes, base64: `openssl rand -base64 32`) encrypts the OSO water
+> heater subscription keys stored in the database (spec 011), so a database copy alone does not reveal them.
+> `compose.prod.yaml` passes it to the API as `WaterHeater__KeyEncryptionKey`. Without it the API still starts, but
+> connecting a heater is refused with `503 WaterHeater.EncryptionNotConfigured`. Keep it with the other secrets: if
+> it is lost or changed, the stored OSO key can no longer be read and an Admin must connect the heater again (the
+> power samples are not encrypted and are kept). Added in the release with spec 011: copy `compose.prod.yaml` to
+> the server again for that release.
 
 > `BOOTSTRAP_OWNER_PASSWORD` creates the `Bootstrap:OwnerEmail` account (default `roy@sanddata.no`) the first
 > time the API starts with no Admin yet, so you can log in without a manual SQL step - see
@@ -247,4 +256,5 @@ side, check that the port is published: `ss -tlnp | grep 5432` must show `127.0.
 - [ ] `deploy` user created with SSH key + docker group membership
 - [ ] `docker login` run once on Hetzner as the `deploy` user
 - [ ] `/opt/ams-api/compose.prod.yaml`, `/opt/ams-api/Caddyfile` and `/opt/ams-api/.env` present on the server
+- [ ] `WATER_HEATER_KEY_ENCRYPTION_KEY` set in `/opt/ams-api/.env` (spec 011)
 - [ ] DNS for the domain points at the server; ports 22, 80 and 443 open (not 8080 or 5432)

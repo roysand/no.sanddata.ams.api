@@ -29,6 +29,8 @@ public sealed class ApplicationDbContext(
     public DbSet<GridTariff> GridTariff { get; set; }
     public DbSet<GridTariffRate> GridTariffRate { get; set; }
     public DbSet<GridCapacityStep> GridCapacityStep { get; set; }
+    public DbSet<WaterHeater> WaterHeater { get; set; }
+    public DbSet<WaterHeaterPowerSample> WaterHeaterPowerSample { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

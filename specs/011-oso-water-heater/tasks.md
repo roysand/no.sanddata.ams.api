@@ -45,16 +45,28 @@ values.
 Files are written with CRLF line endings by `dotnet format`; run it on the touched files at the end. When writing
 files with a shell heredoc, avoid apostrophes in the text.
 
+**Deviations recorded during implementation (2026-11-19)**:
+
+- The slice and namespaces are **plural**: `src/Features/WaterHeaters/`, `src/Application/WaterHeaters/`,
+  `tests/Features.Tests/WaterHeaters/`. Inside a namespace `Features.WaterHeater.*`, the name `WaterHeater` would
+  resolve to the namespace, not the entity, as `Locations` sits next to `Location`. Paths below that say
+  `WaterHeater/` mean `WaterHeaters/`.
+- `WaterHeater` uses the base `Entity.CreatedAt` / `UpdatedAt`, which `ApplicationDbContext.SaveChangesAsync`
+  already sets, as the connected and changed times, instead of new `ConnectedAtUtc` / `UpdatedAtUtc` columns. The
+  constructor and `Replace` therefore take no `nowUtc`.
+- The OSO client log entries are in their own `src/Infrastructure/External/Logging/OsoLogMessages.cs` (1820-1822),
+  because the existing `LogMessages` there is the ElectricityCost range.
+
 ---
 
 ## Phase 1: Setup
 
-- [ ] T001 Add the configuration entries: `"WaterHeater": { "SampleIntervalSeconds": 60 }` in
+- [X] T001 Add the configuration entries: `"WaterHeater": { "SampleIntervalSeconds": 60 }` in
   `src/api/appsettings.json`. Do not add a `KeyEncryptionKey` there. Add
   `WaterHeater__KeyEncryptionKey: ${WATER_HEATER_KEY_ENCRYPTION_KEY}` to the `api` service `environment:` in
   `compose.prod.yaml`, with a comment like the ENTSO-E one ("AES key for the OSO subscription keys; generate with
   openssl rand -base64 32. Without it a water heater cannot be connected.").
-- [ ] T002 [P] Claim EventId range **1800-1899 WaterHeater**: add the row to the EventId table in `CLAUDE.md` and in
+- [X] T002 [P] Claim EventId range **1800-1899 WaterHeater**: add the row to the EventId table in `CLAUDE.md` and in
   `DevelopmentGuide.md` (logging section), between 1700-1799 Pricing and 2000-2099 Infra/Logging.
 
 ---
@@ -65,17 +77,17 @@ files with a shell heredoc, avoid apostrophes in the text.
 
 ### Domain and storage
 
-- [ ] T003 [P] Create `src/Domain/Common/Entities/WaterHeater.cs` (`: Entity`), following data-model.md:
+- [X] T003 [P] Create `src/Domain/Common/Entities/WaterHeater.cs` (`: Entity`), following data-model.md:
   - `Guid LocationId`, `string DeviceId`, `string ProtectedSubscriptionKey`, `DateTime ConnectedAtUtc`,
     `DateTime UpdatedAtUtc`, all with private setters, plus a parameterless constructor for EF.
   - Constructor `(Guid id, Guid locationId, string deviceId, string protectedKey, DateTime nowUtc)`: stores
     `deviceId.ToLowerInvariant()` and sets both times to `nowUtc`.
   - `Replace(string deviceId, string protectedKey, DateTime nowUtc)`: keeps `ConnectedAtUtc` and sets `UpdatedAtUtc`.
   - Override `ToString()` to return only `WaterHeater(LocationId=…)`.
-- [ ] T004 [P] Create `src/Domain/Common/Entities/WaterHeaterPowerSample.cs` (`: Entity`) with `Guid LocationId`,
+- [X] T004 [P] Create `src/Domain/Common/Entities/WaterHeaterPowerSample.cs` (`: Entity`) with `Guid LocationId`,
   `DateTime SampledAtUtc` and `decimal PowerKw`, a constructor `(Guid id, Guid locationId, DateTime sampledAtUtc,
   decimal powerKw)` and a parameterless constructor for EF.
-- [ ] T005 Create `src/Infrastructure/Database/Configuration/WaterHeaterConfiguration.cs` and
+- [X] T005 Create `src/Infrastructure/Database/Configuration/WaterHeaterConfiguration.cs` and
   `WaterHeaterPowerSampleConfiguration.cs` (pattern: `ExchangeRateConfiguration.cs`):
   - `WaterHeater`: table `WaterHeater`; `DeviceId` `HasMaxLength(200)` required, unique index; unique index on
     `LocationId`; `ProtectedSubscriptionKey` `HasMaxLength(500)` required; FK to `Location` with
@@ -85,10 +97,10 @@ files with a shell heredoc, avoid apostrophes in the text.
 
   Add `DbSet<WaterHeater> WaterHeater` and `DbSet<WaterHeaterPowerSample> WaterHeaterPowerSample` to
   `src/Infrastructure/Database/ApplicationDbContext.cs`, and to `IApplicationDbContext` if the other sets are there.
-- [ ] T006 Create the migration per `DatabaseMigrations.md`: `dotnet ef migrations add AddWaterHeater --project
+- [X] T006 Create the migration per `DatabaseMigrations.md`: `dotnet ef migrations add AddWaterHeater --project
   src/Infrastructure/Infrastructure.csproj --startup-project src/api/api.csproj --output-dir Database/Migrations`.
   Read the generated file and confirm it touches no existing table.
-- [ ] T007 [P] Create `src/Application/Common/Interfaces/Repositories/IWaterHeaterRepository.cs`
+- [X] T007 [P] Create `src/Application/Common/Interfaces/Repositories/IWaterHeaterRepository.cs`
   (`IWaterHeaterRepository<T> : IRepository<T>`) with:
   - `GetByLocationAsync(Guid locationId, ct)`: tracked.
   - `GetByDeviceIdAsync(string deviceId, ct)`: lowercased comparison.
@@ -96,13 +108,13 @@ files with a shell heredoc, avoid apostrophes in the text.
 
   Create `IWaterHeaterPowerSampleRepository<T> : IRepository<T>` in the same folder, with nothing beyond the base for
   now.
-- [ ] T008 Implement `src/Infrastructure/Database/Repositories/WaterHeaterEfRepository.cs` and
+- [X] T008 Implement `src/Infrastructure/Database/Repositories/WaterHeaterEfRepository.cs` and
   `WaterHeaterPowerSampleEfRepository.cs` (`: GenericEfRepository<…>`). `GetForActiveLocationsAsync` joins
   `_context.Location` on `Id` with `IsActive`. Register both as scoped in `src/Infrastructure/AddInfrastructureToDI.cs`.
 
 ### Application models and interfaces
 
-- [ ] T009 [P] Create `src/Application/WaterHeater/WaterHeaterModels.cs` per data-model.md "Not stored":
+- [X] T009 [P] Create `src/Application/WaterHeater/WaterHeaterModels.cs` per data-model.md "Not stored":
   - `record WaterHeaterCredentials(Guid LocationId, string DeviceId, string SubscriptionKey)`, with `ToString()`
     overridden to print only the location id.
   - `enum SpecialMode { None, Holiday, Supercharge, BlueBattery }`.
@@ -118,11 +130,11 @@ files with a shell heredoc, avoid apostrophes in the text.
     - `EncryptionNotConfigured` (`Problem`)
     - `NotConnected` (`NotFound`, "No water heater is connected to this location")
     - `DeviceInUse` (`Conflict`)
-- [ ] T010 [P] Create `src/Application/Common/Interfaces/External/IWaterHeaterClient.cs` with only
+- [X] T010 [P] Create `src/Application/Common/Interfaces/External/IWaterHeaterClient.cs` with only
   `Task<Result<WaterHeaterReading>> GetStateAsync(WaterHeaterCredentials, CancellationToken)` and
   `Task<Result<decimal>> GetActualLoadAsync(WaterHeaterCredentials, CancellationToken)`. Its doc comment says it is
   read only on purpose (FR-015) and that it never throws for HTTP or parsing failures.
-- [ ] T011 [P] Create `src/Application/Common/Interfaces/Security/ISecretProtector.cs`:
+- [X] T011 [P] Create `src/Application/Common/Interfaces/Security/ISecretProtector.cs`:
   - `bool IsConfigured { get; }`
   - `string Protect(string plaintext, Guid associatedId)`
   - `Result<string> Unprotect(string protectedValue, Guid associatedId)`, which fails with
@@ -130,7 +142,7 @@ files with a shell heredoc, avoid apostrophes in the text.
 
 ### Secret protector (research R1)
 
-- [ ] T012 Write `tests/Features.Tests/WaterHeater/AesGcmSecretProtectorTests.cs` first (fail before T013):
+- [X] T012 Write `tests/Features.Tests/WaterHeater/AesGcmSecretProtectorTests.cs` first (fail before T013):
   - Round trip.
   - The output starts with `v1:` and does not contain the plaintext.
   - Two `Protect` calls give different outputs (a fresh nonce each time).
@@ -140,7 +152,7 @@ files with a shell heredoc, avoid apostrophes in the text.
   - Missing config gives `IsConfigured == false`.
   - A config value that is not base64 or not 32 bytes gives `IsConfigured == false` and no exception at
     construction.
-- [ ] T013 Implement `src/Infrastructure/Security/AesGcmSecretProtector.cs`:
+- [X] T013 Implement `src/Infrastructure/Security/AesGcmSecretProtector.cs`:
   - It reads `WaterHeater:KeyEncryptionKey` (base64, 32 bytes) from `IConfiguration` once.
   - `Protect` uses `AesGcm` with a 16-byte tag, a 12-byte `RandomNumberGenerator` nonce and the UTF-8 bytes of
     `associatedId.ToString("N")` as associated data, and returns `"v1:" + base64(nonce ‖ ciphertext ‖ tag)`.
@@ -152,14 +164,14 @@ files with a shell heredoc, avoid apostrophes in the text.
 
 ### OSO client (research R2, R3, R5)
 
-- [ ] T014 [P] Create `tests/Features.Tests/WaterHeater/OsoSamples.cs`, a static class with the five JSON answers of
+- [X] T014 [P] Create `tests/Features.Tests/WaterHeater/OsoSamples.cs`, a static class with the five JSON answers of
   2026-11-19 from `specs/_backlog/oso-water-heater.md` ("Tried by hand") as C# raw string constants. Also add one
   variant with `isInHolidayMode: true` and holiday times, one with `heater: 1`, and one with `temperatureOne: 55.0`.
   The device id appears nowhere in them. Add a stub `HttpMessageHandler` (`OsoStubHandler`) in the same folder that
   answers by path suffix (`/Status`, `/CurrentTemperature`, `/ActualLoad`, `/TappingCapacityKwh`), with a status code
   per path. It records each request's path and the `Ocp-Apim-Subscription-Key` header, and can be told to throw
   `HttpRequestException` or to delay past a timeout.
-- [ ] T015 Write `tests/Features.Tests/WaterHeater/OsoWaterHeaterClientTests.cs` first (fail before T016), using
+- [X] T015 Write `tests/Features.Tests/WaterHeater/OsoWaterHeaterClientTests.cs` first (fail before T016), using
   `OsoStubHandler` and made-up credentials. It checks:
   - `GetStateAsync` maps the 2026-11-19 answers to: reading time `2026-11-19T18:06:48.703Z` UTC, online, not heating,
     set point 72, top 72.8 / mid 72.3 / low 70.5, fourth `null`, 344 of 360 litres, 3 showers, 1 bath, 0.011774 kW,
@@ -174,7 +186,7 @@ files with a shell heredoc, avoid apostrophes in the text.
     `Unavailable`; a timeout gives `Unavailable` (not an exception); 400 gives `InvalidResponse`; malformed JSON gives
     `InvalidResponse`. A failure in any one of the four state calls fails `GetStateAsync`.
   - No error description contains the device id or key.
-- [ ] T016 Implement `src/Infrastructure/External/OsoWaterHeaterClient.cs` (`IWaterHeaterClient`, primary
+- [X] T016 Implement `src/Infrastructure/External/OsoWaterHeaterClient.cs` (`IWaterHeaterClient`, primary
   constructor `(HttpClient httpClient, ILogger<OsoWaterHeaterClient> logger)`):
   - Private DTO records with OSO's exact names (`holidyModeStartTime`, `tappingCapacitykWh`, …) and
     `JsonSerializerOptions { PropertyNameCaseInsensitive = true }`.
@@ -188,7 +200,7 @@ files with a shell heredoc, avoid apostrophes in the text.
   - Log with the new entries in `src/Infrastructure/External/Logging/LogMessages.cs` (`OsoRequestFailed`
     1820 with location id, path name and status code; `OsoUnavailable` 1821; `OsoInvalidResponse` 1822). Never log
     the URL, the device id, the key or `ex.Message`, and never pass the exception object.
-- [ ] T017 Register the client in `src/Infrastructure/AddInfrastructureToDI.cs`:
+- [X] T017 Register the client in `src/Infrastructure/AddInfrastructureToDI.cs`:
   `services.AddHttpClient<IWaterHeaterClient, OsoWaterHeaterClient>(c => { c.BaseAddress = new
   Uri("https://api.osoenergy.no/water-heater-api/"); c.Timeout = TimeSpan.FromSeconds(10); }).RemoveAllLoggers();`.
   Keep the trailing slash on the base address. Add a comment saying why `RemoveAllLoggers` is there (research R3: the
@@ -208,7 +220,7 @@ no key; a wrong key gives `400 WaterHeater.Rejected` and nothing is saved; a reg
 
 ### Tests for User Story 1
 
-- [ ] T018 [P] [US1] Write `tests/Features.Tests/WaterHeater/ConnectWaterHeaterHandlerTests.cs`. Use NSubstitute for
+- [X] T018 [P] [US1] Write `tests/Features.Tests/WaterHeater/ConnectWaterHeaterHandlerTests.cs`. Use NSubstitute for
   `IWaterHeaterClient`, `ISecretProtector`, `ILocationRepository<Location>` and `IWaterHeaterRepository<WaterHeater>`,
   plus a `FixedTimeProvider`. Cases:
   - OSO accepts: a heater is inserted with the protected key and the lowercased device id, and the settings come back.
@@ -219,11 +231,11 @@ no key; a wrong key gives `400 WaterHeater.Rejected` and nothing is saved; a reg
   - Device connected to another location: `DeviceInUse`.
   - Same device at the same location with a new key: `Replace` keeps `ConnectedAtUtc` and updates `UpdatedAtUtc`.
   - OSO is checked with the new credentials before anything is saved.
-- [ ] T019 [P] [US1] Write `tests/Features.Tests/WaterHeater/WaterHeaterAdminHandlerTests.cs`:
+- [X] T019 [P] [US1] Write `tests/Features.Tests/WaterHeater/WaterHeaterAdminHandlerTests.cs`:
   - Get settings: `NotConnected` when there is no heater; the hint is first 6 + `…` + last 6.
   - Remove: deletes the heater row and touches no samples; `NotConnected` when there is none; `Location.NotFound`
     for an unknown location.
-- [ ] T020 [P] [US1] Write `tests/Features.Tests/Http/WaterHeaterAdminHttpTests.cs` with `EndpointHost`:
+- [X] T020 [P] [US1] Write `tests/Features.Tests/Http/WaterHeaterAdminHttpTests.cs` with `EndpointHost`:
   - `PUT` gives 200, and 400 for an empty key, an empty device id or a non-hex device id (validator, the dispatcher
     is not called).
   - `PUT` maps the errors from contracts/endpoints.md: Rejected 400, DeviceInUse 409, InvalidResponse 502,
@@ -231,14 +243,14 @@ no key; a wrong key gives `400 WaterHeater.Rejected` and nothing is saved; a reg
   - `GET` gives 200 or 404; `DELETE` gives 204 or 404.
   - All three give 401 when not signed in and 403 as a regular user.
   - The 200 body has no `subscriptionKey` property.
-- [ ] T021 [P] [US1] Extend `tests/Features.Tests/Authentication/RequestLoggingRedactionTests.cs`: with
+- [X] T021 [P] [US1] Extend `tests/Features.Tests/Authentication/RequestLoggingRedactionTests.cs`: with
   `LogRequestBody: true`, a `PUT /api/admin/locations/{id}/water-heater` request body is logged as the mask value.
   Paths with other casing or a trailing slash are also masked. `PUT /api/admin/location-pricing/{id}` is still logged
   as configured.
 
 ### Implementation for User Story 1
 
-- [ ] T022 [P] [US1] Create `src/Features/WaterHeater/Logging/LogMessages.cs` (EventIds 1800-1819, the client uses
+- [X] T022 [P] [US1] Create `src/Features/WaterHeater/Logging/LogMessages.cs` (EventIds 1800-1819, the client uses
   1820-1829, the sampler 1830-1849). The class doc comment says the key and device id are never logged. Entries:
   - `WaterHeaterConnected` 1800 (userId, locationId, replaced bool)
   - `WaterHeaterConnectRefused` 1801 (userId, locationId, reason code)
@@ -246,17 +258,17 @@ no key; a wrong key gives `400 WaterHeater.Rejected` and nothing is saved; a reg
   - `WaterHeaterStateRead` 1803 (userId, locationId)
   - `WaterHeaterStateFailed` 1804 (locationId, reason code)
   - `LocationAccessDenied` 1805 (userId, locationId)
-- [ ] T023 [P] [US1] Create `src/Features/WaterHeater/Commands/WaterHeaterCommands.cs`:
+- [X] T023 [P] [US1] Create `src/Features/WaterHeater/Commands/WaterHeaterCommands.cs`:
   `ConnectWaterHeaterCommand(Guid UserId, Guid LocationId, string SubscriptionKey, string DeviceId) :
   ICommand<Result<WaterHeaterSettingsResponse>>` and `RemoveWaterHeaterCommand(Guid UserId, Guid LocationId) :
   ICommand<Result>`. Override `ToString()` on the connect command so it prints no key or device id. Create
   `src/Features/WaterHeater/Queries/WaterHeaterQueries.cs` with `GetWaterHeaterSettingsQuery(Guid LocationId)` and
   `record WaterHeaterSettingsResponse(Guid LocationId, string DeviceIdHint, DateTime ConnectedAt, DateTime
   UpdatedAt)`.
-- [ ] T024 [P] [US1] Create `src/Features/WaterHeater/Mappers/WaterHeaterMapper.cs` with `ToSettings(WaterHeater)` and
+- [X] T024 [P] [US1] Create `src/Features/WaterHeater/Mappers/WaterHeaterMapper.cs` with `ToSettings(WaterHeater)` and
   `DeviceIdHint(string)`. The hint is first 6 + `…` + last 6, or the device id masked entirely when it has 12
   characters or fewer.
-- [ ] T025 [US1] Implement `src/Features/WaterHeater/Handlers/ConnectWaterHeaterCommandHandler.cs`, in this order:
+- [X] T025 [US1] Implement `src/Features/WaterHeater/Handlers/ConnectWaterHeaterCommandHandler.cs`, in this order:
   1. The location exists, otherwise `Location.NotFound`.
   2. `protector.IsConfigured`, otherwise `EncryptionNotConfigured`.
   3. Another location already has this device (`GetByDeviceIdAsync`), otherwise `DeviceInUse`.
@@ -265,16 +277,16 @@ no key; a wrong key gives `400 WaterHeater.Rejected` and nothing is saved; a reg
   6. Log `WaterHeaterConnected` or `WaterHeaterConnectRefused` with the error code.
 
   Make T018 pass.
-- [ ] T026 [US1] Implement `RemoveWaterHeaterCommandHandler.cs` and `GetWaterHeaterSettingsQueryHandler.cs` in
+- [X] T026 [US1] Implement `RemoveWaterHeaterCommandHandler.cs` and `GetWaterHeaterSettingsQueryHandler.cs` in
   `src/Features/WaterHeater/Handlers/`. Make T019 pass.
-- [ ] T027 [US1] Create `src/Features/WaterHeater/Validators/ConnectWaterHeaterValidator.cs`
+- [X] T027 [US1] Create `src/Features/WaterHeater/Validators/ConnectWaterHeaterValidator.cs`
   (`Validator<ConnectWaterHeaterRequest>`):
   - `LocationId` is not empty.
   - `SubscriptionKey` is not empty, at most 200 characters, and has no whitespace.
   - `DeviceId` is not empty, at most 200 characters, and matches `^[0-9a-fA-F]+$`.
 
   Validation messages must not echo the values.
-- [ ] T028 [US1] Create `src/Features/WaterHeater/Endpoints/WaterHeaterAdminEndpoints.cs`:
+- [X] T028 [US1] Create `src/Features/WaterHeater/Endpoints/WaterHeaterAdminEndpoints.cs`:
   - `record ConnectWaterHeaterRequest(Guid LocationId, string SubscriptionKey, string DeviceId)`.
   - `ConnectWaterHeaterEndpoint` (`Put("/api/admin/locations/{locationId}/water-heater")`),
     `GetWaterHeaterSettingsEndpoint` (`Get`) and `RemoveWaterHeaterEndpoint` (`Delete`, `204`).
@@ -289,7 +301,7 @@ no key; a wrong key gives `400 WaterHeater.Rejected` and nothing is saved; a reg
     - anything else: 400
 
   Make T020 pass.
-- [ ] T029 [US1] Add `CarriesSecretInRequest(string method, PathString path)` to
+- [X] T029 [US1] Add `CarriesSecretInRequest(string method, PathString path)` to
   `src/Infrastructure/Logging/SensitiveData.cs`. It is true for `PUT` on `api/admin/locations/{id}/water-heater`,
   matched case-insensitively per segment as `RevealsApiKey` does. In
   `src/Infrastructure/Middleware/RequestResponseLoggingMiddleware.cs`, set `requestBody` to the mask value when it is
@@ -308,7 +320,7 @@ showers, temperatures and heating with the OSO app; an unlinked user gets `404`.
 
 ### Tests for User Story 2
 
-- [ ] T030 [P] [US2] Write `tests/Features.Tests/WaterHeater/GetWaterHeaterStateHandlerTests.cs`. Use NSubstitute for
+- [X] T030 [P] [US2] Write `tests/Features.Tests/WaterHeater/GetWaterHeaterStateHandlerTests.cs`. Use NSubstitute for
   the client, protector and repositories, with `FixedTimeProvider` at `2026-11-19T18:08:31Z`. Cases:
   - A linked user gets the mapped state with `ageSeconds` 102 and `isStale` false.
   - An unlinked non-Admin gets `Location.NotFound`, and OSO is not called.
@@ -319,7 +331,7 @@ showers, temperatures and heating with the OSO app; an unlinked user gets `404`.
   - A reading 16 minutes old is `isStale` true.
   - A reading 5 s in the future has age 0.
   - An unknown or inactive location gets `Location.NotFound`.
-- [ ] T031 [P] [US2] Write `tests/Features.Tests/Http/WaterHeaterStateHttpTests.cs` with `EndpointHost`:
+- [X] T031 [P] [US2] Write `tests/Features.Tests/Http/WaterHeaterStateHttpTests.cs` with `EndpointHost`:
   - 200 with the JSON shape of contracts/endpoints.md: `temperatures`, `hotWater`, `specialMode.mode` as a string,
     `fourthCelsius` null, and `osoCodes`.
   - 401 when not signed in.
@@ -330,7 +342,7 @@ showers, temperatures and heating with the OSO app; an unlinked user gets `404`.
 
 ### Implementation for User Story 2
 
-- [ ] T032 [P] [US2] Add `GetWaterHeaterStateQuery(Guid UserId, bool IsAdmin, Guid LocationId)` and the response
+- [X] T032 [P] [US2] Add `GetWaterHeaterStateQuery(Guid UserId, bool IsAdmin, Guid LocationId)` and the response
   records to `src/Features/WaterHeater/Queries/WaterHeaterQueries.cs`. Records:
   - `WaterHeaterStateResponse`
   - `WaterHeaterTemperatures(decimal? TopCelsius, decimal? MidCelsius, decimal? LowCelsius, decimal? FourthCelsius)`
@@ -340,10 +352,10 @@ showers, temperatures and heating with the OSO app; an unlinked user gets `404`.
   - `WaterHeaterOsoCodes(...)`
 
   The fields and names follow contracts/endpoints.md.
-- [ ] T033 [P] [US2] Add `ToState(Guid locationId, WaterHeaterReading reading, DateTime nowUtc)` to
+- [X] T033 [P] [US2] Add `ToState(Guid locationId, WaterHeaterReading reading, DateTime nowUtc)` to
   `src/Features/WaterHeater/Mappers/WaterHeaterMapper.cs`. It works out `AgeSeconds` (never below 0) and `IsStale`
   (more than 900 s), and gives `SpecialMode` as its name. `Start` and `End` are null for `None` and `BlueBattery`.
-- [ ] T034 [US2] Implement `src/Features/WaterHeater/Handlers/GetWaterHeaterStateQueryHandler.cs`, in this order:
+- [X] T034 [US2] Implement `src/Features/WaterHeater/Handlers/GetWaterHeaterStateQueryHandler.cs`, in this order:
   1. Access: `IsAdmin` or `IsUserAssociatedAsync`, otherwise log `LocationAccessDenied` and return
      `Location.NotFound`. For an Admin, the location must still exist and be active.
   2. Load the heater, otherwise `NotConnected`.
@@ -353,7 +365,7 @@ showers, temperatures and heating with the OSO app; an unlinked user gets `404`.
   6. Log `WaterHeaterStateRead`, or `WaterHeaterStateFailed` with the error code.
 
   Make T030 pass.
-- [ ] T035 [US2] Create `src/Features/WaterHeater/Endpoints/GetWaterHeaterStateEndpoint.cs`:
+- [X] T035 [US2] Create `src/Features/WaterHeater/Endpoints/GetWaterHeaterStateEndpoint.cs`:
   - `Get("/api/locations/{locationId}/water-heater")`, `AuthSchemes(JwtBearerDefaults.AuthenticationScheme)`, no
     role, `Tags("WaterHeater")`.
   - It passes `UserId` from `ClaimTypes.NameIdentifier` and `IsAdmin = User.IsInRole(RoleNames.Admin)`.
@@ -376,7 +388,7 @@ key and see one warning, no rows, every other endpoint working; fix it and see r
 
 ### Tests for User Story 3
 
-- [ ] T036 [P] [US3] Write `tests/Features.Tests/WaterHeater/SampleFailureTrackerTests.cs` (a pure class with the time
+- [X] T036 [P] [US3] Write `tests/Features.Tests/WaterHeater/SampleFailureTrackerTests.cs` (a pure class with the time
   passed in):
   - The first failure returns `LogStart`.
   - Further failures within the hour return `None`.
@@ -384,7 +396,7 @@ key and see one warning, no rows, every other endpoint working; fix it and see r
   - A success after failures returns `LogRecovered` with the duration, and resets.
   - A success with no prior failure returns `None`.
   - Locations are tracked independently.
-- [ ] T037 [P] [US3] Write `tests/Features.Tests/WaterHeater/WaterHeaterSamplingServiceTests.cs` against a public
+- [X] T037 [P] [US3] Write `tests/Features.Tests/WaterHeater/WaterHeaterSamplingServiceTests.cs` against a public
   `SampleOnceAsync(IServiceProvider, CancellationToken)` (or an internal method with `InternalsVisibleTo` if the
   project already uses it). Use substituted repositories, client and protector, and `FixedTimeProvider`. Cases:
   - Two active heaters give two samples, with `SampledAtUtc` truncated to the second and the power as returned
@@ -396,16 +408,16 @@ key and see one warning, no rows, every other endpoint working; fix it and see r
 
 ### Implementation for User Story 3
 
-- [ ] T038 [P] [US3] Implement `src/Features/WaterHeater/Services/SampleFailureTracker.cs`. A `sealed class` holds a
+- [X] T038 [P] [US3] Implement `src/Features/WaterHeater/Services/SampleFailureTracker.cs`. A `sealed class` holds a
   `Dictionary<Guid, (DateTime FailingSince, DateTime LastLoggedUtc)>`, with `Failed(Guid locationId, DateTime nowUtc)`
   and `Succeeded(Guid locationId, DateTime nowUtc)` returning a `SampleLogDecision` record (`Kind`, `Duration`). Make
   T036 pass.
-- [ ] T039 [US3] Add the sampler log entries to `src/Features/WaterHeater/Logging/LogMessages.cs`:
+- [X] T039 [US3] Add the sampler log entries to `src/Features/WaterHeater/Logging/LogMessages.cs`:
   - `WaterHeaterSampleFailing` 1830, Warning (locationId, reason code)
   - `WaterHeaterSampleStillFailing` 1831, Warning (locationId, reason code, minutes)
   - `WaterHeaterSampleRecovered` 1832, Information (locationId, minutes)
   - `WaterHeaterSamplingCycleFailed` 1833, Error (exception type name only: `string`, not the exception)
-- [ ] T040 [US3] Implement `src/Features/WaterHeater/Services/WaterHeaterSamplingService.cs` (`BackgroundService`,
+- [X] T040 [US3] Implement `src/Features/WaterHeater/Services/WaterHeaterSamplingService.cs` (`BackgroundService`,
   constructor `(IServiceScopeFactory, IConfiguration, TimeProvider, ILogger<…>)`), shaped like `PriceFetchService`:
   - A `PeriodicTimer` of `WaterHeater:SampleIntervalSeconds` (default 60).
   - A `do { try { await SampleOnceAsync(...) } catch (Exception ex) when (ex is not OperationCanceledException) { log
@@ -417,7 +429,7 @@ key and see one warning, no rows, every other endpoint working; fix it and see r
   - The tracker is a field (it lives as long as the service).
 
   Make T037 pass.
-- [ ] T041 [US3] Register `services.AddHostedService<Features.WaterHeater.Services.WaterHeaterSamplingService>();` in
+- [X] T041 [US3] Register `services.AddHostedService<Features.WaterHeater.Services.WaterHeaterSamplingService>();` in
   `src/Features/ServiceCollectionExtensions.cs` next to `PriceFetchService`.
 
 **Checkpoint**: all three stories work; quickstart step 4 can be run locally.
@@ -426,7 +438,7 @@ key and see one warning, no rows, every other endpoint working; fix it and see r
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T042 Write `tests/Features.Tests/WaterHeater/NoSecretsInLogsTests.cs` (SC-006). A capturing `ILoggerProvider`
+- [X] T042 Write `tests/Features.Tests/WaterHeater/NoSecretsInLogsTests.cs` (SC-006). A capturing `ILoggerProvider`
   collects every formatted message, state value and exception text. It runs:
   - connect (accepted and rejected), state (success, Rejected, Unavailable) and one sampling cycle (success and
     failure);
@@ -438,21 +450,32 @@ key and see one warning, no rows, every other endpoint working; fix it and see r
 
   It asserts that neither value appears in any captured text, and that no response record serialised to JSON
   contains them (only the hint).
-- [ ] T043 [P] Update `DockerDeployment.md`: in §3.4 add `WATER_HEATER_KEY_ENCRYPTION_KEY=<openssl rand -base64 32>`
+- [X] T043 [P] Update `DockerDeployment.md`: in §3.4 add `WATER_HEATER_KEY_ENCRYPTION_KEY=<openssl rand -base64 32>`
   to the `.env` example with one line on what it protects and that losing it means reconnecting the heater; add it to
   the secrets checklist at the end. Note that `compose.prod.yaml` must be copied to the server again for this release.
-- [ ] T044 [P] Add a short "Water heater (OSO)" section to `DevelopmentGuide.md` or the feature's endpoint summary
+- [X] T044 [P] Add a short "Water heater (OSO)" section to `DevelopmentGuide.md` or the feature's endpoint summary
   pointing at `specs/011-oso-water-heater/contracts/endpoints.md`. It should say that the client is read only on
   purpose and that `RemoveAllLoggers` must stay.
-- [ ] T045 Move the verified OSO API findings that the code relies on into a short comment block at the top of
+- [X] T045 Move the verified OSO API findings that the code relies on into a short comment block at the top of
   `OsoWaterHeaterClient.cs`: the misspelt fields, times without a zone, and `temperatureOne` 0. Then delete
   `specs/_backlog/oso-water-heater.md`, because research.md and this spec now hold its content (as the note itself
   says).
-- [ ] T046 Run `dotnet build`, `dotnet test` and `dotnet format --verify-no-changes --include <every touched file>`,
+- [X] T046 Run `dotnet build`, `dotnet test` and `dotnet format --verify-no-changes --include <every touched file>`,
   and fix anything they report.
-- [ ] T047 Run quickstart steps 2-5 locally against Roy's real heater with a **new** OSO subscription key (the first
+- [X] T047 Run quickstart steps 2-5 locally against Roy's real heater with a **new** OSO subscription key (the first
   was exposed in a chat transcript on 2026-11-19). Record the results in this task: the state matches the OSO app,
   the response time, rows per minute, and the log grep count of 0.
+  **Result 2026-11-19 (local API and dev database, Roy's heater on location HA43; the local database has no location
+  named Hjemme).** Done with the first OSO key still, since this was local only; a new key is still needed for
+  production (T048).
+  - Connect with a wrong key: OSO answered 403, API `400 WaterHeater.Rejected` with the clear message, nothing saved.
+  - Connect with the right key: `200` in 0.22 s, body has only `deviceIdHint` `4b8814…49499d`, no key.
+  - State: `200` in 0.22 s, reading 94 s old, 333 of 360 litres, 3 showers, 1 bath, top/mid/low 70.1/69.8/69.6 °C,
+    `fourthCelsius` null, not heating, 0.011686 kW, 13.55 kWh stored, `NormalMode` (profile id 1; codes 0, 1, 2).
+    The supercharge seen at 18:06 UTC had ended. Set point now 10 °C (was 72 in supercharge).
+  - Sampling: 4 rows in 4 minutes, one per minute (19:48:38 to 19:51:38 UTC), 0.011686 kW standby.
+  - Logs: 117 lines, 0 hits for the key or the device id; EF Core logs the device-id query parameter as `?`.
+  - Afterwards the local connection was removed (its throwaway encryption key is gone); the 4 samples were kept.
 - [ ] T048 Production (quickstart step 6), after merge and deploy:
   1. Add `WATER_HEATER_KEY_ENCRYPTION_KEY` to `/opt/ams-api/.env` and copy `compose.prod.yaml` to the server.
   2. Deploy and confirm the migration `AddWaterHeater` ran.
