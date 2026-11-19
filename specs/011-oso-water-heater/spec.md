@@ -210,4 +210,8 @@ keeps working; restore the key and confirm sampling resumes.
 - Power samples are kept indefinitely, as meter readings are.
 - Each state request reads OSO afresh; no caching is needed for one household.
 - Who may see a location (owner, viewer, Admin) is as in spec 006; the heater state follows the same rule.
-- The key is protected with the platform's standard means of encrypting data at rest; the choice is left to the plan.
+- The API runs in a container on a Hetzner VPS (Caddy, the API and Postgres from `compose.prod.yaml`; secrets in the
+  server's `.env`, see `DockerDeployment.md`). There is no cloud key vault, so the key is encrypted in the database
+  with an encryption key that lives outside it (in the server's `.env` or on a persistent volume, never in the image
+  or in git), so a copy of the database alone does not reveal the OSO key. Losing that encryption key means an Admin
+  reconnects the heater; nothing else is lost. The exact mechanism is left to the plan.
