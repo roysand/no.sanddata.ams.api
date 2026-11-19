@@ -323,7 +323,8 @@ end; the total = so far + projected.
   #30 the fee setting. This phase goes in its own pull request from `chore/010-polish`.)
 - [ ] T040 After deploying: set the fee (27.20) and confirm the markup (0.0319; 0.03192 has 5 decimals and is refused) of the holiday home in production,
   then run quickstart step 6 (July 2026 against the invoice) if T001 found the data. Record the result here and in
-  `specs/010-monthly-bill-estimate/checklists/requirements.md`.
+  `specs/010-monthly-bill-estimate/checklists/requirements.md`. (Postponed 2026-11-19 by Roy, together with T001:
+  the steps are written down in `specs/_backlog/july-2026-bill-check.md`.)
 
 ---
 
