@@ -37,6 +37,12 @@ public class RequestResponseLoggingMiddleware
             using var reader = new StreamReader(context.Request.Body, Encoding.UTF8, leaveOpen: true);
             requestBody = await reader.ReadToEndAsync();
             context.Request.Body.Position = 0;
+            // An OSO water heater key and device id travel in this body; they must never be written to a log.
+            if (SensitiveData.CarriesSecretInRequest(context.Request.Method, context.Request.Path))
+            {
+                requestBody = _options.MaskValue;
+            }
+
             attributes["RequestBody"] = MaskOrValue("RequestBody", requestBody);
             attributesJson = JsonSerializer.Serialize(attributes);
         }

@@ -8,6 +8,8 @@ using Infrastructure.Authentication;
 using Infrastructure.Database;
 using Infrastructure.Database.Repositories;
 using Infrastructure.External;
+using Infrastructure.Security;
+using Application.Common.Interfaces.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -48,6 +50,8 @@ public static class AddInfrastructureToDI
         services.AddScoped<IConsumptionRepository, ConsumptionEfRepository>();
         services.AddScoped<INorgesPrisRateRepository, NorgesPrisRateEfRepository>();
         services.AddScoped<IPriceRateRepository, PriceRateEfRepository>();
+        services.AddScoped<IWaterHeaterRepository<WaterHeater>, WaterHeaterEfRepository>();
+        services.AddScoped<IWaterHeaterPowerSampleRepository<WaterHeaterPowerSample>, WaterHeaterPowerSampleEfRepository>();
         services.AddSingleton(TimeProvider.System);
 
         // Electricity cost: options, external clients, calculator
@@ -57,6 +61,15 @@ public static class AddInfrastructureToDI
         services.AddHttpClient<IExchangeRateClient, NorgesBankExchangeRateClient>(client =>
             client.BaseAddress = new Uri("https://data.norges-bank.no/api/data/EXR/B.EUR.NOK.SP"));
         services.AddScoped<CostCalculator>();
+
+        // Water heater (spec 011): the key protector and the read-only OSO client
+        services.AddSingleton<ISecretProtector, AesGcmSecretProtector>();
+        // RemoveAllLoggers: the factory's request loggers write the URL path, which holds the device id (research R3).
+        services.AddHttpClient<IWaterHeaterClient, OsoWaterHeaterClient>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.osoenergy.no/water-heater-api/");
+            client.Timeout = TimeSpan.FromSeconds(10);
+        }).RemoveAllLoggers();
 
         // Register Authentication Services
         services.AddAuthentication(options =>

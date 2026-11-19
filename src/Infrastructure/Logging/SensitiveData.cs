@@ -4,7 +4,8 @@ namespace Infrastructure.Logging;
 
 /// <summary>
 /// Things that must never reach the logs, whatever <see cref="RequestLoggingOptions"/> says:
-/// credentials in request headers and the one-time response that carries a new sensor key.
+/// credentials in request headers, the one-time response that carries a new sensor key, and the request that carries
+/// an OSO water heater key and device id.
 /// </summary>
 public static class SensitiveData
 {
@@ -36,5 +37,24 @@ public static class SensitiveData
         return segments.Length == 3 && IsSegment(0, "api") && IsSegment(1, "admin") && IsSegment(2, "locations")
                || segments.Length == 6 && IsSegment(0, "api") && IsSegment(1, "admin") && IsSegment(2, "locations")
                    && IsSegment(4, "api-key") && IsSegment(5, "rotate");
+    }
+
+    /// <summary>
+    /// True for the request whose body contains an OSO subscription key and device id:
+    /// PUT /api/admin/locations/{id}/water-heater (spec 011).
+    /// </summary>
+    public static bool CarriesSecretInRequest(string method, PathString path)
+    {
+        if (!HttpMethods.IsPut(method) || !path.HasValue)
+        {
+            return false;
+        }
+
+        string[] segments = path.Value!.Trim('/').Split('/');
+        bool IsSegment(int index, string expected) =>
+            string.Equals(segments[index], expected, StringComparison.OrdinalIgnoreCase);
+
+        return segments.Length == 5 && IsSegment(0, "api") && IsSegment(1, "admin") && IsSegment(2, "locations")
+               && IsSegment(4, "water-heater");
     }
 }

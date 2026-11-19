@@ -109,4 +109,55 @@ public class RequestLoggingRedactionTests
 
         Assert.Contains(lines, l => l.Contains("hello"));
     }
+
+    [Theory]
+    [InlineData("PUT", "/api/admin/locations/3fa85f64-5717-4562-b3fc-2c963f66afa6/water-heater", true)]
+    [InlineData("put", "/API/Admin/Locations/3fa85f64-5717-4562-b3fc-2c963f66afa6/Water-Heater/", true)]
+    [InlineData("GET", "/api/admin/locations/3fa85f64-5717-4562-b3fc-2c963f66afa6/water-heater", false)]
+    [InlineData("DELETE", "/api/admin/locations/3fa85f64-5717-4562-b3fc-2c963f66afa6/water-heater", false)]
+    [InlineData("PUT", "/api/admin/location-pricing/3fa85f64-5717-4562-b3fc-2c963f66afa6", false)]
+    public void CarriesSecretInRequest_OnlyForConnectingAWaterHeater(string method, string path, bool expected)
+        => Assert.Equal(expected, SensitiveData.CarriesSecretInRequest(method, new PathString(path)));
+
+    private static async Task<List<string>> RunWithRequestBodyAsync(string method, string path, string requestBody)
+    {
+        var lines = new List<string>();
+        IOptions<RequestLoggingOptions> options = Options.Create(new RequestLoggingOptions
+        {
+            AttributesToLog = ["Path", "Method", "RequestBody"],
+            LogRequestBody = true
+        });
+
+        var middleware = new RequestResponseLoggingMiddleware(_ => Task.CompletedTask, new CapturingLogger(lines), options);
+
+        var context = new DefaultHttpContext();
+        context.Request.Method = method;
+        context.Request.Path = path;
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(requestBody));
+        context.Response.Body = new MemoryStream();
+
+        await middleware.InvokeAsync(context);
+        return lines;
+    }
+
+    [Fact]
+    public async Task Middleware_RequestBodyLogging_MasksTheWaterHeaterKey()
+    {
+        string body = "{\"subscriptionKey\":\"" + SecretKey + "\",\"deviceId\":\"abcdef0123\"}";
+
+        List<string> lines = await RunWithRequestBodyAsync(
+            "PUT", "/api/admin/locations/3fa85f64-5717-4562-b3fc-2c963f66afa6/water-heater", body);
+
+        Assert.NotEmpty(lines);
+        Assert.DoesNotContain(lines, l => l.Contains(SecretKey) || l.Contains("abcdef0123"));
+    }
+
+    [Fact]
+    public async Task Middleware_RequestBodyLogging_StillLogsOtherBodies()
+    {
+        List<string> lines = await RunWithRequestBodyAsync(
+            "PUT", "/api/admin/location-pricing/3fa85f64-5717-4562-b3fc-2c963f66afa6", "{\"markup\":\"visible\"}");
+
+        Assert.Contains(lines, l => l.Contains("visible"));
+    }
 }

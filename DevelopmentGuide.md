@@ -442,4 +442,18 @@ Keep this mapping in sync as new features are added, to avoid EventId collisions
 | 1500-1599 | ElectricityCost |
 | 1600-1699 | NorgesPris |
 | 1700-1799 | Pricing |
+| 1800-1899 | WaterHeater |
 | 2000-2099 | Infra/Logging |
+
+## Water heater (OSO)
+
+`src/Features/WaterHeaters/` connects one OSO water heater per location, reads its state from OSO's inCharge API and
+samples its power once a minute (spec 011; endpoints in `specs/011-oso-water-heater/contracts/endpoints.md`).
+
+- `IWaterHeaterClient` is **read only on purpose**. Controlling the heater (profiles, turning it on and off) is a
+  later spec with its own safety rules; do not add a write call here.
+- The OSO subscription key is stored encrypted by `AesGcmSecretProtector` with `WaterHeater:KeyEncryptionKey` (set in
+  the server's `.env`, see `DockerDeployment.md`). Without that key the API starts, but a heater cannot be connected.
+- The device id is in every OSO URL path. The OSO `HttpClient` is registered with `.RemoveAllLoggers()`, because the
+  factory's default loggers write the request URL; keep it. Never log the URL, an exception's message, the key or the
+  device id. `NoSecretsInLogsTests` fails if any of them reaches a log.
