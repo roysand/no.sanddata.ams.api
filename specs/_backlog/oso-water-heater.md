@@ -1,11 +1,14 @@
 # Backlog: Connect the OSO water heater
 
-Status: idea, not specified. Written 2026-11-19 at Roy's request, to pick up later. Nothing is built.
+Status: specified as `specs/011-oso-water-heater/spec.md` (read-only first version), branch
+`feature/011-oso-water-heater`. Written 2026-11-19 at Roy's request; read calls tried by hand the same evening.
+Nothing is built. Remove this note when spec 011 ships; the API findings below then live in its research.md.
 
 ## What Roy has
 
-An OSO water heater (OSO Energy, Norway) that can be reached through OSO's API. Which model, which location it is on
-(Hjemme or the holiday home), its device id and whether a subscription key already exists are not written down yet.
+An OSO water heater (OSO Energy, Norway) at **Hjemme**, reachable through OSO's API. Roy has a subscription key and
+the device id (a 128-character hex string, so it is too long for a short text column). Neither is written here; the
+model is still not noted.
 
 ## The API: OSO inCharge API 1.0
 
@@ -53,6 +56,45 @@ Read from OSO's public Swagger on 2026-11-19; not yet tried with a real key and 
 Other sources: [Home Assistant OSO Energy integration](https://www.home-assistant.io/integrations/osoenergy/),
 [OSO Energy](https://osoenergy.no/en/?p=802), [OSO smart management](https://osoenergy.no/en/funksjoner/).
 
+## Tried by hand, 2026-11-19 18:08 UTC
+
+All five read calls answered `200` with the real key and device id. Answers (device id left out):
+
+```json
+// GET Status
+{"lastTelemetry":{"timestamp":"2026-11-19T18:06:48.703Z","control":{"heater":0,"mode":0,"currentSetPoint":72}},
+ "optimizationOption":1,"optimizationSubOption":2,"smartCompanyId":null,
+ "availableMix40Volume":344,"maxMix40Capacity":360,"connectionState":1,
+ "lastActivityTime":"2026-11-19T18:06:48.703Z","availableShowers":3,"availableBaths":1,
+ "profileStatus":{"isInHolidayMode":false,"holidyModeStartTime":null,"holidyModeEndTime":null,
+   "isInSuperchargeMode":true,"superchargeModeStartTime":"2026-11-18T19:40:14.5919821",
+   "superchargeModeEndTime":"2026-11-19T19:40:14.5919821","isInBlueBatteryMode":false,"id":3,
+   "meaning":"SuperchargeMode"},
+ "features":["SuperChargeMode"]}
+// GET CurrentTemperature
+{"timeStamp":"2026-11-19T18:06:48.703Z","temperatureOne":0,"temperatureLow":70.5,"temperatureMid":72.3,"temperatureTop":72.8}
+// GET ActualLoad
+{"actualLoad":0.011774}
+// GET AvailableMixV40Volume
+{"availableMixV40Volume":343}
+// GET TappingCapacityKwh
+{"tappingCapacitykWh":13.97741}
+```
+
+What this tells us:
+
+- **Values our heater reports:** `mode` 0, `heater` 0 (off), `optimizationOption` 1, `optimizationSubOption` 2,
+  profile `id` 3 = `SuperchargeMode`. Their meaning is still undocumented.
+- **Telemetry is about 2 minutes old** when read (`timestamp` 18:06:48, read 18:08:31), and `Status` and
+  `CurrentTemperature` share the same timestamp. Sampling more often than every minute or two gains nothing.
+- **`actualLoad` is not zero when the heater is off** (0.0118 kW ≈ 12 W, probably electronics). Treat it as kW.
+- **Spelling and time quirks:** `holidyModeStartTime` / `holidyModeEndTime` (sic); supercharge times have **no `Z`**
+  and seven decimals, so their time zone is unknown (UTC or Oslo); `timeStamp` vs `timestamp` casing differs between
+  calls. Deserialise case-insensitively and keep the misspelt names.
+- `temperatureOne` is 0: probably a sensor this model does not have; do not show it as 0 °C.
+- `Status.availableMix40Volume` (344) and `AvailableMixV40Volume` (343) differ by a litre: `Status` alone covers the
+  read-only view, plus `CurrentTemperature`, `ActualLoad` and `TappingCapacityKwh`.
+
 ## Why it fits this app
 
 A water heater is often the largest flexible load in a home (typically 2–3 kW), and the app already knows what is
@@ -72,8 +114,7 @@ On Norgespris the energy price is fixed, so (1) saves little at that location; (
 
 ## Open questions before a spec
 
-- Model, location, device id, and whether Roy has a subscription key.
-- Read only first (show state and power), or control from the start (profile, pausing during peaks)?
+- ~~Location, device id, key~~: Hjemme; Roy has both. ~~Read only first?~~ Yes, read only first.
 - Where the key and device id are stored: per location in the API, the key encrypted, Admin only; never in the
   frontend (`VITE_*` values ship to the browser).
 - Safety: hot water must still reach a high enough temperature regularly against legionella. The app must never keep
