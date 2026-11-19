@@ -138,7 +138,7 @@ compose.prod.yaml                                    # + WaterHeater__KeyEncrypt
 DockerDeployment.md                                  # + the .env line and how to generate it
 CLAUDE.md, DevelopmentGuide.md                       # + EventId range 1800–1899 WaterHeater
 tests/Features.Tests/WaterHeater/
-├── TestData/oso-*.json                              # the 2026-11-19 answers, device id removed
+├── OsoSamples.cs + OsoStubHandler.cs                # the 2026-11-19 answers as raw strings, stub handler
 ├── OsoWaterHeaterClientTests.cs                     # parsing, null fourth sensor, UTC times, error mapping, timeout
 ├── AesGcmSecretProtectorTests.cs                    # round trip, tamper, wrong location, missing/bad key
 ├── ConnectWaterHeaterHandlerTests.cs                # accept, reject, unavailable, replace, device in use
