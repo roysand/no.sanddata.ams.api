@@ -22,7 +22,8 @@ public class UpdateOwnLocationCommandHandlerTests
     public UpdateOwnLocationCommandHandlerTests()
     {
         _handler = new UpdateOwnLocationCommandHandler(
-            _locations, _links, _waterHeaters, Substitute.For<ILogger<UpdateOwnLocationCommandHandler>>());
+            _locations, _links, _waterHeaters, Substitute.For<IEvChargerRepository<EvCharger>>(),
+            Substitute.For<ILogger<UpdateOwnLocationCommandHandler>>());
         _location.AssignApiKey(new ApiKey(Guid.NewGuid(), ApiKeyCrypto.Hash("k"), "k", "Sensor key for Home", true,
             DateTime.UtcNow.AddDays(30)));
         _locations.GetByIdWithKeyAsync(_location.Id, Arg.Any<CancellationToken>()).Returns(_location);

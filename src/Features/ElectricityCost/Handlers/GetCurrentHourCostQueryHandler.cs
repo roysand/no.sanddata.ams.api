@@ -1,6 +1,7 @@
 using Application.Common.Interfaces.Repositories;
 using Application.CQRS;
 using Application.ElectricityCost;
+using Application.EvChargers;
 using Domain.Common;
 using Domain.Common.Entities;
 using Features.ElectricityCost.Logging;
@@ -15,7 +16,8 @@ public class GetCurrentHourCostQueryHandler(
     ILocationRepository<Location> locationRepository,
     IConsumptionRepository consumptionRepository,
     CostCalculator costCalculator,
-    ILogger<GetCurrentHourCostQueryHandler> logger)
+    ILogger<GetCurrentHourCostQueryHandler> logger,
+    IChargingSessionRepository? chargingSessions = null)
     : IQueryHandler<GetCurrentHourCostQuery, Result<CurrentHourCostResponse>>
 {
     public async Task<Result<CurrentHourCostResponse>> Handle(GetCurrentHourCostQuery query, CancellationToken ct)
@@ -40,8 +42,17 @@ public class GetCurrentHourCostQueryHandler(
             query.LocationId, CostTime.LocalMonthStartUtc(hourStart), hourStart, ct);
         CostResult cost = await costCalculator.CalculateAsync(location, hourStart, kwh, monthKwhBefore, ct);
 
+        // The charger only has data here when a session ended in this hour: Zaptec gives completed sessions only.
+        EvChargerHourEnergy? charger = chargingSessions is null
+            ? null
+            : (await chargingSessions.GetHourlyEnergyAsync(location.Id, hourStart, hourStart.AddHours(1), ct))
+                .SingleOrDefault();
+        EvChargerHour? chargerPart = charger is null
+            ? null
+            : EvChargerShare.ForHour(charger, location.IncludeEvChargerInTotals);
+
         LogMessages.CostQueried(logger, query.UserId, query.LocationId);
 
-        return Result.Success(CostMapper.ToCurrentHourResponse(hourStart, kwh, cost));
+        return Result.Success(CostMapper.ToCurrentHourResponse(hourStart, kwh, cost, chargerPart));
     }
 }

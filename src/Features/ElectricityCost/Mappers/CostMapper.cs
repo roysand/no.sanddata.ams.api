@@ -1,4 +1,5 @@
 using Application.ElectricityCost;
+using Application.EvChargers;
 using Application.WaterHeaters;
 using Features.ElectricityCost.Queries;
 using Features.ElectricityCost.Services;
@@ -8,13 +9,15 @@ namespace Features.ElectricityCost.Mappers;
 public static class CostMapper
 {
     public static CurrentHourCostResponse ToCurrentHourResponse(
-        DateTime hourStart, decimal consumptionKwh, CostResult cost) =>
+        DateTime hourStart, decimal consumptionKwh, CostResult cost, EvChargerHour? evCharger = null) =>
         new(hourStart, consumptionKwh, cost.PricingModel.ToString(),
-            ToCurrent(cost.Actual), ToCurrent(cost.Comparison));
+            ToCurrent(cost.Actual), ToCurrent(cost.Comparison),
+            EvChargerShare.TotalKwh(consumptionKwh, evCharger), ToEvCharger(evCharger));
 
     public static HourlyCostItemResponse ToHourlyResponse(HourCost hour) =>
         new(hour.HourStart, hour.ConsumptionKwh, hour.Cost.PricingModel.ToString(),
-            ToHourly(hour.Cost.Actual), ToHourly(hour.Cost.Comparison), ToWaterHeater(hour.WaterHeater));
+            ToHourly(hour.Cost.Actual), ToHourly(hour.Cost.Comparison), ToWaterHeater(hour.WaterHeater),
+            EvChargerShare.TotalKwh(hour.ConsumptionKwh, hour.EvCharger), ToEvCharger(hour.EvCharger));
 
     public static PagedHourlyCostResponse ToPagedHourlyResponse(
         IEnumerable<HourCost> hours, int page, int pageSize, int totalCount) =>
@@ -22,13 +25,26 @@ public static class CostMapper
 
     /// <summary>
     /// A day's cost for a model is null if any of its hours lacks price data - a partial sum would
-    /// silently understate the cost.
+    /// silently understate the cost. The day's charger kWh (spec 016) also counts the charging hours that had no meter
+    /// reading, given in <paramref name="chargerHoursWithoutMeterReading"/>.
     /// </summary>
-    public static DailyCostItemResponse ToDailyResponse(DateOnly date, IReadOnlyList<HourCost> hours) =>
-        new(date, hours.Sum(h => h.ConsumptionKwh), hours[0].Cost.PricingModel.ToString(),
+    public static DailyCostItemResponse ToDailyResponse(
+        DateOnly date, IReadOnlyList<HourCost> hours, IReadOnlyCollection<EvChargerHour>? chargerHoursWithoutMeterReading = null)
+    {
+        decimal kwh = hours.Sum(h => h.ConsumptionKwh);
+        EvChargerTotal? charger = EvChargerShare.Sum(hours.Select(h => h.EvCharger), chargerHoursWithoutMeterReading ?? []);
+        return new DailyCostItemResponse(date, kwh, hours[0].Cost.PricingModel.ToString(),
             SumCost(hours.Select(h => h.Cost.Actual)),
             SumCost(hours.Select(h => h.Cost.Comparison)),
-            ToWaterHeater(WaterHeaterShare.Sum(hours.Select(h => h.WaterHeater))));
+            ToWaterHeater(WaterHeaterShare.Sum(hours.Select(h => h.WaterHeater))),
+            EvChargerShare.TotalKwh(kwh, charger),
+            charger is null
+                ? null
+                : new EvChargerDayResponse(charger.Kwh, charger.Estimated, charger.Included, charger.HoursWithoutMeterReading));
+    }
+
+    private static EvChargerHourResponse? ToEvCharger(EvChargerHour? part) =>
+        part is null ? null : new EvChargerHourResponse(part.Kwh, part.Estimated, part.Included);
 
     private static WaterHeaterHourResponse? ToWaterHeater(WaterHeaterHour? part) =>
         part is null ? null : new WaterHeaterHourResponse(part.Kwh, part.Cost, part.SampledMinutes, part.Capped);

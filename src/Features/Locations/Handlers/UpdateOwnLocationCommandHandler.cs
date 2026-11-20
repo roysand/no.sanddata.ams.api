@@ -14,6 +14,7 @@ public class UpdateOwnLocationCommandHandler(
     ILocationRepository<Location> locationRepository,
     IUserLocationRepository<UserLocation> userLocationRepository,
     IWaterHeaterRepository<WaterHeater> waterHeaterRepository,
+    IEvChargerRepository<EvCharger> evChargerRepository,
     ILogger<UpdateOwnLocationCommandHandler> logger)
     : ICommandHandler<UpdateOwnLocationCommand, Result<LocationSummaryResponse>>
 {
@@ -42,6 +43,7 @@ public class UpdateOwnLocationCommandHandler(
         }
 
         bool hasWaterHeater = await waterHeaterRepository.GetByLocationAsync(location.Id, ct) is not null;
-        return Result.Success(LocationMapper.ToResponse(location, LocationRole.Owner, hasWaterHeater));
+        bool hasEvCharger = await evChargerRepository.GetByLocationAsync(location.Id, ct) is not null;
+        return Result.Success(LocationMapper.ToResponse(location, LocationRole.Owner, hasWaterHeater, hasEvCharger));
     }
 }

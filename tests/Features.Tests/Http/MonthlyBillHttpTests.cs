@@ -15,7 +15,7 @@ public class MonthlyBillHttpTests
     private static readonly MonthlyBillResponse Bill = new(
         "2026-10", "Final", "NorgesPris", true, new BillHoursResponse(745, 745, 745, 745), null,
         new BillCapacityResponse(false, 6m, new CapacityStepRangeResponse(5m, 10m)), EmptyPart,
-        EmptyPart with { Name = "Nettleie" }, new BillTotalResponse(0m, 0m, 0m, 0m, 0m), null);
+        EmptyPart with { Name = "Nettleie" }, new BillTotalResponse(0m, 0m, 0m, 0m, 0m), null, 0m, null);
 
     private static Task<EndpointHost> StartHost(
         HostCaller caller = HostCaller.User, Error? error = null, MonthlyBillResponse? bill = null) =>

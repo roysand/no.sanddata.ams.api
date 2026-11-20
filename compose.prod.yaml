@@ -40,6 +40,9 @@ services:
       # AES key for the OSO water heater subscription keys; generate with openssl rand -base64 32.
       # Without it a water heater cannot be connected. Losing it means connecting the heater again.
       WaterHeater__KeyEncryptionKey: ${WATER_HEATER_KEY_ENCRYPTION_KEY}
+      # Roy's own Zaptec login for reading the EV charger (spec 016). Without it no charging data is read.
+      Zaptec__Username: ${ZAPTEC_USERNAME}
+      Zaptec__Password: ${ZAPTEC_PASSWORD}
     depends_on:
       postgres:
         condition: service_healthy

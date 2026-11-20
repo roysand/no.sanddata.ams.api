@@ -22,6 +22,7 @@ public class LocationConfiguration : IEntityTypeConfiguration<Location>
         builder.Property(l => l.ElectricityTaxExempt).IsRequired().HasDefaultValue(false);
         builder.Property(l => l.VatExempt).IsRequired().HasDefaultValue(false);
         builder.Property(l => l.IsHolidayHome).IsRequired().HasDefaultValue(false);
+        builder.Property(l => l.IncludeEvChargerInTotals).IsRequired().HasDefaultValue(false);
 
         builder.HasOne<GridTariff>()
             .WithMany()

@@ -147,6 +147,8 @@ JWT_AUDIENCE=AmsApiClients
 BOOTSTRAP_OWNER_PASSWORD=<choose-a-strong-password-for-the-first-admin-login>
 ENTSOE_SECURITY_TOKEN=<your-entso-e-security-token>
 WATER_HEATER_KEY_ENCRYPTION_KEY=<openssl rand -base64 32>
+ZAPTEC_USERNAME=<the Zaptec portal e-mail>
+ZAPTEC_PASSWORD=<the Zaptec portal password>
 ```
 
 > `ENTSOE_SECURITY_TOKEN` is the ENTSO-E Transparency Platform token used to fetch day-ahead spot prices.
@@ -163,6 +165,14 @@ WATER_HEATER_KEY_ENCRYPTION_KEY=<openssl rand -base64 32>
 > connecting a heater is refused with `503 WaterHeater.EncryptionNotConfigured`. Keep it with the other secrets: if
 > it is lost or changed, the stored OSO key can no longer be read and an Admin must connect the heater again (the
 > power samples are not encrypted and are kept). Added in the release with spec 011: copy `compose.prod.yaml` to
+> the server again for that release.
+
+> `ZAPTEC_USERNAME` and `ZAPTEC_PASSWORD` are the Zaptec login used to read the EV charger's charging sessions
+> (spec 016). `compose.prod.yaml` passes them to the API as `Zaptec__Username` / `Zaptec__Password`. They live
+> only here, never in the database or a log. Without them the API still starts, charging data is not read (the log
+> says `No Zaptec sign-in is set up on the server`), and the admin charger endpoints answer
+> `503 EvCharger.NotConfigured`. If the password is changed in the Zaptec app, update it here and restart the API;
+> the missed charging data is read on the next run. Added in the release with spec 016: copy `compose.prod.yaml` to
 > the server again for that release.
 
 > `BOOTSTRAP_OWNER_PASSWORD` creates the `Bootstrap:OwnerEmail` account (default `roy@sanddata.no`) the first
@@ -257,4 +267,5 @@ side, check that the port is published: `ss -tlnp | grep 5432` must show `127.0.
 - [ ] `docker login` run once on Hetzner as the `deploy` user
 - [ ] `/opt/ams-api/compose.prod.yaml`, `/opt/ams-api/Caddyfile` and `/opt/ams-api/.env` present on the server
 - [ ] `WATER_HEATER_KEY_ENCRYPTION_KEY` set in `/opt/ams-api/.env` (spec 011)
+- [ ] `ZAPTEC_USERNAME` and `ZAPTEC_PASSWORD` set in `/opt/ams-api/.env` (spec 016)
 - [ ] DNS for the domain points at the server; ports 22, 80 and 443 open (not 8080 or 5432)

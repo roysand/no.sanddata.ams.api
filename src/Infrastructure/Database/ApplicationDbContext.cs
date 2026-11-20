@@ -31,6 +31,9 @@ public sealed class ApplicationDbContext(
     public DbSet<GridCapacityStep> GridCapacityStep { get; set; } = null!;
     public DbSet<WaterHeater> WaterHeater { get; set; } = null!;
     public DbSet<WaterHeaterPowerSample> WaterHeaterPowerSample { get; set; } = null!;
+    public DbSet<EvCharger> EvCharger { get; set; } = null!;
+    public DbSet<ChargingSession> ChargingSession { get; set; } = null!;
+    public DbSet<ChargingSessionHour> ChargingSessionHour { get; set; } = null!;
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

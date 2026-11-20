@@ -464,6 +464,7 @@ Keep this mapping in sync as new features are added, to avoid EventId collisions
 | 1600-1699 | NorgesPris |
 | 1700-1799 | Pricing |
 | 1800-1899 | WaterHeater |
+| 1900-1999 | EvCharger |
 | 2000-2099 | Infra/Logging |
 
 ## Water heater (OSO)

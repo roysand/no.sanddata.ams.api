@@ -1,6 +1,7 @@
 using System.Globalization;
 using Application.Common.Interfaces.Repositories;
 using Application.ElectricityCost;
+using Application.EvChargers;
 using Application.WaterHeaters;
 using Domain.Common;
 using Domain.Common.Entities;
@@ -27,6 +28,7 @@ public class MonthlyBillHandlerTests
     private readonly IConsumptionRepository _consumption = Substitute.For<IConsumptionRepository>();
     private readonly IWaterHeaterPowerSampleRepository<WaterHeaterPowerSample> _samples =
         Substitute.For<IWaterHeaterPowerSampleRepository<WaterHeaterPowerSample>>();
+    private readonly IChargingSessionRepository _charging = Substitute.For<IChargingSessionRepository>();
     private readonly IElectricityPriceRepository<ElectricityPrice> _prices =
         Substitute.For<IElectricityPriceRepository<ElectricityPrice>>();
     private readonly IExchangeRateRepository<ExchangeRate> _fx = Substitute.For<IExchangeRateRepository<ExchangeRate>>();
@@ -84,7 +86,7 @@ public class MonthlyBillHandlerTests
             _locations,
             _consumption,
             _rates,
-            new HourlyCostProvider(_consumption, calculator, _samples, new FixedTimeProvider(now)),
+            new HourlyCostProvider(_consumption, calculator, _samples, new FixedTimeProvider(now), _charging),
             calculator,
             new FixedTimeProvider(now),
             _logger);
@@ -462,5 +464,55 @@ public class MonthlyBillHandlerTests
         await Bill("2026-12");
 
         await _samples.ReceivedWithAnyArgs(1).GetHourlyEnergyAsync(default, default, default, default, default);
+    }
+
+    // ---- the EV charger's part (spec 016) ------------------------------------------------------------------------
+
+    private readonly List<EvChargerHourEnergy> _charger = [];
+
+    /// <summary>Charger rows served like the repository: only the hours in [from, to).</summary>
+    private void Charging(string hourUtc, decimal kwh)
+    {
+        _charger.Add(new EvChargerHourEnergy(Utc(hourUtc), kwh, false));
+        _charging.GetHourlyEnergyAsync(_cabin.Id, Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(call => Task.FromResult<IReadOnlyList<EvChargerHourEnergy>>(_charger
+                .Where(h => h.HourStartUtc >= call.ArgAt<DateTime>(1) && h.HourStartUtc < call.ArgAt<DateTime>(2))
+                .ToList()));
+    }
+
+    [Fact]
+    public async Task TheChargerPart_AddsToTotalKwhOnlyWhenIncluded_AndChangesNoAmount()
+    {
+        ReadingsEveryHour(Utc("2026-11-30T23:00:00Z"), Utc("2026-12-10T13:00:00Z"), 2m);
+        Charging("2026-12-02T20:00:00Z", 4.4m);
+        Charging("2026-12-02T21:00:00Z", 4.4m);
+        Charging("2026-12-10T12:00:00Z", 3.0m); // the current hour: not part of the hours so far
+
+        MonthlyBillResponse off = (await Bill("2026-12")).Value;
+        _cabin.SetIncludeEvCharger(true);
+        MonthlyBillResponse on = (await Bill("2026-12")).Value;
+
+        decimal meterKwh = 2m * (9 * 24 + 1 + 12); // 2026-11-30T23:00Z to 2026-12-10T12:00Z
+        Assert.Equal(meterKwh, off.TotalKwh);
+        Assert.Equal(meterKwh + 8.8m, on.TotalKwh);
+        Assert.Equal(new EvChargerBillResponse(8.8m, false, true, 0, Utc("2026-12-02T20:00:00Z"),
+            Utc("2026-12-02T21:00:00Z")), on.EvCharger);
+        Assert.False(off.EvCharger!.Included);
+        Assert.Equal(off.Total, on.Total);
+        Assert.Equal(off.Capacity, on.Capacity);
+        Assert.Equal(off.Strom.Amount, on.Strom.Amount);
+        Assert.Equal(off.Nettleie.Amount, on.Nettleie.Amount);
+        Assert.Equal(off.Strom.Lines.Select(l => l.Amount), on.Strom.Lines.Select(l => l.Amount));
+        Assert.Equal(off.Nettleie.Lines.Select(l => l.Amount), on.Nettleie.Lines.Select(l => l.Amount));
+    }
+
+    [Fact]
+    public async Task AMonthWithoutCharging_HasNoChargerPart()
+    {
+        ReadingsEveryHour(Utc("2026-11-30T23:00:00Z"), Utc("2026-12-10T13:00:00Z"), 2m);
+
+        MonthlyBillResponse bill = (await Bill("2026-12")).Value;
+
+        Assert.Null(bill.EvCharger);
     }
 }

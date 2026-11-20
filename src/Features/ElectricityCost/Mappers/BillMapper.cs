@@ -1,4 +1,5 @@
 using Application.ElectricityCost;
+using Application.EvChargers;
 using Application.WaterHeaters;
 using Features.ElectricityCost.Queries;
 using Features.ElectricityCost.Services;
@@ -17,7 +18,9 @@ public static class BillMapper
         BillHoursResponse hours,
         BillProjectionResponse? projection,
         CapacityChargeResult capacity,
-        WaterHeaterTotal? waterHeater) =>
+        WaterHeaterTotal? waterHeater,
+        EvChargerTotal? evCharger = null,
+        decimal meterKwhSoFar = 0m) =>
         new(
             month.ToString("yyyy-MM"),
             ended ? Final : Estimate,
@@ -32,7 +35,12 @@ public static class BillMapper
             ToPart(bill.Strom),
             ToPart(bill.Nettleie),
             new BillTotalResponse(bill.SoFar, bill.Projected, bill.Amount, bill.AmountExclVat, bill.Vat),
-            ToWaterHeater(waterHeater));
+            ToWaterHeater(waterHeater),
+            EvChargerShare.TotalKwh(meterKwhSoFar, evCharger),
+            evCharger is null
+                ? null
+                : new EvChargerBillResponse(evCharger.Kwh, evCharger.Estimated, evCharger.Included,
+                    evCharger.HoursWithoutMeterReading, evCharger.FirstHourUtc, evCharger.LastHourUtc));
 
     private static WaterHeaterBillResponse? ToWaterHeater(WaterHeaterTotal? total) =>
         total is null

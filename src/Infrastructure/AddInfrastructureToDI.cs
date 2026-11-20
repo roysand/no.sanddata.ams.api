@@ -52,6 +52,8 @@ public static class AddInfrastructureToDI
         services.AddScoped<IPriceRateRepository, PriceRateEfRepository>();
         services.AddScoped<IWaterHeaterRepository<WaterHeater>, WaterHeaterEfRepository>();
         services.AddScoped<IWaterHeaterPowerSampleRepository<WaterHeaterPowerSample>, WaterHeaterPowerSampleEfRepository>();
+        services.AddScoped<IEvChargerRepository<EvCharger>, EvChargerEfRepository>();
+        services.AddScoped<IChargingSessionRepository, ChargingSessionEfRepository>();
         services.AddSingleton(TimeProvider.System);
 
         // Electricity cost: options, external clients, calculator
@@ -69,6 +71,16 @@ public static class AddInfrastructureToDI
         {
             client.BaseAddress = new Uri("https://api.osoenergy.no/water-heater-api/");
             client.Timeout = TimeSpan.FromSeconds(10);
+        }).RemoveAllLoggers();
+
+        // EV charger (spec 016): Roy's own Zaptec login from configuration, a shared token and the read-only client.
+        services.AddOptions<ZaptecOptions>().Bind(configuration.GetSection(ZaptecOptions.SectionName));
+        services.AddSingleton<ZaptecTokenCache>();
+        // RemoveAllLoggers: the token request body holds the password, and every other request the token.
+        services.AddHttpClient<IEvChargerClient, ZaptecEvChargerClient>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.zaptec.com/");
+            client.Timeout = TimeSpan.FromSeconds(15);
         }).RemoveAllLoggers();
 
         // Register Authentication Services

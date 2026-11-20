@@ -35,7 +35,8 @@ public class GetHourlyCostQueryHandler(
         DateTime to = query.To is { } toValue ? CostTime.ToUtc(toValue) : DateTime.UtcNow;
         DateTime from = query.From is { } fromValue ? CostTime.ToUtc(fromValue) : to - DefaultWindow;
 
-        IReadOnlyList<HourCost> hours = await hourlyCostProvider.GetAsync(location, from, to, ct, withWaterHeater: true);
+        IReadOnlyList<HourCost> hours =
+            (await hourlyCostProvider.GetWithEvChargerAsync(location, from, to, ct, withWaterHeater: true)).Hours;
         IEnumerable<HourCost> page = hours.Skip((query.Page - 1) * query.PageSize).Take(query.PageSize);
 
         LogMessages.CostQueried(logger, query.UserId, query.LocationId);
