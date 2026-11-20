@@ -14,10 +14,10 @@ public static class LocationMapper
     public const string StatusExpired = "Expired";
     public const string StatusDeactivated = "Deactivated";
 
-    public static LocationSummaryResponse ToResponse(Location location, LocationRole role) =>
+    public static LocationSummaryResponse ToResponse(Location location, LocationRole role, bool hasWaterHeater) =>
         new(location.Id, location.Name, location.Address, location.Zone, location.SerialNumber,
             location.HasNorgesPriceAgreement, location.IsActive, role.ToString(),
-            location.Meters.Select(MeterMapper.ToResponse).ToList());
+            location.Meters.Select(MeterMapper.ToResponse).ToList(), hasWaterHeater);
 
     public static UpdateLocationCommand ToCommand(Guid actingUserId, UpdateLocationRequest request) =>
         new(actingUserId, request.Id, request.Name.Trim(), request.Address.Trim(), request.SerialNumber.Trim(), request.Zone,

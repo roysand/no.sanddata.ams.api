@@ -19,6 +19,15 @@ public class WaterHeaterEfRepository : GenericEfRepository<WaterHeater>, IWaterH
         return await _context.WaterHeater.FirstOrDefaultAsync(w => w.DeviceId == lowered, cancellationToken);
     }
 
+    public async Task<IReadOnlySet<Guid>> GetLocationIdsWithHeaterAsync(
+        IReadOnlyCollection<Guid> locationIds, CancellationToken cancellationToken) =>
+        (await _context.WaterHeater
+            .AsNoTracking()
+            .Where(w => locationIds.Contains(w.LocationId))
+            .Select(w => w.LocationId)
+            .ToListAsync(cancellationToken))
+        .ToHashSet();
+
     public async Task<IReadOnlyList<WaterHeater>> GetForActiveLocationsAsync(CancellationToken cancellationToken) =>
         await _context.WaterHeater
             .AsNoTracking()

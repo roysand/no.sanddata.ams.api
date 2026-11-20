@@ -11,9 +11,16 @@ namespace Features.Tests.Locations;
 public class GetMyLocationsQueryHandlerTests
 {
     private readonly ILocationRepository<Location> _locationRepository = Substitute.For<ILocationRepository<Location>>();
+    private readonly IWaterHeaterRepository<WaterHeater> _waterHeaters = Substitute.For<IWaterHeaterRepository<WaterHeater>>();
     private readonly GetMyLocationsQueryHandler _handler;
 
-    public GetMyLocationsQueryHandlerTests() => _handler = new GetMyLocationsQueryHandler(_locationRepository, Substitute.For<ILogger<GetMyLocationsQueryHandler>>());
+    public GetMyLocationsQueryHandlerTests()
+    {
+        _handler = new GetMyLocationsQueryHandler(
+            _locationRepository, _waterHeaters, Substitute.For<ILogger<GetMyLocationsQueryHandler>>());
+        _waterHeaters.GetLocationIdsWithHeaterAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new HashSet<Guid>());
+    }
 
     private void Returns(params LocationWithRole[] locations) =>
         _locationRepository.GetForUserWithRoleAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(locations);
@@ -76,6 +83,35 @@ public class GetMyLocationsQueryHandlerTests
         LocationSummaryResponse summary = Assert.Single(result.Value);
         Assert.False(summary.IsActive);
         Assert.Equal("Owner", summary.Role);
+    }
+
+    [Fact]
+    public async Task Handle_SaysWhichLocationsHaveAWaterHeater_WithOneQueryForAllOfThem()
+    {
+        var home = new Location(Guid.NewGuid(), "Home", "Addr", "SN-1", "NO1", true, false);
+        var cabin = new Location(Guid.NewGuid(), "Cabin", "Addr", "SN-2", "NO1", true, false);
+        Returns(new LocationWithRole(home, LocationRole.Owner), new LocationWithRole(cabin, LocationRole.Viewer));
+        _waterHeaters.GetLocationIdsWithHeaterAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new HashSet<Guid> { home.Id });
+
+        Result<IReadOnlyList<LocationSummaryResponse>> result =
+            await _handler.Handle(new GetMyLocationsQuery(Guid.NewGuid()), CancellationToken.None);
+
+        Assert.True(result.Value.Single(l => l.Id == home.Id).HasWaterHeater);
+        Assert.False(result.Value.Single(l => l.Id == cabin.Id).HasWaterHeater);
+        await _waterHeaters.Received(1).GetLocationIdsWithHeaterAsync(
+            Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.Count == 2 && ids.Contains(home.Id) && ids.Contains(cabin.Id)),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_NoLocations_DoesNotAskForHeaters()
+    {
+        Returns();
+
+        await _handler.Handle(new GetMyLocationsQuery(Guid.NewGuid()), CancellationToken.None);
+
+        await _waterHeaters.DidNotReceiveWithAnyArgs().GetLocationIdsWithHeaterAsync(default!, default);
     }
 
     [Fact]

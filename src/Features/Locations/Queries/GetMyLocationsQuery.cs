@@ -8,6 +8,8 @@ public record GetMyLocationsQuery(Guid UserId) : IQuery<Result<IReadOnlyList<Loc
 
 /// <param name="Role">"Owner" or "Viewer"; as text, because the API does not serialise enums by name.</param>
 /// <param name="IsActive">Owners also receive their inactive locations so they can switch them on again.</param>
+/// <param name="HasWaterHeater">True when an OSO water heater is connected, so the app can show its tab at once without
+/// reading the heater.</param>
 public record LocationSummaryResponse(
     Guid Id,
     string Name,
@@ -17,4 +19,5 @@ public record LocationSummaryResponse(
     bool HasNorgesPriceAgreement,
     bool IsActive,
     string Role,
-    IReadOnlyList<MeterResponse> Meters);
+    IReadOnlyList<MeterResponse> Meters,
+    bool HasWaterHeater);
