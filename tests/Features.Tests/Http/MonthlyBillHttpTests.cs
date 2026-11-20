@@ -15,13 +15,33 @@ public class MonthlyBillHttpTests
     private static readonly MonthlyBillResponse Bill = new(
         "2026-10", "Final", "NorgesPris", true, new BillHoursResponse(745, 745, 745, 745), null,
         new BillCapacityResponse(false, 6m, new CapacityStepRangeResponse(5m, 10m)), EmptyPart,
-        EmptyPart with { Name = "Nettleie" }, new BillTotalResponse(0m, 0m, 0m, 0m, 0m));
+        EmptyPart with { Name = "Nettleie" }, new BillTotalResponse(0m, 0m, 0m, 0m, 0m), null);
 
-    private static Task<EndpointHost> StartHost(HostCaller caller = HostCaller.User, Error? error = null) =>
+    private static Task<EndpointHost> StartHost(
+        HostCaller caller = HostCaller.User, Error? error = null, MonthlyBillResponse? bill = null) =>
         EndpointHost.StartAsync(
             dispatcher => dispatcher.Send(Arg.Any<GetMonthlyBillQuery>(), Arg.Any<CancellationToken>())
-                .Returns(error is null ? Result.Success(Bill) : Result.Failure<MonthlyBillResponse>(error)),
+                .Returns(error is null ? Result.Success(bill ?? Bill) : Result.Failure<MonthlyBillResponse>(error)),
             caller);
+
+    [Fact]
+    public async Task TheWaterHeaterPart_IsSerialisedInCamelCase_AndNullWhenAbsent()
+    {
+        var part = new WaterHeaterBillResponse(
+            104.6m, 94.12m, 15180, false,
+            new DateTime(2026, 11, 19, 18, 0, 0, DateTimeKind.Utc), new DateTime(2026, 11, 30, 22, 0, 0, DateTimeKind.Utc),
+            Estimate: false);
+        await using EndpointHost withPart = await StartHost(bill: Bill with { WaterHeater = part });
+        await using EndpointHost without = await StartHost();
+
+        string json = await withPart.Client.GetStringAsync($"/api/electricity-cost/bill?locationId={LocationId}");
+        string none = await without.Client.GetStringAsync($"/api/electricity-cost/bill?locationId={LocationId}");
+
+        Assert.Contains("\"waterHeater\":{\"kwh\":104.6,\"cost\":94.12,\"sampledMinutes\":15180,\"capped\":false,", json);
+        Assert.Contains("\"firstHourUtc\":\"2026-11-19T18:00:00Z\"", json);
+        Assert.Contains("\"estimate\":false", json);
+        Assert.Contains("\"waterHeater\":null", none);
+    }
 
     [Theory]
     [InlineData("&month=2026-10")]

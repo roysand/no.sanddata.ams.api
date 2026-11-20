@@ -1,5 +1,6 @@
 using Application.Common.Interfaces.Repositories;
 using Application.ElectricityCost;
+using Application.WaterHeaters;
 using Domain.Common;
 using Domain.Common.Entities;
 using Features.ElectricityCost.Handlers;
@@ -53,7 +54,11 @@ public class CostHandlerTests
             .Returns(_hours.ToList());
     }
 
-    private HourlyCostProvider Provider() => new(_consumption, _calculator);
+    private readonly IWaterHeaterPowerSampleRepository<WaterHeaterPowerSample> _samples =
+        Substitute.For<IWaterHeaterPowerSampleRepository<WaterHeaterPowerSample>>();
+
+    private HourlyCostProvider Provider() =>
+        new(_consumption, _calculator, _samples, new FixedTimeProvider("2026-10-02T12:00:00Z"));
 
     [Fact]
     public async Task CurrentHour_UnknownLocation_ReturnsLocationNotFound()
@@ -187,5 +192,134 @@ public class CostHandlerTests
             await handler.Handle(new GetDailyCostQuery(Guid.NewGuid(), _location.Id, null, null), CancellationToken.None);
 
         Assert.Equal("Location.NotFound", result.Error.Code);
+    }
+
+    // ---- the water heater's part (spec 012) ----------------------------------------------------------------------
+
+    private void GivenHeaterEnergy(params WaterHeaterHourEnergy[] rows) =>
+        _samples.GetHourlyEnergyAsync(_location.Id, Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<DateTime>(),
+                Arg.Any<CancellationToken>())
+            .Returns(rows);
+
+    private Task<Result<PagedHourlyCostResponse>> Hourly() =>
+        new GetHourlyCostQueryHandler(_locations, Provider(), Substitute.For<ILogger<GetHourlyCostQueryHandler>>())
+            .Handle(new GetHourlyCostQuery(Guid.NewGuid(), _location.Id, Day, Day.AddDays(1), 1, 100),
+                CancellationToken.None);
+
+    private Task<Result<DailyCostResponse>> Daily() =>
+        new GetDailyCostQueryHandler(_locations, Provider(), Substitute.For<ILogger<GetDailyCostQueryHandler>>())
+            .Handle(new GetDailyCostQuery(Guid.NewGuid(), _location.Id, Day, Day), CancellationToken.None);
+
+    [Fact]
+    public async Task Hourly_AnHourWithHeaterSamples_CarriesItsShare()
+    {
+        AddHour(Day.AddHours(10), 2000, 100m); // 2 kWh at 1.0 NOK = 2.00
+        AddHour(Day.AddHours(11), 1000, 100m);
+        GivenHeaterEnergy(new WaterHeaterHourEnergy(Day.AddHours(10), 1.5m, 3600m));
+
+        Result<PagedHourlyCostResponse> result = await Hourly();
+
+        HourlyCostItemResponse heated = result.Value.Items.Single(i => i.HourStart == Day.AddHours(10));
+        Assert.NotNull(heated.WaterHeater);
+        Assert.Equal(1.5m, heated.WaterHeater.Kwh);
+        Assert.Equal(heated.Actual!.Cost * 1.5m / 2m, heated.WaterHeater.Cost);
+        Assert.Equal(60, heated.WaterHeater.SampledMinutes);
+        Assert.False(heated.WaterHeater.Capped);
+        Assert.Null(result.Value.Items.Single(i => i.HourStart == Day.AddHours(11)).WaterHeater);
+    }
+
+    [Fact]
+    public async Task Hourly_TheExistingFields_AreTheSameWithAndWithoutHeaterSamples()
+    {
+        AddHour(Day.AddHours(10), 2000, 100m);
+        HourlyCostItemResponse without = (await Hourly()).Value.Items.Single();
+        GivenHeaterEnergy(new WaterHeaterHourEnergy(Day.AddHours(10), 1.5m, 3600m));
+
+        HourlyCostItemResponse with = (await Hourly()).Value.Items.Single();
+
+        Assert.Null(without.WaterHeater);
+        Assert.Equal(without, with with { WaterHeater = null });
+    }
+
+    [Fact]
+    public async Task Hourly_AskForTheHeaterUntilTheEndOfTheLastHourAndClipAtNow()
+    {
+        AddHour(Day.AddHours(10), 2000, 100m);
+
+        await new GetHourlyCostQueryHandler(_locations, Provider(), Substitute.For<ILogger<GetHourlyCostQueryHandler>>())
+            .Handle(new GetHourlyCostQuery(Guid.NewGuid(), _location.Id, Day, Day.AddHours(10).AddMinutes(30), 1, 10),
+                CancellationToken.None);
+
+        await _samples.Received(1).GetHourlyEnergyAsync(
+            _location.Id, Day, Day.AddHours(11), new DateTime(2026, 10, 2, 12, 0, 0, DateTimeKind.Utc),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Daily_TheHeaterPart_IsTheSumOfItsHours()
+    {
+        AddHour(Day.AddHours(10), 1000, 100m);
+        AddHour(Day.AddHours(11), 2000, 200m);
+        AddHour(Day.AddHours(12), 1000, 100m);
+        GivenHeaterEnergy(
+            new WaterHeaterHourEnergy(Day.AddHours(10), 0.5m, 3600m),
+            new WaterHeaterHourEnergy(Day.AddHours(11), 3.0m, 1800m)); // more than the meter's 2 kWh: capped
+
+        PagedHourlyCostResponse hours = (await Hourly()).Value;
+        DailyCostItemResponse day = Assert.Single((await Daily()).Value.Items);
+
+        Assert.NotNull(day.WaterHeater);
+        Assert.Equal(hours.Items.Sum(i => i.WaterHeater?.Kwh ?? 0m), day.WaterHeater.Kwh);
+        Assert.Equal(hours.Items.Sum(i => i.WaterHeater?.Cost ?? 0m), day.WaterHeater.Cost);
+        Assert.Equal(2.5m, day.WaterHeater.Kwh);
+        Assert.Equal(90, day.WaterHeater.SampledMinutes);
+        Assert.True(day.WaterHeater.Capped);
+    }
+
+    [Fact]
+    public async Task Daily_ASampledHourWithoutPrice_MakesTheHeaterCostNull()
+    {
+        AddHour(Day.AddHours(10), 1000, 100m);
+        AddHour(Day.AddHours(11), 1000, null);
+        GivenHeaterEnergy(new WaterHeaterHourEnergy(Day.AddHours(11), 0.5m, 3600m));
+
+        DailyCostItemResponse day = Assert.Single((await Daily()).Value.Items);
+
+        Assert.NotNull(day.WaterHeater);
+        Assert.Equal(0.5m, day.WaterHeater.Kwh);
+        Assert.Null(day.WaterHeater.Cost);
+    }
+
+    [Fact]
+    public async Task Daily_ADayWithoutHeaterSamples_HasNoHeaterPart()
+    {
+        AddHour(Day.AddHours(10), 1000, 100m);
+
+        DailyCostItemResponse day = Assert.Single((await Daily()).Value.Items);
+
+        Assert.Null(day.WaterHeater);
+    }
+
+    [Fact]
+    public async Task ALocationTheUserCannotSee_NeverReadsTheHeaterSamples()
+    {
+        _locations.IsUserAssociatedAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(false);
+
+        Assert.Equal("Location.NotFound", (await Hourly()).Error.Code);
+        Assert.Equal("Location.NotFound", (await Daily()).Error.Code);
+        await _samples.DidNotReceiveWithAnyArgs().GetHourlyEnergyAsync(default, default, default, default, default);
+    }
+
+    [Fact]
+    public async Task TheProviderWithoutTheFlag_NeverReadsHeaterSamples()
+    {
+        // The Norgespris saving calls the provider without the flag and keeps its query count (research R6).
+        AddHour(Day.AddHours(10), 2000, 100m);
+        GivenHeaterEnergy(new WaterHeaterHourEnergy(Day.AddHours(10), 1.5m, 3600m));
+
+        IReadOnlyList<HourCost> hours = await Provider().GetAsync(_location, Day, Day.AddDays(1), CancellationToken.None);
+
+        Assert.Null(Assert.Single(hours).WaterHeater);
+        await _samples.DidNotReceiveWithAnyArgs().GetHourlyEnergyAsync(default, default, default, default, default);
     }
 }

@@ -36,6 +36,13 @@ public record HourlyCostItemResponse(
     decimal ConsumptionKwh,
     string PricingModel,
     HourRateCostResponse? Actual,
-    HourRateCostResponse? Comparison);
+    HourRateCostResponse? Comparison,
+    WaterHeaterHourResponse? WaterHeater);
+
+/// <summary>
+/// The water heater's part of the hour (spec 012): kWh at most the hour's kWh, cost as its share of the actual cost
+/// (null without a price), sampled minutes 0–60, and whether the kWh was capped. Null when the hour has no samples.
+/// </summary>
+public record WaterHeaterHourResponse(decimal Kwh, decimal? Cost, int SampledMinutes, bool Capped);
 
 public record PagedHourlyCostResponse(IReadOnlyList<HourlyCostItemResponse> Items, int Page, int PageSize, int TotalCount);
