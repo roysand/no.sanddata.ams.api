@@ -13,6 +13,7 @@ public class WaterHeaterConfiguration : IEntityTypeConfiguration<WaterHeater>
         builder.Property(w => w.LocationId).IsRequired();
         builder.Property(w => w.DeviceId).IsRequired().HasMaxLength(200);
         builder.Property(w => w.ProtectedSubscriptionKey).IsRequired().HasMaxLength(500);
+        builder.Property(w => w.SubscriptionKeyExpiresOn).IsRequired().HasColumnType("date");
 
         builder.HasIndex(w => w.LocationId).IsUnique();
         builder.HasIndex(w => w.DeviceId).IsUnique();

@@ -12,7 +12,8 @@ public static class WaterHeaterMapper
     public const int StaleAfterSeconds = 15 * 60;
 
     public static WaterHeaterSettingsResponse ToSettings(WaterHeater heater) =>
-        new(heater.LocationId, DeviceIdHint(heater.DeviceId), heater.CreatedAt, heater.UpdatedAt);
+        new(heater.LocationId, DeviceIdHint(heater.DeviceId), heater.CreatedAt, heater.UpdatedAt,
+            heater.SubscriptionKeyExpiresOn);
 
     /// <summary>The first and last 6 characters, so an Admin can tell which heater it is; never the whole id.</summary>
     public static string DeviceIdHint(string deviceId) =>

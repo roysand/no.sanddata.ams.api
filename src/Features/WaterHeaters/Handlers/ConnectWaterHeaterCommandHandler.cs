@@ -22,6 +22,7 @@ public class ConnectWaterHeaterCommandHandler(
     IWaterHeaterRepository<WaterHeater> heaters,
     IWaterHeaterClient client,
     ISecretProtector protector,
+    TimeProvider clock,
     ILogger<ConnectWaterHeaterCommandHandler> logger)
     : ICommandHandler<ConnectWaterHeaterCommand, Result<WaterHeaterSettingsResponse>>
 {
@@ -49,6 +50,14 @@ public class ConnectWaterHeaterCommandHandler(
             return Result.Failure<WaterHeaterSettingsResponse>(WaterHeaterErrors.EncryptionNotConfigured);
         }
 
+        // Checked before OSO is called, so a wrong date costs no call (spec 015).
+        DateOnly today = WaterHeaterKeyExpiry.Today(clock);
+        DateOnly expiresOn = command.SubscriptionKeyExpiresOn ?? WaterHeaterKeyExpiry.Default(today);
+        if (!WaterHeaterKeyExpiry.IsInRange(expiresOn, today))
+        {
+            return Result.Failure<WaterHeaterSettingsResponse>(WaterHeaterErrors.KeyExpiryOutOfRange);
+        }
+
         WaterHeater? sameDevice = await heaters.GetByDeviceIdAsync(command.DeviceId, ct);
         if (sameDevice is not null && sameDevice.LocationId != command.LocationId)
         {
@@ -67,12 +76,12 @@ public class ConnectWaterHeaterCommandHandler(
         WaterHeater heater;
         if (existing is null)
         {
-            heater = new WaterHeater(Guid.NewGuid(), command.LocationId, command.DeviceId, protectedKey);
+            heater = new WaterHeater(Guid.NewGuid(), command.LocationId, command.DeviceId, protectedKey, expiresOn);
             heaters.Insert(heater);
         }
         else
         {
-            existing.Replace(command.DeviceId, protectedKey);
+            existing.Replace(command.DeviceId, protectedKey, expiresOn);
             heater = existing;
         }
 

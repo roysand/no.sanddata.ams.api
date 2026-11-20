@@ -35,11 +35,20 @@ internal static class LogMessages
             new EventId(1404, nameof(KeyRotated)),
             "Sensor key of location {LocationId} rotated by {ActingUserId}");
 
+    private static readonly Action<ILogger, Guid, int, Exception?> _keyRemindersListed =
+        LoggerMessage.Define<Guid, int>(
+            LogLevel.Information,
+            new EventId(1406, nameof(KeyRemindersListed)),
+            "Key reminders listed for {ActingUserId}: {Count} due");
+
     private static readonly Action<ILogger, Guid, bool, Guid, Exception?> _keyActiveChanged =
         LoggerMessage.Define<Guid, bool, Guid>(
             LogLevel.Information,
             new EventId(1405, nameof(KeyActiveChanged)),
             "Sensor key of location {LocationId} active set to {IsActive} by {ActingUserId}");
+
+    public static void KeyRemindersListed(ILogger logger, Guid actingUserId, int count)
+        => _keyRemindersListed(logger, actingUserId, count, null);
 
     public static void LocationsListed(ILogger logger, Guid userId, int count)
         => _locationsListed(logger, userId, count, null);

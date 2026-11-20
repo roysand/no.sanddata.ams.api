@@ -17,7 +17,7 @@ public class WaterHeaterAdminHttpTests
     private const string DeviceId = "abcdef0123456789abcdef0123456789";
 
     private static readonly WaterHeaterSettingsResponse Settings =
-        new(LocationId, "abcdef…456789", DateTime.UtcNow, DateTime.UtcNow);
+        new(LocationId, "abcdef…456789", DateTime.UtcNow, DateTime.UtcNow, new DateOnly(2027, 11, 19));
 
     private static Task<EndpointHost> StartHost(
         HostCaller caller = HostCaller.Admin, Error? connectError = null, Error? otherError = null) =>
@@ -30,6 +30,10 @@ public class WaterHeaterAdminHttpTests
             dispatcher.Send(Arg.Any<GetWaterHeaterSettingsQuery>(), Arg.Any<CancellationToken>())
                 .Returns(otherError is null
                     ? Result.Success(Settings)
+                    : Result.Failure<WaterHeaterSettingsResponse>(otherError));
+            dispatcher.Send(Arg.Any<SetWaterHeaterKeyExpiryCommand>(), Arg.Any<CancellationToken>())
+                .Returns(otherError is null
+                    ? Result.Success(Settings with { KeyExpiresOn = new DateOnly(2027, 12, 1) })
                     : Result.Failure<WaterHeaterSettingsResponse>(otherError));
             dispatcher.Send(Arg.Any<RemoveWaterHeaterCommand>(), Arg.Any<CancellationToken>())
                 .Returns(otherError is null
@@ -129,5 +133,87 @@ public class WaterHeaterAdminHttpTests
         Assert.Equal(expected, (await Put(host)).StatusCode);
         Assert.Equal(expected, (await host.Client.GetAsync(Url)).StatusCode);
         Assert.Equal(expected, (await host.Client.DeleteAsync(Url)).StatusCode);
+    }
+
+    // ---- the OSO key's expiry date (spec 015) ---------------------------------------------------------------------
+
+    [Fact]
+    public async Task Connect_WithAMalformedExpiryDate_Is400BeforeTheHandler()
+    {
+        await using EndpointHost host = await StartHost();
+
+        HttpResponseMessage response = await host.Client.PutAsJsonAsync(Url,
+            new { subscriptionKey = Key, deviceId = DeviceId, keyExpiresOn = "2027-13-01" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("The expiry date must be yyyy-MM-dd", await response.Content.ReadAsStringAsync());
+        await host.Dispatcher.DidNotReceive().Send(Arg.Any<ConnectWaterHeaterCommand>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Connect_PassesTheExpiryDateOn_AndAnswersWithIt()
+    {
+        await using EndpointHost host = await StartHost();
+
+        HttpResponseMessage response = await host.Client.PutAsJsonAsync(Url,
+            new { subscriptionKey = Key, deviceId = DeviceId, keyExpiresOn = "2027-11-19" });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("\"keyExpiresOn\":\"2027-11-19\"", await response.Content.ReadAsStringAsync());
+        await host.Dispatcher.Received(1).Send(
+            Arg.Is<ConnectWaterHeaterCommand>(c => c.SubscriptionKeyExpiresOn == new DateOnly(2027, 11, 19)),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SetExpiry_AsAdmin_IsTheSettingsWithTheNewDate()
+    {
+        await using EndpointHost host = await StartHost();
+
+        HttpResponseMessage response =
+            await host.Client.PutAsJsonAsync(Url + "/key-expiry", new { keyExpiresOn = "2027-12-01" });
+        string body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("\"keyExpiresOn\":\"2027-12-01\"", body);
+        Assert.DoesNotContain("subscriptionKey", body);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("01.12.2027")]
+    public async Task SetExpiry_WithAMissingOrMalformedDate_Is400(string date)
+    {
+        await using EndpointHost host = await StartHost();
+
+        HttpResponseMessage response = await host.Client.PutAsJsonAsync(Url + "/key-expiry", new { keyExpiresOn = date });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await host.Dispatcher.DidNotReceive()
+            .Send(Arg.Any<SetWaterHeaterKeyExpiryCommand>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SetExpiry_WithoutAHeater_Is404()
+    {
+        await using EndpointHost host = await StartHost(otherError: WaterHeaterErrors.NotConnected);
+
+        HttpResponseMessage response =
+            await host.Client.PutAsJsonAsync(Url + "/key-expiry", new { keyExpiresOn = "2027-12-01" });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(HostCaller.Anonymous, HttpStatusCode.Unauthorized)]
+    [InlineData(HostCaller.User, HttpStatusCode.Forbidden)]
+    public async Task SetExpiry_IsForAdminsOnly(HostCaller caller, HttpStatusCode expected)
+    {
+        await using EndpointHost host = await StartHost(caller);
+
+        HttpResponseMessage response =
+            await host.Client.PutAsJsonAsync(Url + "/key-expiry", new { keyExpiresOn = "2027-12-01" });
+
+        Assert.Equal(expected, response.StatusCode);
     }
 }

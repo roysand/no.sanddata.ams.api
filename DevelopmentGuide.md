@@ -478,3 +478,8 @@ samples its power once a minute (spec 011; endpoints in `specs/011-oso-water-hea
 - The device id is in every OSO URL path. The OSO `HttpClient` is registered with `.RemoveAllLoggers()`, because the
   factory's default loggers write the request URL; keep it. Never log the URL, an exception's message, the key or the
   device id. `NoSecretsInLogsTests` fails if any of them reaches a log.
+- OSO doesn't report when a subscription key expires, so an Admin enters the date (`keyExpiresOn`, one year by default)
+  when connecting, and can change it alone with `PUT …/water-heater/key-expiry` (spec 015). `GET
+  /api/admin/key-reminders` lists the sensor keys and OSO keys that expire within 30 days, for the app's reminder.
+  Name request and response fields `keyExpiresOn`, not after the key: `WaterHeaterAdminHttpTests` fails if a response
+  contains "subscriptionKey".
