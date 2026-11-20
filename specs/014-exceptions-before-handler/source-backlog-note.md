@@ -1,7 +1,8 @@
 # Backlog: Exceptions thrown before the global exception handler
 
-Status: not started. Found 2026-11-20 while doing spec 013 (`specs/013-exception-handling-middleware/`), where it was
-put out of scope. Remove this note when it is done or decided against.
+Status: done in spec 014 (2026-11-20). The handler was moved to just before authorization, not to the front. See
+[spec.md](spec.md), Background. Found 2026-11-20 while doing spec 013 (`specs/013-exception-handling-middleware/`),
+where it was put out of scope.
 
 ## What
 
@@ -36,8 +37,8 @@ Nothing leaks. Outside Development, hosting answers an uncaught exception with a
 
 ## Done when
 
-- [ ] An exception in authentication (for example, the API-key lookup with the database down) is logged as event
+- [x] An exception in authentication (for example, the API-key lookup with the database down) is logged as event
       2020 and answered with the fixed 500 body and a `traceId`, or the decision to leave it is recorded here and
       the note removed.
-- [ ] The request log still records each failed request once and never the exception text.
-- [ ] Tests in `tests/Features.Tests/Middleware/` cover the new order.
+- [x] The request log still records each failed request once and never the exception text.
+- [x] Tests in `tests/Features.Tests/Middleware/` cover the new order.

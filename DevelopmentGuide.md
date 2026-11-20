@@ -388,6 +388,26 @@ Request / Response logging
 - Known attribute names: `Path`, `Method`, `QueryString`, `UserAgent`, `RemoteIp`, `UserId`, `Email`, `Headers`.
 - For performance and privacy, request/response bodies are only read when `LogRequestBody` / `LogResponseBody` are enabled; prefer `false` in production or when bodies contain sensitive data.
 
+### Request pipeline order
+
+Requests pass these steps, in this order (`src/api/Program.cs`):
+
+1. `UseForwardedHeaders`: Caddy's `X-Forwarded-*` headers.
+2. `UseCors`: the frontend policy.
+3. `UseAuthentication`: JWT, the default scheme, checked in memory.
+4. `RequestResponseLoggingMiddleware`: the request log. It needs the claims from step 3.
+5. `UseExceptionHandling`: the global exception handler (spec 013, event 2020, fixed 500 with a `traceId`).
+6. `UseAuthorization`: this runs the API-key scheme for `AuthSchemes(..., "ApiKey")` endpoints, which reads the database.
+7. Scalar/OpenAPI (Development, or when `EnableScalarDocs` is set), `UseHttpsRedirection` (when an https URL is bound), then `UseFastEndpoints`.
+
+The exception handler covers everything from authorization inward, including the API-key lookup during a database
+outage. Steps 1–4 run before it and do no I/O. If one of them ever throws, the hosting layer answers with an empty
+500 and logs it itself, not as event 2020.
+
+Steps 2–6 live in `UseRequestPipeline` (`src/Infrastructure/Middleware/RequestPipelineExtensions.cs`), so
+`ExceptionPipelineTests` runs the same order as the API. Change the order there, not in `Program.cs`, and keep those
+tests passing.
+
 ### Standard failure reason codes
 
 When emitting failure events (for example `LoginFailed`, `UserCreateFailed`, or `ResponseError`) use a short, machine-friendly reason code to indicate why the operation failed. Document the codes here so consumers (alerts, dashboards, support teams) can reliably interpret logs.
