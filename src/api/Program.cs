@@ -86,15 +86,8 @@ forwardedHeadersOptions.KnownNetworks.Clear();
 forwardedHeadersOptions.KnownProxies.Clear();
 app.UseForwardedHeaders(forwardedHeadersOptions);
 
-// Add Authentication and Authorization middleware
-app.UseCors(FrontendCorsPolicy);
-app.UseAuthentication();
-// Request/response logging middleware needs authentication to populate claims
-app.UseMiddleware<RequestResponseLoggingMiddleware>();
-app.UseAuthorization();
-
-// Add exception handling middleware
-app.UseExceptionHandling();
+// CORS, sign-in, request log, exception handling and authorization; see UseRequestPipeline for the order.
+app.UseRequestPipeline(FrontendCorsPolicy);
 
 // Configure the HTTP request pipeline.
 // Development always gets it; elsewhere it's an explicit opt-in (EnableScalarDocs) - e.g. production,
