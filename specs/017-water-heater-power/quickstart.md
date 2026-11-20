@@ -81,3 +81,19 @@ The SQL has no database test harness in this repo (as in spec 012). Steps 2–3 
    The 19th value (p95) should be under 0.3 s.
 3. **SC-004**: for yesterday (two windows of 24 hours), count the steps with `sampledSeconds` ≥ 240. They should be
    at least 95 % of the 288 steps.
+
+### Results in production (2026-11-20, T022)
+
+Run against Hjemme on `ams-api.sanddata.eu` at about 21:40 UTC, read-only, signed in as the owner.
+
+- **Default window (2.2)**: `from`/`to` were now−3h…now. There were 37 items, every `start` was on whole 5 minutes,
+  and the last step was cut at now (286 s). Heating steps showed about 2.03 kW and standby steps 0.012 kW.
+- **SC-003**: 20 default-window requests, all `200`. The p95 (19th value) was **0.178 s** and the slowest 0.187 s,
+  under 0.3 s. ✅
+- **SC-004**: "yesterday" (2026-11-19 Oslo) can't be judged: Hjemme's samples start at 22:05 UTC that day, so only 11
+  of its 288 steps exist. Instead, every complete step since sampling began was counted (2026-11-19 22:05 to
+  2026-11-20 21:35 UTC, 282 steps). All 282 steps have an item, and 281 have ≥ 240 sampled seconds
+  (**99.6 %**). The only short step is the first one (51 s), when sampling began. ✅
+- **SC-002 (3.2)**: on 2026-11-20 00:00–21:00 UTC (21 complete hours, none capped), Σ `powerKw × sampledSeconds / 3600`
+  matched the hourly response's `waterHeater.kwh` to within **0.00033 kWh** at most, under 0.001 kWh. The difference
+  comes from `powerKw` being rounded to 3 decimals. ✅
