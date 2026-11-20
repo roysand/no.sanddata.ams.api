@@ -14,4 +14,6 @@ public record CurrentHourCostResponse(
     decimal ConsumptionKwhSoFar,
     string PricingModel,
     CurrentRateCostResponse? Actual,
-    CurrentRateCostResponse? Comparison);
+    CurrentRateCostResponse? Comparison,
+    decimal TotalKwhSoFar,
+    EvChargerHourResponse? EvCharger);

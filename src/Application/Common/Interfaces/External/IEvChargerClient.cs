@@ -1,0 +1,22 @@
+using Application.EvChargers;
+using Domain.Common;
+
+namespace Application.Common.Interfaces.External;
+
+/// <summary>
+/// Reads a Zaptec charger through Zaptec's cloud API with the server's own sign-in (spec 016). Read only on purpose
+/// (FR-017): there is no method that changes the charger. Never throws for HTTP, timeout or parsing failures; they
+/// come back as <see cref="EvChargerErrors"/> values.
+/// </summary>
+public interface IEvChargerClient
+{
+    /// <summary>False when the server has no Zaptec sign-in configured; every call then fails with NotConfigured.</summary>
+    bool IsConfigured { get; }
+
+    /// <summary>The chargers the sign-in can see (first 100).</summary>
+    Task<Result<IReadOnlyList<ZaptecCharger>>> GetChargersAsync(CancellationToken cancellationToken);
+
+    /// <summary>Completed sessions of the charger that ended in [<paramref name="fromUtc"/>, <paramref name="toUtc"/>).</summary>
+    Task<Result<IReadOnlyList<ZaptecSession>>> GetCompletedSessionsAsync(
+        Guid chargerId, DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken);
+}

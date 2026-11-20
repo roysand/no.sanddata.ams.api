@@ -150,9 +150,16 @@ Load order (last wins): `appsettings.json` → `appsettings.{Environment}.json` 
     "Issuer": "AmsApi",
     "Audience": "AmsApiClients",
     "AccessTokenExpirationHours": 6
+  },
+  "Zaptec": {
+    "Username": "",
+    "Password": ""
   }
 }
 ```
+
+`Zaptec` is the Zaptec login used to read the EV charger (spec 016). Leave it empty if you don't need charger data;
+the API then runs without reading the charger.
 
 ## Validation & Error Handling
 
@@ -213,6 +220,7 @@ EventId ranges (keep in sync as features are added):
 | 1600-1699 | NorgesPris |
 | 1700-1799 | Pricing |
 | 1800-1899 | WaterHeater |
+| 1900-1999 | EvCharger |
 | 2000-2099 | Infra/Logging |
 
 Full guide (why, request/response logging config, reason-code table): [DevelopmentGuide.md](DevelopmentGuide.md#logging-with-logmessages).

@@ -37,7 +37,15 @@ public record HourlyCostItemResponse(
     string PricingModel,
     HourRateCostResponse? Actual,
     HourRateCostResponse? Comparison,
-    WaterHeaterHourResponse? WaterHeater);
+    WaterHeaterHourResponse? WaterHeater,
+    decimal TotalKwh,
+    EvChargerHourResponse? EvCharger);
+
+/// <summary>
+/// The EV charger's kWh in the hour (spec 016). Never priced: <see cref="HourlyCostItemResponse.ConsumptionKwh"/> and
+/// every cost stay the meter's; TotalKwh adds these kWh only when <paramref name="Included"/>. Null without charging data.
+/// </summary>
+public record EvChargerHourResponse(decimal Kwh, bool Estimated, bool Included);
 
 /// <summary>
 /// The water heater's part of the hour (spec 012): kWh at most the hour's kWh, cost as its share of the actual cost

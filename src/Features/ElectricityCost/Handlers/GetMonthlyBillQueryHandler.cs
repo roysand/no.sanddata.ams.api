@@ -1,6 +1,7 @@
 using Application.Common.Interfaces.Repositories;
 using Application.CQRS;
 using Application.ElectricityCost;
+using Application.EvChargers;
 using Application.WaterHeaters;
 using Domain.Common;
 using Domain.Common.Entities;
@@ -61,8 +62,10 @@ public class GetMonthlyBillQueryHandler(
         DateTime soFarEndUtc = ended ? monthEndUtc : currentHourStartUtc;
 
         // Only the hours so far carry the water heater's part; it is never projected (spec 012, FR-006).
-        IReadOnlyList<HourCost> soFar = await hourlyCostProvider.GetAsync(
+        // The EV charger's kWh is attached the same way, and never priced (spec 016).
+        HourlyCosts costs = await hourlyCostProvider.GetWithEvChargerAsync(
             location, monthStartUtc, soFarEndUtc, ct, withWaterHeater: true);
+        IReadOnlyList<HourCost> soFar = costs.Hours;
 
         PriceRateBook book = await costCalculator.RateBookAsync(ct);
         decimal vat = location.VatExempt ? 0m : book.ValueOn(PriceRateKind.Vat, month) ?? 0m;
@@ -86,7 +89,9 @@ public class GetMonthlyBillQueryHandler(
         LogMessages.CostQueried(logger, query.UserId, query.LocationId);
 
         return Result.Success(BillMapper.ToResponse(
-            month, ended, bill, hours, projection, capacity, WaterHeaterShare.Sum(soFar.Select(h => h.WaterHeater))));
+            month, ended, bill, hours, projection, capacity, WaterHeaterShare.Sum(soFar.Select(h => h.WaterHeater)),
+            EvChargerShare.Sum(soFar.Select(h => h.EvCharger), costs.UnmatchedChargerHours),
+            soFar.Sum(h => h.ConsumptionKwh)));
     }
 
     /// <summary>

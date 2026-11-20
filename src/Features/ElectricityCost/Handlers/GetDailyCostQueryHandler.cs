@@ -1,5 +1,6 @@
 using Application.Common.Interfaces.Repositories;
 using Application.CQRS;
+using Application.EvChargers;
 using Domain.Common;
 using Domain.Common.Entities;
 using Features.ElectricityCost.Logging;
@@ -38,14 +39,21 @@ public class GetDailyCostQueryHandler(
             ? CostTime.LocalDate(fromValue)
             : lastDay.AddDays(-(DefaultDays - 1));
 
-        IReadOnlyList<HourCost> hours = await hourlyCostProvider.GetAsync(
+        HourlyCosts costs = await hourlyCostProvider.GetWithEvChargerAsync(
             location, CostTime.LocalDayStartUtc(firstDay), CostTime.LocalDayStartUtc(lastDay.AddDays(1)), ct,
             withWaterHeater: true);
 
-        var items = hours
+        // Charging hours without a meter reading count in their day's charger kWh (spec 016, research R7). A day with
+        // no meter reading at all has no item, as before.
+        var unmatchedByDay = costs.UnmatchedChargerHours
+            .GroupBy(h => CostTime.LocalDateOf(h.HourStartUtc))
+            .ToDictionary(g => g.Key, g => (IReadOnlyCollection<EvChargerHour>)g.ToList());
+
+        var items = costs.Hours
             .GroupBy(h => CostTime.LocalDateOf(h.HourStart))
             .OrderBy(g => g.Key)
-            .Select(g => CostMapper.ToDailyResponse(DateOnly.FromDateTime(g.Key), g.ToList()))
+            .Select(g => CostMapper.ToDailyResponse(
+                DateOnly.FromDateTime(g.Key), g.ToList(), unmatchedByDay.GetValueOrDefault(g.Key)))
             .ToList();
 
         LogMessages.CostQueried(logger, query.UserId, query.LocationId);

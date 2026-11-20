@@ -12,12 +12,15 @@ public class GetMyLocationsQueryHandlerTests
 {
     private readonly ILocationRepository<Location> _locationRepository = Substitute.For<ILocationRepository<Location>>();
     private readonly IWaterHeaterRepository<WaterHeater> _waterHeaters = Substitute.For<IWaterHeaterRepository<WaterHeater>>();
+    private readonly IEvChargerRepository<EvCharger> _evChargers = Substitute.For<IEvChargerRepository<EvCharger>>();
     private readonly GetMyLocationsQueryHandler _handler;
 
     public GetMyLocationsQueryHandlerTests()
     {
         _handler = new GetMyLocationsQueryHandler(
-            _locationRepository, _waterHeaters, Substitute.For<ILogger<GetMyLocationsQueryHandler>>());
+            _locationRepository, _waterHeaters, _evChargers, Substitute.For<ILogger<GetMyLocationsQueryHandler>>());
+        _evChargers.GetLocationIdsWithChargerAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new HashSet<Guid>());
         _waterHeaters.GetLocationIdsWithHeaterAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(new HashSet<Guid>());
     }

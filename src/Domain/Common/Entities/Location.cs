@@ -30,6 +30,11 @@ public class Location : Entity
     /// <summary>A holiday home (fritidsbolig): picks the holiday-home Norgespris monthly cap.</summary>
     public bool IsHolidayHome { get; private set; }
 
+    /// <summary>
+    /// Count the EV charger's kWh in the location's kWh totals (spec 016). A view choice: costs never include it.
+    /// </summary>
+    public bool IncludeEvChargerInTotals { get; private set; }
+
     public ApiKey ApiKey { get; private set; } = null!;
     private readonly List<User> _users = new();
     public IReadOnlyCollection<User> Users => _users.AsReadOnly();
@@ -82,6 +87,9 @@ public class Location : Entity
 
     /// <summary>Administrator-only. Not dated, like the markup: a change applies to past months too.</summary>
     public void SetSupplierMonthlyFee(decimal? supplierMonthlyFee) => SupplierMonthlyFee = supplierMonthlyFee;
+
+    /// <summary>Owner or administrator: whether the EV charger's kWh are counted with the house's.</summary>
+    public void SetIncludeEvCharger(bool include) => IncludeEvChargerInTotals = include;
 
     public void AssignApiKey(ApiKey apiKey) => ApiKey = apiKey;
 

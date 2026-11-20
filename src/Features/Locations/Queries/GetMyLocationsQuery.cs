@@ -10,6 +10,8 @@ public record GetMyLocationsQuery(Guid UserId) : IQuery<Result<IReadOnlyList<Loc
 /// <param name="IsActive">Owners also receive their inactive locations so they can switch them on again.</param>
 /// <param name="HasWaterHeater">True when an OSO water heater is connected, so the app can show its tab at once without
 /// reading the heater.</param>
+/// <param name="HasEvCharger">True when a Zaptec EV charger is connected (spec 016).</param>
+/// <param name="IncludeEvCharger">The "count the charger with the house" checkbox (spec 016).</param>
 public record LocationSummaryResponse(
     Guid Id,
     string Name,
@@ -20,4 +22,6 @@ public record LocationSummaryResponse(
     bool IsActive,
     string Role,
     IReadOnlyList<MeterResponse> Meters,
-    bool HasWaterHeater);
+    bool HasWaterHeater,
+    bool HasEvCharger,
+    bool IncludeEvCharger);

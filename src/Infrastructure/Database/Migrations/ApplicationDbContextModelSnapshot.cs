@@ -108,6 +108,88 @@ namespace Infrastructure.Database.Migrations
                     b.ToTable("ApiKey", "public");
                 });
 
+            modelBuilder.Entity("Domain.Common.Entities.ChargingSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ChargerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("EndUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("HasEnergyDetails")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("Kwh")
+                        .HasPrecision(12, 4)
+                        .HasColumnType("numeric(12,4)");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("StartUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ZaptecSessionId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ZaptecSessionId")
+                        .IsUnique();
+
+                    b.HasIndex("LocationId", "EndUtc");
+
+                    b.ToTable("ChargingSession", "public");
+                });
+
+            modelBuilder.Entity("Domain.Common.Entities.ChargingSessionHour", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ChargingSessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("Estimated")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("HourStartUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("Kwh")
+                        .HasPrecision(12, 4)
+                        .HasColumnType("numeric(12,4)");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChargingSessionId", "HourStartUtc")
+                        .IsUnique();
+
+                    b.HasIndex("LocationId", "HourStartUtc");
+
+                    b.ToTable("ChargingSessionHour", "public");
+                });
+
             modelBuilder.Entity("Domain.Common.Entities.ElectricityPrice", b =>
                 {
                     b.Property<Guid>("Id")
@@ -138,6 +220,51 @@ namespace Infrastructure.Database.Migrations
                         .IsUnique();
 
                     b.ToTable("ElectricityPrice", "public");
+                });
+
+            modelBuilder.Entity("Domain.Common.Entities.EvCharger", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ChargerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ChargerName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("InstallationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("InstallationName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ReadUpToUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChargerId")
+                        .IsUnique();
+
+                    b.HasIndex("LocationId")
+                        .IsUnique();
+
+                    b.ToTable("EvCharger", "public");
                 });
 
             modelBuilder.Entity("Domain.Common.Entities.ExchangeRate", b =>
@@ -299,6 +426,11 @@ namespace Infrastructure.Database.Migrations
 
                     b.Property<bool>("HasNorgesPriceAgreement")
                         .HasColumnType("boolean");
+
+                    b.Property<bool>("IncludeEvChargerInTotals")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -814,6 +946,33 @@ namespace Infrastructure.Database.Migrations
                     b.Navigation("Location");
                 });
 
+            modelBuilder.Entity("Domain.Common.Entities.ChargingSession", b =>
+                {
+                    b.HasOne("Domain.Common.Entities.Location", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Domain.Common.Entities.ChargingSessionHour", b =>
+                {
+                    b.HasOne("Domain.Common.Entities.ChargingSession", null)
+                        .WithMany("Hours")
+                        .HasForeignKey("ChargingSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Domain.Common.Entities.EvCharger", b =>
+                {
+                    b.HasOne("Domain.Common.Entities.Location", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Domain.Common.Entities.GridCapacityStep", b =>
                 {
                     b.HasOne("Domain.Common.Entities.GridTariff", null)
@@ -942,6 +1101,11 @@ namespace Infrastructure.Database.Migrations
                         .HasForeignKey("LocationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Domain.Common.Entities.ChargingSession", b =>
+                {
+                    b.Navigation("Hours");
                 });
 
             modelBuilder.Entity("Domain.Common.Entities.Location", b =>

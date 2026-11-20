@@ -80,7 +80,21 @@ public record MonthlyBillResponse(
     BillPartResponse Strom,
     BillPartResponse Nettleie,
     BillTotalResponse Total,
-    WaterHeaterBillResponse? WaterHeater);
+    WaterHeaterBillResponse? WaterHeater,
+    decimal TotalKwh,
+    EvChargerBillResponse? EvCharger);
+
+/// <summary>
+/// The EV charger's kWh in the month's hours so far (spec 016), never projected and never priced: no line, subtotal,
+/// total or capacity step includes it. TotalKwh (the meter's kWh so far) adds it only when <paramref name="Included"/>.
+/// </summary>
+public record EvChargerBillResponse(
+    decimal Kwh,
+    bool Estimated,
+    bool Included,
+    int HoursWithoutMeterReading,
+    DateTime FirstHour,
+    DateTime LastHour);
 
 /// <summary>
 /// The water heater's part of the month's hours so far (spec 012). It is part of the energy cost, not a bill line, and

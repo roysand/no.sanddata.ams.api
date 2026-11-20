@@ -24,6 +24,7 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<Features.Users.Services.AdminBootstrapService>();
         services.AddHostedService<Features.ElectricityCost.Services.PriceFetchService>();
         services.AddHostedService<Features.WaterHeaters.Services.WaterHeaterSamplingService>();
+        services.AddHostedService<Features.EvChargers.Services.EvChargerReadService>();
         services.AddScoped<Features.ElectricityCost.Services.HourlyCostProvider>();
 
         // Domain Events
