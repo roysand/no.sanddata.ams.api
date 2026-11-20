@@ -39,7 +39,8 @@ public class GetDailyCostQueryHandler(
             : lastDay.AddDays(-(DefaultDays - 1));
 
         IReadOnlyList<HourCost> hours = await hourlyCostProvider.GetAsync(
-            location, CostTime.LocalDayStartUtc(firstDay), CostTime.LocalDayStartUtc(lastDay.AddDays(1)), ct);
+            location, CostTime.LocalDayStartUtc(firstDay), CostTime.LocalDayStartUtc(lastDay.AddDays(1)), ct,
+            withWaterHeater: true);
 
         var items = hours
             .GroupBy(h => CostTime.LocalDateOf(h.HourStart))

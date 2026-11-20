@@ -1,6 +1,7 @@
 using Application.Common.Interfaces.Repositories;
 using Application.CQRS;
 using Application.ElectricityCost;
+using Application.WaterHeaters;
 using Domain.Common;
 using Domain.Common.Entities;
 using Features.ElectricityCost.Logging;
@@ -59,7 +60,9 @@ public class GetMonthlyBillQueryHandler(
         bool ended = nowUtc >= monthEndUtc;
         DateTime soFarEndUtc = ended ? monthEndUtc : currentHourStartUtc;
 
-        IReadOnlyList<HourCost> soFar = await hourlyCostProvider.GetAsync(location, monthStartUtc, soFarEndUtc, ct);
+        // Only the hours so far carry the water heater's part; it is never projected (spec 012, FR-006).
+        IReadOnlyList<HourCost> soFar = await hourlyCostProvider.GetAsync(
+            location, monthStartUtc, soFarEndUtc, ct, withWaterHeater: true);
 
         PriceRateBook book = await costCalculator.RateBookAsync(ct);
         decimal vat = location.VatExempt ? 0m : book.ValueOn(PriceRateKind.Vat, month) ?? 0m;
@@ -82,7 +85,8 @@ public class GetMonthlyBillQueryHandler(
 
         LogMessages.CostQueried(logger, query.UserId, query.LocationId);
 
-        return Result.Success(BillMapper.ToResponse(month, ended, bill, hours, projection, capacity));
+        return Result.Success(BillMapper.ToResponse(
+            month, ended, bill, hours, projection, capacity, WaterHeaterShare.Sum(soFar.Select(h => h.WaterHeater))));
     }
 
     /// <summary>

@@ -70,6 +70,9 @@ public class CapAndExemptionTests
     private CostCalculator Calculator(IPriceRateRepository? rates = null) =>
         new(_prices, _fx, NorgesPrisRates.Seeded(), rates ?? Rates());
 
+    private HourlyCostProvider Provider(IConsumptionRepository consumption) =>
+        new(consumption, Calculator(), Substitute.For<IWaterHeaterPowerSampleRepository<WaterHeaterPowerSample>>(), TimeProvider.System);
+
     // ---- the split ---------------------------------------------------------------------------------------------
 
     [Theory]
@@ -257,9 +260,9 @@ public class CapAndExemptionTests
             Hour(cabin.Id, "2026-12-01T10:00:00Z", 999m),
             Hour(cabin.Id, "2026-12-02T13:00:00Z", 3m));
 
-        IReadOnlyList<HourCost> fromMidMonth = await new HourlyCostProvider(consumption, Calculator())
+        IReadOnlyList<HourCost> fromMidMonth = await Provider(consumption)
             .GetAsync(cabin, Utc("2026-12-02T00:00:00Z"), Utc("2026-12-03T00:00:00Z"), CancellationToken.None);
-        IReadOnlyList<HourCost> wholeMonth = await new HourlyCostProvider(consumption, Calculator())
+        IReadOnlyList<HourCost> wholeMonth = await Provider(consumption)
             .GetAsync(cabin, Utc("2026-11-30T23:00:00Z"), Utc("2026-12-03T00:00:00Z"), CancellationToken.None);
 
         HourCost hour = Assert.Single(fromMidMonth);
@@ -276,7 +279,7 @@ public class CapAndExemptionTests
             Hour(cabin.Id, "2026-11-30T22:00:00Z", 2000m),
             Hour(cabin.Id, "2026-11-30T23:00:00Z", 1m));
 
-        IReadOnlyList<HourCost> hours = await new HourlyCostProvider(consumption, Calculator())
+        IReadOnlyList<HourCost> hours = await Provider(consumption)
             .GetAsync(cabin, Utc("2026-11-30T22:00:00Z"), Utc("2026-12-01T00:00:00Z"), CancellationToken.None);
 
         Assert.NotNull(hours[0].Cost.Actual!.Cap);
@@ -291,7 +294,7 @@ public class CapAndExemptionTests
             Hour(cabin.Id, "2026-12-01T10:00:00Z", 1000m),
             Hour(cabin.Id, "2026-12-02T13:00:00Z", 2m));
 
-        IReadOnlyList<HourCost> hours = await new HourlyCostProvider(consumption, Calculator())
+        IReadOnlyList<HourCost> hours = await Provider(consumption)
             .GetAsync(cabin, Utc("2026-12-02T00:00:00Z"), Utc("2026-12-03T00:00:00Z"), CancellationToken.None);
         SavingPeriodResponse today = SavingCalculator.Calculate(hours, new DateTime(2026, 12, 2)).Periods
             .Single(p => p.Period == SavingCalculator.Today);

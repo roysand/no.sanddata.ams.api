@@ -13,6 +13,10 @@ public record DailyCostItemResponse(
     decimal ConsumptionKwh,
     string PricingModel,
     DayCostResponse? Actual,
-    DayCostResponse? Comparison);
+    DayCostResponse? Comparison,
+    WaterHeaterDayResponse? WaterHeater);
+
+/// <summary>The sums of the day's hourly water heater parts (spec 012); null when no hour has one.</summary>
+public record WaterHeaterDayResponse(decimal Kwh, decimal? Cost, int SampledMinutes, bool Capped);
 
 public record DailyCostResponse(IReadOnlyList<DailyCostItemResponse> Items);

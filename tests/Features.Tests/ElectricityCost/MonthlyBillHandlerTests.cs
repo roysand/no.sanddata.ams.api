@@ -1,6 +1,7 @@
 using System.Globalization;
 using Application.Common.Interfaces.Repositories;
 using Application.ElectricityCost;
+using Application.WaterHeaters;
 using Domain.Common;
 using Domain.Common.Entities;
 using Features.ElectricityCost.Handlers;
@@ -24,6 +25,8 @@ public class MonthlyBillHandlerTests
 
     private readonly ILocationRepository<Location> _locations = Substitute.For<ILocationRepository<Location>>();
     private readonly IConsumptionRepository _consumption = Substitute.For<IConsumptionRepository>();
+    private readonly IWaterHeaterPowerSampleRepository<WaterHeaterPowerSample> _samples =
+        Substitute.For<IWaterHeaterPowerSampleRepository<WaterHeaterPowerSample>>();
     private readonly IElectricityPriceRepository<ElectricityPrice> _prices =
         Substitute.For<IElectricityPriceRepository<ElectricityPrice>>();
     private readonly IExchangeRateRepository<ExchangeRate> _fx = Substitute.For<IExchangeRateRepository<ExchangeRate>>();
@@ -81,7 +84,7 @@ public class MonthlyBillHandlerTests
             _locations,
             _consumption,
             _rates,
-            new HourlyCostProvider(_consumption, calculator),
+            new HourlyCostProvider(_consumption, calculator, _samples, new FixedTimeProvider(now)),
             calculator,
             new FixedTimeProvider(now),
             _logger);
@@ -264,7 +267,8 @@ public class MonthlyBillHandlerTests
     {
         ReadingsEveryHour(Utc("2026-12-01T00:00:00Z"), CurrentHour, 0.5m);
         var calculator = new CostCalculator(_prices, _fx, NorgesPrisRates.Seeded(), _rates);
-        IReadOnlyList<HourCost> hours = await new HourlyCostProvider(_consumption, calculator)
+        IReadOnlyList<HourCost> hours = await new HourlyCostProvider(
+                _consumption, calculator, _samples, TimeProvider.System)
             .GetAsync(_cabin, Utc("2026-11-30T23:00:00Z"), CurrentHour, CancellationToken.None);
         CapacityChargeResult capacity = CapacityCharge.Calculate(
             hours.Select(h => (h.HourStart, h.ConsumptionKwh)),
@@ -360,5 +364,103 @@ public class MonthlyBillHandlerTests
         Assert.Equal(0, bill.Projection.BasedOnHours);
         Assert.Equal(0m, bill.Projection.BasedOnDays);
         Assert.Equal(515, bill.Projection.Hours);
+    }
+
+    // ---- the water heater's part (spec 012) ----------------------------------------------------------------------
+
+    private readonly List<WaterHeaterHourEnergy> _heater = [];
+
+    /// <summary>Heater rows served like the repository: only the hours in [from, to).</summary>
+    private void Heater(string hourUtc, decimal kwh, decimal seconds = 3600m)
+    {
+        _heater.Add(new WaterHeaterHourEnergy(Utc(hourUtc), kwh, seconds));
+        _samples.GetHourlyEnergyAsync(_cabin.Id, Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<DateTime>(),
+                Arg.Any<CancellationToken>())
+            .Returns(call => Task.FromResult<IReadOnlyList<WaterHeaterHourEnergy>>(_heater
+                .Where(h => h.HourStartUtc >= call.ArgAt<DateTime>(1) && h.HourStartUtc < call.ArgAt<DateTime>(2))
+                .ToList()));
+    }
+
+    [Fact]
+    public async Task AnEstimateMonth_HasTheHeaterPartOfTheHoursSoFarOnly()
+    {
+        ReadingsEveryHour(Utc("2026-11-30T23:00:00Z"), Utc("2026-12-10T13:00:00Z"), 2m);
+        Heater("2026-12-02T05:00:00Z", 1.5m);
+        Heater("2026-12-09T20:00:00Z", 0.5m, 1800m);
+        Heater("2026-12-10T12:00:00Z", 1.0m); // the current hour: part of the projection, not of the hours so far
+
+        MonthlyBillResponse bill = (await Bill("2026-12")).Value;
+
+        Assert.Equal("Estimate", bill.Status);
+        Assert.NotNull(bill.WaterHeater);
+        Assert.Equal(2.0m, bill.WaterHeater.Kwh);
+        Assert.Equal(90, bill.WaterHeater.SampledMinutes);
+        Assert.False(bill.WaterHeater.Estimate);
+        Assert.Equal(Utc("2026-12-02T05:00:00Z"), bill.WaterHeater.FirstHourUtc);
+        Assert.Equal(Utc("2026-12-09T20:00:00Z"), bill.WaterHeater.LastHourUtc);
+        Assert.NotNull(bill.WaterHeater.Cost);
+        Assert.True(bill.WaterHeater.Cost > 0m);
+        await _samples.Received().GetHourlyEnergyAsync(
+            _cabin.Id, Utc("2026-11-30T23:00:00Z"), Utc("2026-12-10T12:00:00Z"), Arg.Any<DateTime>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task TheHeaterPart_ChangesNoAmountOnTheBill()
+    {
+        ReadingsEveryHour(Utc("2026-11-30T23:00:00Z"), Utc("2026-12-10T13:00:00Z"), 2m);
+        MonthlyBillResponse without = (await Bill("2026-12")).Value;
+        Heater("2026-12-02T05:00:00Z", 1.5m);
+
+        MonthlyBillResponse with = (await Bill("2026-12")).Value;
+
+        Assert.Null(without.WaterHeater);
+        Assert.NotNull(with.WaterHeater);
+        Assert.Equal(without.Total, with.Total);
+        Assert.Equal(without.Strom.Amount, with.Strom.Amount);
+        Assert.Equal(without.Nettleie.Amount, with.Nettleie.Amount);
+        Assert.Equal(without.Hours, with.Hours);
+    }
+
+    [Fact]
+    public async Task AFinalMonth_HasTheHeaterPartOfAllItsHours_AndItsCostIsTheSumOfTheHourlyShares()
+    {
+        Reading("2026-11-04T13:00:00Z", 2m);
+        Reading("2026-11-08T13:00:00Z", 4m);
+        Heater("2026-11-04T13:00:00Z", 1m);
+        Heater("2026-11-08T13:00:00Z", 1m);
+        var calculator = new CostCalculator(_prices, _fx, NorgesPrisRates.Seeded(), _rates);
+        IReadOnlyList<HourCost> hours = await new HourlyCostProvider(
+                _consumption, calculator, _samples, new FixedTimeProvider("2026-12-10T12:30:00Z"))
+            .GetAsync(_cabin, Utc("2026-10-31T23:00:00Z"), Utc("2026-11-30T23:00:00Z"), CancellationToken.None,
+                withWaterHeater: true);
+
+        MonthlyBillResponse bill = (await Bill("2026-11")).Value;
+
+        Assert.Equal("Final", bill.Status);
+        Assert.NotNull(bill.WaterHeater);
+        Assert.Equal(2m, bill.WaterHeater.Kwh);
+        Assert.Equal(hours.Sum(h => h.WaterHeater!.Cost!.Value), bill.WaterHeater.Cost);
+        Assert.Equal(hours.Sum(h => h.Cost.Actual!.Cost * 1m / h.ConsumptionKwh), bill.WaterHeater.Cost);
+    }
+
+    [Fact]
+    public async Task AMonthWithoutHeaterSamples_HasNoHeaterPart()
+    {
+        Reading("2026-11-04T13:00:00Z", 2m);
+
+        MonthlyBillResponse bill = (await Bill("2026-11")).Value;
+
+        Assert.Null(bill.WaterHeater);
+    }
+
+    [Fact]
+    public async Task TheProjection_NeverReadsHeaterSamples()
+    {
+        ReadingsEveryHour(Utc("2026-11-30T23:00:00Z"), Utc("2026-12-10T13:00:00Z"), 2m);
+
+        await Bill("2026-12");
+
+        await _samples.ReceivedWithAnyArgs(1).GetHourlyEnergyAsync(default, default, default, default, default);
     }
 }

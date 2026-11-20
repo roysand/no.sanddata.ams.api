@@ -79,4 +79,18 @@ public record MonthlyBillResponse(
     BillCapacityResponse Capacity,
     BillPartResponse Strom,
     BillPartResponse Nettleie,
-    BillTotalResponse Total);
+    BillTotalResponse Total,
+    WaterHeaterBillResponse? WaterHeater);
+
+/// <summary>
+/// The water heater's part of the month's hours so far (spec 012). It is part of the energy cost, not a bill line, and
+/// never projected, so <see cref="Estimate"/> is always false. Null when the month has no heater samples.
+/// </summary>
+public record WaterHeaterBillResponse(
+    decimal Kwh,
+    decimal? Cost,
+    int SampledMinutes,
+    bool Capped,
+    DateTime FirstHourUtc,
+    DateTime LastHourUtc,
+    bool Estimate);

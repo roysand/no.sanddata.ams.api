@@ -198,7 +198,8 @@ public class NorgesPrisSavingTests
         var calculator = new CostCalculator(_prices, _rates, NorgesPrisRates.Seeded(), PriceRateStubs.Zero());
         return new GetNorgesPrisSavingQueryHandler(
             _locations,
-            new HourlyCostProvider(_consumption, calculator),
+            new HourlyCostProvider(
+                _consumption, calculator, Substitute.For<IWaterHeaterPowerSampleRepository<WaterHeaterPowerSample>>(), TimeProvider.System),
             new FixedTimeProvider("2026-11-16T12:00:00Z"),
             Substitute.For<ILogger<GetNorgesPrisSavingQueryHandler>>());
     }

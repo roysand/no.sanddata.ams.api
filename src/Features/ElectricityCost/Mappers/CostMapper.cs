@@ -1,4 +1,5 @@
 using Application.ElectricityCost;
+using Application.WaterHeaters;
 using Features.ElectricityCost.Queries;
 using Features.ElectricityCost.Services;
 
@@ -13,7 +14,7 @@ public static class CostMapper
 
     public static HourlyCostItemResponse ToHourlyResponse(HourCost hour) =>
         new(hour.HourStart, hour.ConsumptionKwh, hour.Cost.PricingModel.ToString(),
-            ToHourly(hour.Cost.Actual), ToHourly(hour.Cost.Comparison));
+            ToHourly(hour.Cost.Actual), ToHourly(hour.Cost.Comparison), ToWaterHeater(hour.WaterHeater));
 
     public static PagedHourlyCostResponse ToPagedHourlyResponse(
         IEnumerable<HourCost> hours, int page, int pageSize, int totalCount) =>
@@ -26,7 +27,14 @@ public static class CostMapper
     public static DailyCostItemResponse ToDailyResponse(DateOnly date, IReadOnlyList<HourCost> hours) =>
         new(date, hours.Sum(h => h.ConsumptionKwh), hours[0].Cost.PricingModel.ToString(),
             SumCost(hours.Select(h => h.Cost.Actual)),
-            SumCost(hours.Select(h => h.Cost.Comparison)));
+            SumCost(hours.Select(h => h.Cost.Comparison)),
+            ToWaterHeater(WaterHeaterShare.Sum(hours.Select(h => h.WaterHeater))));
+
+    private static WaterHeaterHourResponse? ToWaterHeater(WaterHeaterHour? part) =>
+        part is null ? null : new WaterHeaterHourResponse(part.Kwh, part.Cost, part.SampledMinutes, part.Capped);
+
+    private static WaterHeaterDayResponse? ToWaterHeater(WaterHeaterTotal? total) =>
+        total is null ? null : new WaterHeaterDayResponse(total.Kwh, total.Cost, total.SampledMinutes, total.Capped);
 
     private static DayCostResponse? SumCost(IEnumerable<RateCost?> costs)
     {
