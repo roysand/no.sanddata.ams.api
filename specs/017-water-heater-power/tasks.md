@@ -254,7 +254,7 @@ made-up location id, get the same 404. Without a token, get 401 (already covered
     (FR-006).
   - Check SC-002 for one complete hour: Σ `powerKw × sampledSeconds / 3600` equals the hour's uncapped heater kWh
     within 0.001 kWh.
-- [ ] T022 After deploying, run quickstart §4 in production: SC-003 (p95 < 300 ms for the default window) and SC-004
+- [X] T022 After deploying, run quickstart §4 in production: SC-003 (p95 < 300 ms for the default window) and SC-004
   (≥ 95 % of yesterday's steps have ≥ 240 sampled seconds). Record the results in `quickstart.md`, or in a short note
   in the PR.
 
