@@ -14,6 +14,7 @@ public class UpdateOwnLocationCommandHandlerTests
 {
     private readonly ILocationRepository<Location> _locations = Substitute.For<ILocationRepository<Location>>();
     private readonly IUserLocationRepository<UserLocation> _links = Substitute.For<IUserLocationRepository<UserLocation>>();
+    private readonly IWaterHeaterRepository<WaterHeater> _waterHeaters = Substitute.For<IWaterHeaterRepository<WaterHeater>>();
     private readonly UpdateOwnLocationCommandHandler _handler;
     private readonly Guid _userId = Guid.NewGuid();
     private readonly Location _location = new(Guid.NewGuid(), "Home", "Old address", "SN-1", "NO3", true, true);
@@ -21,7 +22,7 @@ public class UpdateOwnLocationCommandHandlerTests
     public UpdateOwnLocationCommandHandlerTests()
     {
         _handler = new UpdateOwnLocationCommandHandler(
-            _locations, _links, Substitute.For<ILogger<UpdateOwnLocationCommandHandler>>());
+            _locations, _links, _waterHeaters, Substitute.For<ILogger<UpdateOwnLocationCommandHandler>>());
         _location.AssignApiKey(new ApiKey(Guid.NewGuid(), ApiKeyCrypto.Hash("k"), "k", "Sensor key for Home", true,
             DateTime.UtcNow.AddDays(30)));
         _locations.GetByIdWithKeyAsync(_location.Id, Arg.Any<CancellationToken>()).Returns(_location);
@@ -47,6 +48,7 @@ public class UpdateOwnLocationCommandHandlerTests
         Assert.Equal("Cabin", result.Value.Name);
         Assert.False(result.Value.IsActive);
         Assert.Equal("Owner", result.Value.Role);
+        Assert.False(result.Value.HasWaterHeater);
         await _locations.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -110,5 +112,17 @@ public class UpdateOwnLocationCommandHandlerTests
         Assert.DoesNotContain("Zone", names);
         Assert.DoesNotContain("HasNorgesPriceAgreement", names);
         Assert.DoesNotContain(names, n => n.Contains("Key", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task TheAnswer_SaysWhenTheLocationHasAWaterHeater()
+    {
+        Owns(true);
+        _waterHeaters.GetByLocationAsync(_location.Id, Arg.Any<CancellationToken>())
+            .Returns(new WaterHeater(Guid.NewGuid(), _location.Id, "abc123", "protected"));
+
+        Result<LocationSummaryResponse> result = await _handler.Handle(Command(), CancellationToken.None);
+
+        Assert.True(result.Value.HasWaterHeater);
     }
 }

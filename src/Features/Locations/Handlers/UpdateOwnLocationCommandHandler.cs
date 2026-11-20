@@ -13,6 +13,7 @@ namespace Features.Locations.Handlers;
 public class UpdateOwnLocationCommandHandler(
     ILocationRepository<Location> locationRepository,
     IUserLocationRepository<UserLocation> userLocationRepository,
+    IWaterHeaterRepository<WaterHeater> waterHeaterRepository,
     ILogger<UpdateOwnLocationCommandHandler> logger)
     : ICommandHandler<UpdateOwnLocationCommand, Result<LocationSummaryResponse>>
 {
@@ -40,6 +41,7 @@ public class UpdateOwnLocationCommandHandler(
             LogMessages.LocationActiveChanged(logger, location.Id, location.IsActive, command.ActingUserId);
         }
 
-        return Result.Success(LocationMapper.ToResponse(location, LocationRole.Owner));
+        bool hasWaterHeater = await waterHeaterRepository.GetByLocationAsync(location.Id, ct) is not null;
+        return Result.Success(LocationMapper.ToResponse(location, LocationRole.Owner, hasWaterHeater));
     }
 }
