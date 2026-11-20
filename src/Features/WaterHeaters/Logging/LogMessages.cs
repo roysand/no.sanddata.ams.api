@@ -6,7 +6,7 @@ namespace Features.WaterHeaters.Logging;
 /// Water heater (OSO): event ids 1800 - 1899 (1800 - 1819 here, the OSO client 1820 - 1829, the sampler 1830 - 1849).
 /// Ids and reason codes only: the OSO subscription key and the device id are never logged. Reason codes are the
 /// error codes without the prefix: Rejected, Unavailable, InvalidResponse, KeyUnreadable, EncryptionNotConfigured,
-/// DeviceInUse, NotFound, Unexpected.
+/// DeviceInUse, KeyExpiryOutOfRange, NotFound, Unexpected.
 /// </summary>
 internal static class LogMessages
 {
@@ -45,6 +45,12 @@ internal static class LogMessages
             LogLevel.Warning,
             new EventId(1805, nameof(LocationAccessDenied)),
             "Water heater of location {LocationId} requested by {ActingUserId}, who may not see it (reason: NotFound)");
+
+    private static readonly Action<ILogger, Guid, Guid, DateOnly, Exception?> _keyExpiryChanged =
+        LoggerMessage.Define<Guid, Guid, DateOnly>(
+            LogLevel.Information,
+            new EventId(1806, nameof(WaterHeaterKeyExpiryChanged)),
+            "Water heater key expiry of location {LocationId} set to {ExpiresOn} by {ActingUserId}");
 
     private static readonly Action<ILogger, Guid, string, Exception?> _sampleFailing =
         LoggerMessage.Define<Guid, string>(
@@ -87,6 +93,9 @@ internal static class LogMessages
 
     public static void LocationAccessDenied(ILogger logger, Guid actingUserId, Guid locationId)
         => _accessDenied(logger, locationId, actingUserId, null);
+
+    public static void WaterHeaterKeyExpiryChanged(ILogger logger, Guid actingUserId, Guid locationId, DateOnly expiresOn)
+        => _keyExpiryChanged(logger, locationId, actingUserId, expiresOn, null);
 
     public static void WaterHeaterSampleFailing(ILogger logger, Guid locationId, string reason)
         => _sampleFailing(logger, locationId, reason, null);

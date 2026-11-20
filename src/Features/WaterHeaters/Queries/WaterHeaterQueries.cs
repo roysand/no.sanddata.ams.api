@@ -5,8 +5,12 @@ namespace Features.WaterHeaters.Queries;
 
 public sealed record GetWaterHeaterSettingsQuery(Guid LocationId) : IQuery<Result<WaterHeaterSettingsResponse>>;
 
-/// <summary>The connection as an Admin sees it. There is deliberately no field for the key.</summary>
-public sealed record WaterHeaterSettingsResponse(Guid LocationId, string DeviceIdHint, DateTime ConnectedAt, DateTime UpdatedAt);
+/// <summary>
+/// The connection as an Admin sees it. There is deliberately no field for the key. <paramref name="KeyExpiresOn"/> is the
+/// OSO key's last valid Oslo day (spec 015); it is not named after the key, so no field name suggests the key itself.
+/// </summary>
+public sealed record WaterHeaterSettingsResponse(
+    Guid LocationId, string DeviceIdHint, DateTime ConnectedAt, DateTime UpdatedAt, DateOnly KeyExpiresOn);
 
 /// <summary>The heater's live state for a user who may see the location (or an Admin).</summary>
 public sealed record GetWaterHeaterStateQuery(Guid UserId, bool IsAdmin, Guid LocationId)

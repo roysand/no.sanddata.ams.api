@@ -11,8 +11,12 @@ internal static class WaterHeaterTestData
     public static Location Location(bool active = true) =>
         new(LocationId, "Hjemme", "Street 1", "SN-1", "NO1", active, hasNorgesPriceAgreement: false);
 
-    public static WaterHeater Heater(string deviceId = OsoSamples.DeviceId, Guid? locationId = null) =>
-        new(Guid.NewGuid(), locationId ?? LocationId, deviceId, "v1:protected");
+    /// <summary>Hjemme's OSO key is valid until 19 November 2027.</summary>
+    public static readonly DateOnly KeyExpiresOn = new(2027, 11, 19);
+
+    public static WaterHeater Heater(
+        string deviceId = OsoSamples.DeviceId, Guid? locationId = null, DateOnly? expiresOn = null) =>
+        new(Guid.NewGuid(), locationId ?? LocationId, deviceId, "v1:protected", expiresOn ?? KeyExpiresOn);
 
     public static WaterHeaterReading Reading(DateTime? readingTimeUtc = null) => new(
         ReadingTimeUtc: readingTimeUtc ?? new DateTime(2026, 11, 19, 18, 6, 48, 703, DateTimeKind.Utc),

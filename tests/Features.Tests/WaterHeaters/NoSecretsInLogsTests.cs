@@ -105,13 +105,14 @@ public class NoSecretsInLogsTests
         heaters.Insert(Arg.Do<WaterHeater>(h => saved = h));
 
         Result<WaterHeaterSettingsResponse> connected = await new ConnectWaterHeaterCommandHandler(
-                locations, heaters, client, protector, loggers.CreateLogger<ConnectWaterHeaterCommandHandler>())
+                locations, heaters, client, protector, new FixedTimeProvider("2026-11-19T18:08:31Z"),
+                loggers.CreateLogger<ConnectWaterHeaterCommandHandler>())
             .Handle(new ConnectWaterHeaterCommand(UserId, LocationId, OsoSamples.Key, OsoSamples.DeviceId), default);
 
         // Read the state with a stored heater, whatever connect did.
         heaters.GetByLocationAsync(LocationId, Arg.Any<CancellationToken>()).Returns(
             saved ?? new WaterHeater(Guid.NewGuid(), LocationId, OsoSamples.DeviceId,
-                protector.Protect(OsoSamples.Key, LocationId)));
+                protector.Protect(OsoSamples.Key, LocationId), WaterHeaterTestData.KeyExpiresOn));
         Result<WaterHeaterStateResponse> state = await new GetWaterHeaterStateQueryHandler(
                 locations, heaters, client, protector, new FixedTimeProvider("2026-11-19T18:08:31Z"),
                 loggers.CreateLogger<GetWaterHeaterStateQueryHandler>())
@@ -140,7 +141,8 @@ public class NoSecretsInLogsTests
         var heaters = Substitute.For<IWaterHeaterRepository<WaterHeater>>();
         heaters.GetForActiveLocationsAsync(Arg.Any<CancellationToken>()).Returns(
         [
-            new WaterHeater(Guid.NewGuid(), LocationId, OsoSamples.DeviceId, protector.Protect(OsoSamples.Key, LocationId))
+            new WaterHeater(Guid.NewGuid(), LocationId, OsoSamples.DeviceId,
+                protector.Protect(OsoSamples.Key, LocationId), WaterHeaterTestData.KeyExpiresOn)
         ]);
         ServiceProvider scope = new ServiceCollection()
             .AddSingleton(heaters)

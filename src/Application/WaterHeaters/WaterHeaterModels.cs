@@ -60,6 +60,8 @@ public static class WaterHeaterErrors
         "WaterHeater.EncryptionNotConfigured", "Water heaters cannot be connected: the server has no encryption key set");
     public static readonly Error NotConnected = Error.NotFound(
         "WaterHeater.NotConnected", "No water heater is connected to this location");
+    public static readonly Error KeyExpiryOutOfRange = Error.Validation(
+        "WaterHeater.KeyExpiryOutOfRange", "The key's expiry date must be after today and at most five years ahead");
     public static readonly Error DeviceInUse = Error.Conflict(
         "WaterHeater.DeviceInUse", "This water heater is already connected to another location");
 }

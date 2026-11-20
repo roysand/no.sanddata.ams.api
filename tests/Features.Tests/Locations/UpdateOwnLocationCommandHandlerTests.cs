@@ -119,7 +119,7 @@ public class UpdateOwnLocationCommandHandlerTests
     {
         Owns(true);
         _waterHeaters.GetByLocationAsync(_location.Id, Arg.Any<CancellationToken>())
-            .Returns(new WaterHeater(Guid.NewGuid(), _location.Id, "abc123", "protected"));
+            .Returns(new WaterHeater(Guid.NewGuid(), _location.Id, "abc123", "protected", new DateOnly(2027, 11, 19)));
 
         Result<LocationSummaryResponse> result = await _handler.Handle(Command(), CancellationToken.None);
 
