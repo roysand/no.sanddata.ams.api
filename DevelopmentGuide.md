@@ -416,6 +416,7 @@ Common reason codes (suggested)
 | RefreshTokenExpired | Refresh token is expired | RefreshToken flow |
 | RateLimited | Request or operation blocked due to rate limiting | Any endpoint |
 | SystemError | Unexpected server-side error; use sparingly and accompany with diagnostics id | Any endpoint / ResponseError |
+| UnhandledException | An exception reached the global exception handler; the caller gets a fixed 500 with a traceId, the details are only in the log | EventId 2020 (Infra/Logging) |
 
 You can extend this list per feature; prefer adding new codes rather than overloading an existing one with multiple meanings.
 
