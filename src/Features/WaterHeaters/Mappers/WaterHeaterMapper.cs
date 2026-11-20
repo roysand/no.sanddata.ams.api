@@ -21,6 +21,22 @@ public static class WaterHeaterMapper
             ? new string('*', deviceId.Length)
             : $"{deviceId[..HintChars]}…{deviceId[^HintChars..]}";
 
+    /// <summary>
+    /// A step's average power over its sampled time, rounded to watts, or null when the step rounds to 0 sampled
+    /// seconds (spec 017, research R2). The power divides by the unrounded seconds.
+    /// </summary>
+    public static WaterHeaterPowerItem? ToPowerItem(WaterHeaterPowerStep step)
+    {
+        int seconds = (int)Math.Round(step.SampledSeconds, MidpointRounding.AwayFromZero);
+        if (seconds == 0)
+        {
+            return null;
+        }
+
+        decimal powerKw = Math.Round(step.Kwh * 3600m / step.SampledSeconds, 3, MidpointRounding.AwayFromZero);
+        return new WaterHeaterPowerItem(step.StepStartUtc, powerKw, seconds);
+    }
+
     public static WaterHeaterStateResponse ToState(Guid locationId, WaterHeaterReading reading, DateTime nowUtc)
     {
         // A reading slightly "in the future" (clock skew between OSO and us) counts as brand new.

@@ -43,6 +43,7 @@ internal sealed class EndpointHost : IAsyncDisposable
         builder.Logging.ClearProviders();
         builder.Services.AddSingleton(dispatcher);
         builder.Services.AddSingleton(new CallerSetting(caller));
+        builder.Services.AddSingleton(TimeProvider.System);
         builder.Services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddScheme<AuthenticationSchemeOptions, AdminAuthHandler>(JwtBearerDefaults.AuthenticationScheme, null);

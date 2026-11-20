@@ -40,6 +40,26 @@ public sealed record WaterHeaterHotWater(
 /// <summary>Mode is None, Holiday, Supercharge or BlueBattery; Start and End are null for None and BlueBattery.</summary>
 public sealed record WaterHeaterSpecialMode(string Mode, DateTime? Start, DateTime? End, string? ProfileName);
 
+/// <summary>
+/// The heater's average power per 5 minutes in a window, for a user who may see the location (or an Admin). A
+/// <paramref name="From"/> or <paramref name="To"/> left out gets its default (spec 017, contracts/endpoints.md).
+/// </summary>
+public sealed record GetWaterHeaterPowerQuery(Guid UserId, bool IsAdmin, Guid LocationId, DateTime? From, DateTime? To)
+    : IQuery<Result<WaterHeaterPowerResponse>>;
+
+/// <summary>
+/// The window actually used, in UTC, and one item per 5-minute step with any sampled time, ordered by start
+/// (spec 017, contracts/endpoints.md).
+/// </summary>
+public sealed record WaterHeaterPowerResponse(
+    Guid LocationId, DateTime From, DateTime To, int StepSeconds, IReadOnlyList<WaterHeaterPowerItem> Items);
+
+/// <summary>
+/// One 5-minute step: the average power over its sampled time only, and how many seconds (1–300) were sampled
+/// (spec 017, research R2).
+/// </summary>
+public sealed record WaterHeaterPowerItem(DateTime Start, decimal PowerKw, int SampledSeconds);
+
 /// <summary>OSO's undocumented codes, passed on as they are.</summary>
 public sealed record WaterHeaterOsoCodes(
     int? ControlMode, int? OptimizationOption, int? OptimizationSubOption, int? ProfileId);
