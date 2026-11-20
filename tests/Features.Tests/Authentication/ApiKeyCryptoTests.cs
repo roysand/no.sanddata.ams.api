@@ -30,14 +30,14 @@ public class ApiKeyCryptoTests
     }
 
     [Fact]
-    public void Generate_TwoCalls_ProduceDifferentKeys() 
+    public void Generate_TwoCalls_ProduceDifferentKeys()
         => Assert.NotEqual(ApiKeyCrypto.Generate().Key, ApiKeyCrypto.Generate().Key);
 
     [Fact]
-    public void Hint_ShortKey_ReturnsTheWholeKey() 
+    public void Hint_ShortKey_ReturnsTheWholeKey()
         => Assert.Equal("ab", ApiKeyCrypto.Hint("ab"));
 
     [Fact]
-    public void KeyLifetime_IsTwoYears() 
+    public void KeyLifetime_IsTwoYears()
         => Assert.Equal(TimeSpan.FromDays(730), ApiKeyCrypto.KeyLifetime);
 }

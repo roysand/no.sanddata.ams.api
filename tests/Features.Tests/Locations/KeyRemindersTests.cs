@@ -84,7 +84,7 @@ public class KeyRemindersTests
     [Fact]
     public void TheList_IsSoonestFirst_ThenByName_ThenSensorBeforeHeater()
     {
-        Guid a = Guid.NewGuid();
+        var a = Guid.NewGuid();
         IReadOnlyList<KeyReminder> due = KeyReminders.Due(Today,
             [Sensor(new DateTime(2026, 11, 25, 12, 0, 0, DateTimeKind.Utc), name: "Hytta", id: a)],
             [

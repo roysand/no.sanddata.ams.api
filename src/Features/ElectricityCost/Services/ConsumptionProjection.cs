@@ -19,7 +19,7 @@ public static class ConsumptionProjection
     public static ProjectionResult Project(
         IReadOnlyList<(DateTime HourStartUtc, decimal Kwh)> window, IReadOnlyList<DateTime> remainingHourStarts)
     {
-        Dictionary<(DayOfWeek, int), decimal> profile = window
+        var profile = window
             .GroupBy(h => Key(h.HourStartUtc))
             .ToDictionary(g => g.Key, g => g.Average(h => h.Kwh));
         decimal fallback = window.Count == 0 ? 0m : window.Average(h => h.Kwh);

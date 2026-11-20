@@ -1,5 +1,5 @@
-using Domain.Common.ValueObjects;
 using System.Diagnostics.CodeAnalysis;
+using Domain.Common.ValueObjects;
 
 namespace Domain.Common.Entities;
 
@@ -10,11 +10,11 @@ public class User : Entity
     public required string PasswordHash { get; set; }
     public required EmailAddress Email { get; set; }
     public bool IsActive { get; set; }
-    private List<Role> _roles = new();
+    private readonly List<Role> _roles = new();
     public IReadOnlyCollection<Role> Roles => _roles.AsReadOnly();
-    private List<Location> _locations = new();
+    private readonly List<Location> _locations = new();
     public IReadOnlyCollection<Location> Locations => _locations.AsReadOnly();
-    private List<RefreshToken> _refreshTokens = new();
+    private readonly List<RefreshToken> _refreshTokens = new();
     public IReadOnlyCollection<RefreshToken> RefreshTokens => _refreshTokens.AsReadOnly();
 
     // Parameterless constructor for EF Core

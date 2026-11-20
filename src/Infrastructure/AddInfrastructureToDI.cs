@@ -2,6 +2,7 @@ using System.Text;
 using Application.Abstractions.Data;
 using Application.Common.Interfaces.External;
 using Application.Common.Interfaces.Repositories;
+using Application.Common.Interfaces.Security;
 using Application.ElectricityCost;
 using Domain.Common.Entities;
 using Infrastructure.Authentication;
@@ -9,7 +10,6 @@ using Infrastructure.Database;
 using Infrastructure.Database.Repositories;
 using Infrastructure.External;
 using Infrastructure.Security;
-using Application.Common.Interfaces.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -79,7 +79,7 @@ public static class AddInfrastructureToDI
         })
         .AddJwtBearer(options =>
         {
-            string secretKey = configuration["JwtSettings:SecretKey"];
+            string? secretKey = configuration["JwtSettings:SecretKey"];
 
             // If secret key is not configured, use an invalid key to ensure token validation always fails
             // This allows the app to start but will result in 401 responses for authenticated endpoints

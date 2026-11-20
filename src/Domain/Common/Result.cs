@@ -33,7 +33,7 @@ public class Result
         new(default, false, error);
 }
 
-public class Result<TValue>(TValue? value, bool isSuccess, Error error) 
+public class Result<TValue>(TValue? value, bool isSuccess, Error error)
     : Result(isSuccess, error)
 {
     public TValue Value

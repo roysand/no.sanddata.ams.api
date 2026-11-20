@@ -10,7 +10,7 @@ public class UserRole
     }
 
     // Parameterless constructor for EF Core compatibility
-    public UserRole() {}
+    public UserRole() { }
 
     public Guid UserId { get; private set; }
     public Guid RoleId { get; private set; }

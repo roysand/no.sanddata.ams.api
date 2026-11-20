@@ -97,10 +97,10 @@ public class NoSecretsInLogsTests
         IWaterHeaterClient client = sp.GetRequiredService<IWaterHeaterClient>();
         ILoggerFactory loggers = sp.GetRequiredService<ILoggerFactory>();
 
-        var locations = Substitute.For<ILocationRepository<Location>>();
+        ILocationRepository<Location> locations = Substitute.For<ILocationRepository<Location>>();
         locations.GetByIdAsync(LocationId, Arg.Any<CancellationToken>()).Returns(Location());
         locations.IsUserAssociatedAsync(UserId, LocationId, Arg.Any<CancellationToken>()).Returns(true);
-        var heaters = Substitute.For<IWaterHeaterRepository<WaterHeater>>();
+        IWaterHeaterRepository<WaterHeater> heaters = Substitute.For<IWaterHeaterRepository<WaterHeater>>();
         WaterHeater? saved = null;
         heaters.Insert(Arg.Do<WaterHeater>(h => saved = h));
 
@@ -138,7 +138,7 @@ public class NoSecretsInLogsTests
 
         await using ServiceProvider sp = Build();
         ISecretProtector protector = sp.GetRequiredService<ISecretProtector>();
-        var heaters = Substitute.For<IWaterHeaterRepository<WaterHeater>>();
+        IWaterHeaterRepository<WaterHeater> heaters = Substitute.For<IWaterHeaterRepository<WaterHeater>>();
         heaters.GetForActiveLocationsAsync(Arg.Any<CancellationToken>()).Returns(
         [
             new WaterHeater(Guid.NewGuid(), LocationId, OsoSamples.DeviceId,

@@ -44,7 +44,7 @@ public class GetDayPricesQueryHandler(
             location.Id, CostTime.LocalMonthStartUtc(start), start, ct);
         IReadOnlyList<HourConsumption> dayRows =
             await consumptionRepository.GetHourlyAsync(location.Id, null, start, end, ct);
-        Dictionary<DateTime, decimal> measured = dayRows
+        var measured = dayRows
             .GroupBy(r => DateTime.SpecifyKind(r.BucketStart, DateTimeKind.Utc))
             .ToDictionary(g => g.Key, g => g.Sum(r => r.ConsumptionKwh));
 

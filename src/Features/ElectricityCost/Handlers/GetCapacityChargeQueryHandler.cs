@@ -49,7 +49,7 @@ public class GetCapacityChargeQueryHandler(
 
         IReadOnlyList<HourConsumption> rows =
             await consumptionRepository.GetHourlyAsync(location.Id, null, fromUtc, toUtc, ct);
-        var hours = rows
+        IEnumerable<(DateTime Key, decimal)> hours = rows
             .GroupBy(r => DateTime.SpecifyKind(r.BucketStart, DateTimeKind.Utc))
             .Select(g => (g.Key, g.Sum(r => r.ConsumptionKwh)));
 

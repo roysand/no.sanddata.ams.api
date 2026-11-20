@@ -31,7 +31,7 @@ public class GenericEfRepository<T> : IRepository<T> where T : class
     {
         try
         {
-            return await _context.FindAsync<T>(new object[] {id}, cancellationToken);
+            return await _context.FindAsync<T>(new object[] { id }, cancellationToken);
         }
         catch (ArgumentException)
         {
@@ -45,14 +45,14 @@ public class GenericEfRepository<T> : IRepository<T> where T : class
         // Try to parse as Guid first, then fall back to string
         if (Guid.TryParse(id, out Guid guidId))
         {
-            return await _context.FindAsync<T>(new object[] {guidId}, cancellationToken);
+            return await _context.FindAsync<T>(new object[] { guidId }, cancellationToken);
         }
-        return await _context.FindAsync<T>(new object[] {id}, cancellationToken);
+        return await _context.FindAsync<T>(new object[] { id }, cancellationToken);
     }
 
-    public virtual async Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken) => await _context.FindAsync<T>(new object[] {id}, cancellationToken);
+    public virtual async Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken) => await _context.FindAsync<T>(new object[] { id }, cancellationToken);
 
-    public virtual async Task<T?> GetByIdAsync(object id, CancellationToken cancellationToken) => await _context.FindAsync<T>(new object[] {id}, cancellationToken);
+    public virtual async Task<T?> GetByIdAsync(object id, CancellationToken cancellationToken) => await _context.FindAsync<T>(new object[] { id }, cancellationToken);
 
     public virtual async Task<IEnumerable<T?>> FindAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken, bool noTrack = false)
     {
@@ -60,7 +60,7 @@ public class GenericEfRepository<T> : IRepository<T> where T : class
             .AsQueryable()
             .Where(predicate);
 
-        if(noTrack)
+        if (noTrack)
         {
             query = query.AsNoTracking();
         }
@@ -80,6 +80,6 @@ public class GenericEfRepository<T> : IRepository<T> where T : class
         return result > 0;
     }
 
-    public virtual async Task<int> SaveChangesAsync(CancellationToken cancellationToken) 
+    public virtual async Task<int> SaveChangesAsync(CancellationToken cancellationToken)
         => await _context.SaveChangesAsync(cancellationToken);
 }

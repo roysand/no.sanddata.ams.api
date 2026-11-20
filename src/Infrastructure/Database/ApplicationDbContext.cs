@@ -13,24 +13,24 @@ public sealed class ApplicationDbContext(
     IDomainEventsDispatcher domainEventsDispatcher)
     : DbContext(options), IApplicationDbContext
 {
-    public DbSet<ApiKey> ApiKey { get; set; }
-    public DbSet<User> User { get; set; }
-    public DbSet<Location> Location { get; set; }
-    public DbSet<UserLocation> UserLocation { get; set; }
-    public DbSet<Role> Role { get; set; }
-    public DbSet<UserRole> UserRole { get; set; }
-    public DbSet<RefreshToken> RefreshToken { get; set; }
-    public DbSet<Measurement> Measurement { get; set; }
-    public DbSet<Meter> Meter { get; set; }
-    public DbSet<ElectricityPrice> ElectricityPrice { get; set; }
-    public DbSet<ExchangeRate> ExchangeRate { get; set; }
-    public DbSet<NorgesPrisRate> NorgesPrisRate { get; set; }
-    public DbSet<PriceRate> PriceRate { get; set; }
-    public DbSet<GridTariff> GridTariff { get; set; }
-    public DbSet<GridTariffRate> GridTariffRate { get; set; }
-    public DbSet<GridCapacityStep> GridCapacityStep { get; set; }
-    public DbSet<WaterHeater> WaterHeater { get; set; }
-    public DbSet<WaterHeaterPowerSample> WaterHeaterPowerSample { get; set; }
+    public DbSet<ApiKey> ApiKey { get; set; } = null!;
+    public DbSet<User> User { get; set; } = null!;
+    public DbSet<Location> Location { get; set; } = null!;
+    public DbSet<UserLocation> UserLocation { get; set; } = null!;
+    public DbSet<Role> Role { get; set; } = null!;
+    public DbSet<UserRole> UserRole { get; set; } = null!;
+    public DbSet<RefreshToken> RefreshToken { get; set; } = null!;
+    public DbSet<Measurement> Measurement { get; set; } = null!;
+    public DbSet<Meter> Meter { get; set; } = null!;
+    public DbSet<ElectricityPrice> ElectricityPrice { get; set; } = null!;
+    public DbSet<ExchangeRate> ExchangeRate { get; set; } = null!;
+    public DbSet<NorgesPrisRate> NorgesPrisRate { get; set; } = null!;
+    public DbSet<PriceRate> PriceRate { get; set; } = null!;
+    public DbSet<GridTariff> GridTariff { get; set; } = null!;
+    public DbSet<GridTariffRate> GridTariffRate { get; set; } = null!;
+    public DbSet<GridCapacityStep> GridCapacityStep { get; set; } = null!;
+    public DbSet<WaterHeater> WaterHeater { get; set; } = null!;
+    public DbSet<WaterHeaterPowerSample> WaterHeaterPowerSample { get; set; } = null!;
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

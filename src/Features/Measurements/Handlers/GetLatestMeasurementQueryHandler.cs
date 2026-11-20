@@ -3,7 +3,6 @@ using Application.CQRS;
 using Domain.Common;
 using Domain.Common.Entities;
 using Features.Measurements.Logging;
-using Features.Measurements.Mappers;
 using Features.Measurements.Queries;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;

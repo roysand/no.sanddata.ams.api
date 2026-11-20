@@ -63,10 +63,7 @@ public class WaterHeaterShareTests
     [InlineData(3600, 60)]
     [InlineData(3599, 59)]
     [InlineData(59, 0)]
-    public void SampledMinutes_AreRoundedDown(int seconds, int minutes)
-    {
-        Assert.Equal(minutes, WaterHeaterShare.ForHour(Energy(1m, seconds), 2m, 1m).SampledMinutes);
-    }
+    public void SampledMinutes_AreRoundedDown(int seconds, int minutes) => Assert.Equal(minutes, WaterHeaterShare.ForHour(Energy(1m, seconds), 2m, 1m).SampledMinutes);
 
     [Fact]
     public void TheSum_AddsTheHoursExactly()

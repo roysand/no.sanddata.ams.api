@@ -1,0 +1,2 @@
+# Line endings: LF in the repository and the working tree, on every OS (see .editorconfig).
+* text=auto eol=lf

@@ -45,9 +45,11 @@ public static class WaterHeaterShare
     /// </summary>
     public static WaterHeaterTotal? Sum(IEnumerable<WaterHeaterHour?> hours)
     {
-        List<WaterHeaterHour> parts = hours.OfType<WaterHeaterHour>().ToList();
+        var parts = hours.OfType<WaterHeaterHour>().ToList();
         if (parts.Count == 0)
+        {
             return null;
+        }
 
         decimal? cost = parts.Any(p => p.Cost is null) ? null : parts.Sum(p => p.Cost!.Value);
         return new WaterHeaterTotal(

@@ -1,5 +1,5 @@
-using Application.CQRS;
 using Application.Common.Interfaces.Repositories;
+using Application.CQRS;
 using Domain.Common;
 using Domain.Common.Entities;
 using Features.Measurements.Commands;
