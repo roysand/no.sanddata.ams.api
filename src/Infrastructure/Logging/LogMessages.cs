@@ -43,6 +43,16 @@ internal static class LogMessages
             new EventId(2012, nameof(MigrationsSkipped)),
             "Database migrations skipped at startup (RunMigrationsAtStartup=false)");
 
+    // Error handling 2020-2029
+    private static readonly Action<ILogger, string, string, string, string, string, Exception?> _unhandledException =
+        LoggerMessage.Define<string, string, string, string, string>(
+            LogLevel.Error,
+            new EventId(2020, nameof(UnhandledException)),
+            "Unhandled exception {ReasonCode} {ExceptionType} {Method} {Path} {TraceId}");
+
+    /// <summary>Reason code of <see cref="UnhandledException"/>; documented in DevelopmentGuide.md.</summary>
+    public const string UnhandledExceptionReasonCode = "UnhandledException";
+
     public static void MigrationsStarting(ILogger logger) => _migrationsStarting(logger, null);
 
     public static void MigrationsCompleted(ILogger logger) => _migrationsCompleted(logger, null);
@@ -57,4 +67,12 @@ internal static class LogMessages
 
     public static void ResponseError(ILogger logger, int statusCode, string attributesJson, string responseBody)
         => _responseError(logger, statusCode, attributesJson, responseBody ?? string.Empty, null);
+
+    /// <summary>
+    /// An exception reached the global exception handler. <paramref name="path"/> must be the request path without
+    /// the query string; the request body is never logged. The exception carries the details.
+    /// </summary>
+    public static void UnhandledException(
+        ILogger logger, string exceptionType, string method, string path, string traceId, Exception exception)
+        => _unhandledException(logger, UnhandledExceptionReasonCode, exceptionType, method, path, traceId, exception);
 }

@@ -1,5 +1,6 @@
-using System.Net;
+using System.Diagnostics;
 using System.Text.Json;
+using Infrastructure.Logging;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -7,10 +8,14 @@ using Microsoft.Extensions.Logging;
 namespace Infrastructure.Middleware;
 
 /// <summary>
-/// Middleware to handle exceptions globally and return appropriate HTTP responses.
+/// Catches every exception from the endpoints inward. Planned failures are <c>Result</c> values and validation errors,
+/// which never get here, so any exception here is a server fault: it is logged with its details, and the caller gets a
+/// fixed 500 with a trace id, never the exception text (spec 013).
 /// </summary>
 public class ExceptionHandlingMiddleware
 {
+    private const string FixedMessage = "An unexpected error occurred.";
+
     private readonly RequestDelegate _next;
     private readonly ILogger<ExceptionHandlingMiddleware> _logger;
 
@@ -26,39 +31,51 @@ public class ExceptionHandlingMiddleware
         {
             await _next(context);
         }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            // The caller left: not a server fault, and nobody is there to read an answer. Any other cancellation
+            // (an internal timeout, say) falls through to the catch below.
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unhandled exception occurred.");
-            await HandleExceptionAsync(context, ex);
+            string traceId = Activity.Current?.Id ?? context.TraceIdentifier;
+            LogMessages.UnhandledException(
+                _logger,
+                ex.GetType().FullName ?? ex.GetType().Name,
+                context.Request.Method,
+                context.Request.Path.Value ?? string.Empty,
+                traceId,
+                ex);
+
+            if (context.Response.HasStarted)
+            {
+                // Status and headers are already sent, so they can't be replaced. Aborting tells the caller the
+                // response is incomplete; rethrowing would only log the same failure twice more.
+                context.Abort();
+                return;
+            }
+
+            await WriteErrorAsync(context, traceId);
         }
     }
 
-    private static Task HandleExceptionAsync(HttpContext context, Exception exception)
+    private static Task WriteErrorAsync(HttpContext context, string traceId)
     {
-        HttpStatusCode code = HttpStatusCode.InternalServerError; // 500 by default
+        // Drops whatever the endpoint had set or written before it threw: the request log buffers the body, so
+        // part of it can already be there.
+        context.Response.Clear();
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "application/problem+json";
+        context.Response.Headers.CacheControl = "no-cache, no-store";
 
-        // Determine the HTTP status code based on exception type
-        switch (exception)
+        // The API's usual error shape (statusCode, message), which the web app reads, plus the trace id.
+        string body = JsonSerializer.Serialize(new
         {
-            case ArgumentException _:
-                code = HttpStatusCode.BadRequest; // 400
-                break;
-            case InvalidOperationException _:
-                code = HttpStatusCode.BadRequest; // 400
-                break;
-            case KeyNotFoundException _:
-                code = HttpStatusCode.NotFound; // 404
-                break;
-            case UnauthorizedAccessException _:
-                code = HttpStatusCode.Unauthorized; // 401
-                break;
-            // Add more exception type mappings as needed
-        }
-
-        string result = JsonSerializer.Serialize(new { error = exception.Message });
-        context.Response.ContentType = "application/json";
-        context.Response.StatusCode = (int)code;
-        return context.Response.WriteAsync(result);
+            statusCode = StatusCodes.Status500InternalServerError,
+            message = FixedMessage,
+            traceId,
+        });
+        return context.Response.WriteAsync(body);
     }
 }
 
