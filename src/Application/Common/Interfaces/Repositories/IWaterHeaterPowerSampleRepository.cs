@@ -13,4 +13,13 @@ public interface IWaterHeaterPowerSampleRepository<T> : IRepository<T> where T :
     /// </summary>
     Task<IReadOnlyList<WaterHeaterHourEnergy>> GetHourlyEnergyAsync(
         Guid locationId, DateTime fromUtc, DateTime toUtc, DateTime nowUtc, CancellationToken ct);
+
+    /// <summary>
+    /// The heater's energy per 5-minute UTC step in [<paramref name="fromUtc"/>, <paramref name="toUtc"/>), ordered by
+    /// step, with one row per step that has any sampled time. Each sample's power holds until the next sample, for at
+    /// most 2 minutes, and never past <paramref name="nowUtc"/> or <paramref name="toUtc"/>; a hold that crosses a step
+    /// boundary is split between the two steps (spec 017, research R1).
+    /// </summary>
+    Task<IReadOnlyList<WaterHeaterPowerStep>> GetPowerStepsAsync(
+        Guid locationId, DateTime fromUtc, DateTime toUtc, DateTime nowUtc, CancellationToken ct);
 }

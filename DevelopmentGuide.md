@@ -484,3 +484,7 @@ samples its power once a minute (spec 011; endpoints in `specs/011-oso-water-hea
   /api/admin/key-reminders` lists the sensor keys and OSO keys that expire within 30 days, for the app's reminder.
   Name request and response fields `keyExpiresOn`, not after the key: `WaterHeaterAdminHttpTests` fails if a response
   contains "subscriptionKey".
+- `GET /api/locations/{id}/water-heater/power?from=&to=` gives the heater's average power per 5 minutes from the
+  stored samples (spec 017; [contract](specs/017-water-heater-power/contracts/endpoints.md)). It shares one SQL query
+  with spec 012's hourly heater kWh, `QueryStepsAsync` in `WaterHeaterPowerSampleEfRepository`, with the step size
+  as a parameter. Change the hold rule there only, and check that the hourly figures stay the same.
