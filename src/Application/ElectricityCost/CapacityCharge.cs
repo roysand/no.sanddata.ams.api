@@ -57,7 +57,7 @@ public static class CapacityCharge
         IReadOnlyList<GridCapacityStep> table,
         decimal vatFraction)
     {
-        List<CapacityPeak> peaks = hours
+        var peaks = hours
             .GroupBy(h => NorgesPrisSchedule.OsloDateOf(h.HourStartUtc))
             .Select(day =>
             {

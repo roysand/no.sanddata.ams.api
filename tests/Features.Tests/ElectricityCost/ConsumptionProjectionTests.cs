@@ -18,7 +18,7 @@ public class ConsumptionProjectionTests
         // 2026-12-03 00:00 UTC (01:00 Oslo, winter time), 168 hours with kWh = the index of the hour.
         DateTime windowStart = Utc("2026-12-03T00:00:00Z");
         List<(DateTime, decimal)> window = Hours(windowStart, 168, i => i);
-        List<DateTime> next = Enumerable.Range(0, 168).Select(i => windowStart.AddDays(7).AddHours(i)).ToList();
+        var next = Enumerable.Range(0, 168).Select(i => windowStart.AddDays(7).AddHours(i)).ToList();
 
         ProjectionResult result = ConsumptionProjection.Project(window, next);
 

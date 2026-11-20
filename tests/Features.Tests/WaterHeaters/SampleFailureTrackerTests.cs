@@ -61,10 +61,7 @@ public class SampleFailureTrackerTests
     }
 
     [Fact]
-    public void ASuccessWithoutFailures_IsNotLogged()
-    {
-        Assert.Equal(SampleLogKind.None, new SampleFailureTracker().Succeeded(A, T0).Kind);
-    }
+    public void ASuccessWithoutFailures_IsNotLogged() => Assert.Equal(SampleLogKind.None, new SampleFailureTracker().Succeeded(A, T0).Kind);
 
     [Fact]
     public void Locations_AreTrackedSeparately()

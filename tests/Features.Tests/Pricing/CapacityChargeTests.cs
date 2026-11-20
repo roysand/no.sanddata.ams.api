@@ -278,7 +278,7 @@ public class CapacityChargeTests
     public async Task Handler_AUserNotLinked_GetsNotFound()
     {
         Location cabin = Linked();
-        Guid stranger = Guid.NewGuid();
+        var stranger = Guid.NewGuid();
         _locations.IsUserAssociatedAsync(stranger, cabin.Id, Arg.Any<CancellationToken>()).Returns(false);
 
         Result<CapacityChargeResponse> result = await Handler(cabin, "2026-11-17T12:00:00Z")
@@ -346,10 +346,7 @@ public class CapacityChargeTests
     }
 
     [Fact]
-    public async Task Steps_AnUnknownTariff_IsNotFound()
-    {
-        Assert.Equal("Pricing.TariffNotFound", (await Add("2027-01-01")).Error.Code);
-    }
+    public async Task Steps_AnUnknownTariff_IsNotFound() => Assert.Equal("Pricing.TariffNotFound", (await Add("2027-01-01")).Error.Code);
 
     [Fact]
     public async Task Steps_OnlyAnUpcomingTableCanBeDeleted_AllItsStepsTogether()

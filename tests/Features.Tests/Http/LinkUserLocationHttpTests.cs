@@ -38,7 +38,7 @@ public class LinkUserLocationHttpTests
     [Fact]
     public async Task Put_WithNoBodyAndNoContentType_LinksTheUserAsOwner()
     {
-        var (status, command) = await PutAsync(null);
+        (HttpStatusCode status, LinkUserLocationCommand? command) = await PutAsync(null);
 
         Assert.Equal(HttpStatusCode.NoContent, status);
         Assert.Equal(LocationRole.Owner, command!.Role);
@@ -49,7 +49,7 @@ public class LinkUserLocationHttpTests
     [Fact]
     public async Task Put_WithAJsonContentTypeButAnEmptyBody_LinksTheUserAsOwner()
     {
-        var (status, command) = await PutAsync(new StringContent("", Encoding.UTF8, "application/json"));
+        (HttpStatusCode status, LinkUserLocationCommand? command) = await PutAsync(new StringContent("", Encoding.UTF8, "application/json"));
 
         Assert.Equal(HttpStatusCode.NoContent, status);
         Assert.Equal(LocationRole.Owner, command!.Role);
@@ -58,7 +58,7 @@ public class LinkUserLocationHttpTests
     [Fact]
     public async Task Put_WithARole_UsesIt()
     {
-        var (status, command) = await PutAsync(
+        (HttpStatusCode status, LinkUserLocationCommand? command) = await PutAsync(
             new StringContent("""{ "role": "Viewer" }""", Encoding.UTF8, "application/json"));
 
         Assert.Equal(HttpStatusCode.NoContent, status);
@@ -71,7 +71,7 @@ public class LinkUserLocationHttpTests
     [InlineData("""{ "role": """)]
     public async Task Put_WithAnInvalidRoleOrBrokenJson_IsRefusedBeforeTheHandler(string body)
     {
-        var (status, command) = await PutAsync(new StringContent(body, Encoding.UTF8, "application/json"));
+        (HttpStatusCode status, LinkUserLocationCommand? command) = await PutAsync(new StringContent(body, Encoding.UTF8, "application/json"));
 
         Assert.Equal(HttpStatusCode.BadRequest, status);
         Assert.Null(command);

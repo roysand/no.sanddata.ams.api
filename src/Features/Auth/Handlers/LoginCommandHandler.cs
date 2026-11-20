@@ -1,11 +1,11 @@
-using Application.CQRS;
 using Application.Common.Interfaces.Repositories;
+using Application.CQRS;
 using Domain.Common;
 using Domain.Common.Entities;
 using Features.Auth.Commands;
+using Features.Auth.Logging;
 using Infrastructure.Authentication;
 using Microsoft.Extensions.Logging;
-using Features.Auth.Logging;
 
 namespace Features.Auth.Handlers;
 

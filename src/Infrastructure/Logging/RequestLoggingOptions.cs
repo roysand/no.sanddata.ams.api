@@ -1,5 +1,3 @@
-using System;
-
 namespace Infrastructure.Logging;
 
 public sealed class RequestLoggingOptions

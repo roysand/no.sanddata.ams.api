@@ -1,6 +1,6 @@
 using Application.Common.Interfaces.Repositories;
-using Domain.Common;
 using Application.WaterHeaters;
+using Domain.Common;
 using Domain.Common.Entities;
 using Features.Tests.NorgesPris;
 using Features.WaterHeaters.Commands;

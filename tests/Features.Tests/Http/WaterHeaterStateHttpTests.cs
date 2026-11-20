@@ -33,7 +33,7 @@ public class WaterHeaterStateHttpTests
         await using EndpointHost host = await StartHost();
 
         HttpResponseMessage response = await host.Client.GetAsync(Url);
-        using JsonDocument json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         JsonElement root = json.RootElement;
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

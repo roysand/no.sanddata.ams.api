@@ -64,10 +64,7 @@ public class RequestLoggingRedactionTests
             LogResponseBody = true
         });
 
-        var middleware = new RequestResponseLoggingMiddleware(async ctx =>
-        {
-            await ctx.Response.WriteAsync(responseBody);
-        }, logger, options);
+        var middleware = new RequestResponseLoggingMiddleware(async ctx => await ctx.Response.WriteAsync(responseBody), logger, options);
 
         var context = new DefaultHttpContext();
         context.Request.Method = method;

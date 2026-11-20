@@ -125,7 +125,7 @@ public class MonthlyBillBuilderTests
         decimal hourly = hours.Where(h => h.Cost.Actual is not null).Sum(h =>
         {
             PriceBreakdown b = h.Cost.Actual!.Breakdown;
-            return h.Cost.Actual.Cost - (h.ConsumptionKwh * ((b.Grid ?? 0m) + b.Taxes) * (1m + b.VatRate));
+            return h.Cost.Actual.Cost - h.ConsumptionKwh * ((b.Grid ?? 0m) + b.Taxes) * (1m + b.VatRate);
         });
         decimal credit = bill.PricingModel == PricingModel.NorgesPris
             ? bill.Line(BillLineCode.NorgesPrisCredit).Amount!.Value
@@ -334,10 +334,10 @@ public class MonthlyBillBuilderTests
         Location cabin = LocationWith(true, Tariff, fee: 27.20m, markup: 0.0319m);
 
         DateTime monthStart = Utc("2026-06-30T22:00:00Z"); // 1 July 00:00 Oslo (summer time)
-        List<DateTime> all = Enumerable.Range(0, 744).Select(h => monthStart.AddHours(h)).ToList();
+        var all = Enumerable.Range(0, 744).Select(h => monthStart.AddHours(h)).ToList();
         DateTime[] peaks = [Utc("2026-07-04T10:00:00Z"), Utc("2026-07-11T10:00:00Z"), Utc("2026-07-18T10:00:00Z")];
-        List<DateTime> day = all.Where(h => GridPeriods.For(h) == GridPeriod.Day).ToList();
-        List<DateTime> night = all.Where(h => GridPeriods.For(h) == GridPeriod.Night && !peaks.Contains(h)).ToList();
+        var day = all.Where(h => GridPeriods.For(h) == GridPeriod.Day).ToList();
+        var night = all.Where(h => GridPeriods.For(h) == GridPeriod.Night && !peaks.Contains(h)).ToList();
 
         var kwh = new Dictionary<DateTime, decimal>();
         Spread(kwh, day, 95.58m);
@@ -392,6 +392,6 @@ public class MonthlyBillBuilderTests
             kwh[hour] = each;
         }
 
-        kwh[hours[^1]] = total - (each * (hours.Count - 1));
+        kwh[hours[^1]] = total - each * (hours.Count - 1);
     }
 }
