@@ -2,7 +2,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Features.Locations.Logging;
 
-/// <summary>Locations: event ids 1400 - 1499. Ids and the acting user only; never a key or a fingerprint.</summary>
+/// <summary>Locations: event ids 1400 - 1499. Ids and the acting user only; never a key or a fingerprint.
+/// 1406 and 1407 are used by Meters (Features/Meters/Logging/LogMessages.cs); check there before taking an id.</summary>
 internal static class LogMessages
 {
     private static readonly Action<ILogger, Guid, int, Exception?> _locationsListed =
@@ -38,7 +39,7 @@ internal static class LogMessages
     private static readonly Action<ILogger, Guid, int, Exception?> _keyRemindersListed =
         LoggerMessage.Define<Guid, int>(
             LogLevel.Information,
-            new EventId(1406, nameof(KeyRemindersListed)),
+            new EventId(1408, nameof(KeyRemindersListed)),
             "Key reminders listed for {ActingUserId}: {Count} due");
 
     private static readonly Action<ILogger, Guid, bool, Guid, Exception?> _keyActiveChanged =

@@ -85,7 +85,7 @@ public static class MonthlyBillBuilder
         decimal monthVatFraction)
     {
         bool norgesPris = location.HasNorgesPriceAgreement;
-        var sums = Enum.GetValues<BillLineCode>().ToDictionary(c => c, _ => new LineSum());
+        Dictionary<BillLineCode, LineSum> sums = Enum.GetValues<BillLineCode>().ToDictionary(c => c, _ => new LineSum());
 
         int priced = 0;
         bool unpricedProjected = false;

@@ -22,8 +22,7 @@ The queries match on `EventName`, not on message text, so rewording a message do
 are part of the message text (`(reason: HttpError)`) rather than a `{Reason}` value; query 10 reads both.
 
 A few event names are shared. `LocationAccessDenied` is used by Measurements, ElectricityCost and WaterHeater, and
-`LoginFailed` by both login-failure events; filter on `CategoryName` too if you need just one. Event 1003 (user
-creation failed) is named `UserCreated`, the same as a successful creation, so use `EventId == "1003"` for it.
+`LoginFailed` by both login-failure events; filter on `CategoryName` too if you need just one.
 
 If query 3 returns nothing, run `requests | take 10` to see the exact `name` and `url` values.
 
