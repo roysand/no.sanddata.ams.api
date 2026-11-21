@@ -28,7 +28,7 @@ internal static class LogMessages
     private static readonly Action<ILogger, string, string, Exception?> _userCreateFailed =
         LoggerMessage.Define<string, string>(
             LogLevel.Warning,
-            new EventId(1003, nameof(UserCreated)),
+            new EventId(1003, nameof(UserCreateFailed)),
             "User creation failed for: {Email} Reason: {Reason}");
 
     // Roles and access (reason codes are stable: UserNotFound, NotOwnerOrAdmin, LastAdmin)
