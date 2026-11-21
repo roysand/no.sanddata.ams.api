@@ -347,10 +347,11 @@ public class EmailAddress : ValueObject
 
 ### Domain Events
 
-Not in use yet. `Application/DomainEvents/` holds `IDomainEvent`, `IDomainEventHandler<T>` and
-`IDomainEventsDispatcher`, but entities don't raise events and `ApplicationDbContext` doesn't dispatch any.
-Wiring it up means adding event support to `Entity`, publishing the events from `SaveChangesAsync`, and replacing
-the dispatcher's reflection-based handler lookup (see [No reflection-based dispatch](CLAUDE.md#coding-philosophy)).
+Not used. An earlier, unused implementation was removed in November 2026: every handler did one thing, so a
+direct call was simpler. Add domain events when one change needs two or more independent reactions in different
+features (for example pushing new measurements to the UI and keeping an in-memory latest reading). Build the
+dispatcher with a source generator, like `Cqrs.SourceGenerator`, not with reflection
+(see [No reflection-based dispatch](CLAUDE.md#coding-philosophy)).
 
 ## Logging with LogMessages
 
