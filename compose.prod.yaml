@@ -1,7 +1,17 @@
+# Docker keeps container logs forever by default. Each container keeps at most 5 files of 20 MB (100 MB);
+# the oldest file is deleted when a new one starts. At one meter post every 10 s that is roughly 3 weeks of API logs.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+    compress: "true"
+
 services:
   caddy:
     image: caddy:2
     container_name: caddy
+    logging: *default-logging
     restart: unless-stopped
     ports:
       - "80:80"
@@ -17,6 +27,7 @@ services:
   api:
     image: ${DOCKERHUB_USERNAME}/ams-api:latest
     container_name: ams-api
+    logging: *default-logging
     restart: unless-stopped
     # Not published on the host; Caddy reverse-proxies to api:8080 over the frontend network.
     expose:
@@ -43,6 +54,8 @@ services:
       # Roy's own Zaptec login for reading the EV charger (spec 016). Without it no charging data is read.
       Zaptec__Username: ${ZAPTEC_USERNAME}
       Zaptec__Password: ${ZAPTEC_PASSWORD}
+      # Application Insights connection string. Leave empty to log to the console (docker logs) only.
+      APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -53,6 +66,7 @@ services:
   postgres:
     image: timescale/timescaledb:latest-pg17
     container_name: postgres
+    logging: *default-logging
     restart: unless-stopped
     environment:
       POSTGRES_USER: appuser

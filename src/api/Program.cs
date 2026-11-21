@@ -1,4 +1,5 @@
 using Api.OpenApi;
+using Api.Telemetry;
 using FastEndpoints;
 using Features;
 using Infrastructure;
@@ -18,6 +19,9 @@ builder.Configuration.AddEnvironmentVariables();
 builder.Logging.AddSimpleConsole(options => options.SingleLine = true);
 builder.Services.Configure<Microsoft.Extensions.Logging.Console.SimpleConsoleFormatterOptions>(
     builder.Configuration.GetSection("Logging:Console:FormatterOptions"));
+
+// Application Insights, only when APPLICATIONINSIGHTS_CONNECTION_STRING is set; database logs stay local.
+builder.AddApplicationInsights();
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
