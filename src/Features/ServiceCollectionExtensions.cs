@@ -1,4 +1,3 @@
-using Application.DomainEvents;
 using Features.Generated;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -26,9 +25,6 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<Features.WaterHeaters.Services.WaterHeaterSamplingService>();
         services.AddHostedService<Features.EvChargers.Services.EvChargerReadService>();
         services.AddScoped<Features.ElectricityCost.Services.HourlyCostProvider>();
-
-        // Domain Events
-        services.AddScoped<IDomainEventsDispatcher, DomainEventsDispatcher>();
 
         return services;
     }
