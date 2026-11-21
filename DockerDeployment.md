@@ -184,6 +184,10 @@ APPLICATIONINSIGHTS_CONNECTION_STRING=<from AzureDeployment.md section 3, or lea
 > (`x-logging`); Docker deletes the oldest file when a new one starts, so the logs never take more than about
 > 100 MB per container (about 3 weeks for the API). The cap only applies to containers created after the change:
 > copy `compose.prod.yaml` to the server and run `docker compose -f compose.prod.yaml up -d --force-recreate`.
+> The 3 weeks assume SQL commands are not logged: `appsettings.json` sets
+> `Microsoft.EntityFrameworkCore.Database.Command` to `Warning`, so only failed commands are written. To see
+> every SQL command for a while, set `Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command=Information`
+> on the `api` service and restart it.
 
 > `BOOTSTRAP_OWNER_PASSWORD` creates the `Bootstrap:OwnerEmail` account (default `roy@sanddata.no`) the first
 > time the API starts with no Admin yet, so you can log in without a manual SQL step - see
