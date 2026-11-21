@@ -347,10 +347,10 @@ public class EmailAddress : ValueObject
 
 ### Domain Events
 
-Entities can raise domain events via `IDomainEventsDispatcher`:
-- Implement `IDomainEvent` interface on events
-- Call `RaiseDomainEvent(domainEvent)` from entity
-- Events are dispatched and handled after entity operations complete
+Not in use yet. `Application/DomainEvents/` holds `IDomainEvent`, `IDomainEventHandler<T>` and
+`IDomainEventsDispatcher`, but entities don't raise events and `ApplicationDbContext` doesn't dispatch any.
+Wiring it up means adding event support to `Entity`, publishing the events from `SaveChangesAsync`, and replacing
+the dispatcher's reflection-based handler lookup (see [No reflection-based dispatch](CLAUDE.md#coding-philosophy)).
 
 ## Logging with LogMessages
 

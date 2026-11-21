@@ -1,10 +1,8 @@
-using Application.DomainEvents;
 using Domain.Common.Entities;
 using Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
-using NSubstitute;
 
 namespace Features.Tests.Database;
 
@@ -16,7 +14,7 @@ public class ModelDeleteBehaviorTests
         DbContextOptions<ApplicationDbContext> options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql("Host=not-used")
             .Options;
-        using var context = new ApplicationDbContext(options, Substitute.For<IDomainEventsDispatcher>());
+        using var context = new ApplicationDbContext(options);
         return context.GetService<IDesignTimeModel>().Model;
     }
 
