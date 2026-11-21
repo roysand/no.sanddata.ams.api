@@ -209,6 +209,8 @@ az monitor app-insights component show \
 Without `APPLICATIONINSIGHTS_CONNECTION_STRING` the API logs to the console only, as before. Locally, leave it out
 of `local.settings.json` unless you want your own runs to show up in Application Insights.
 
+Queries for checking the data: [ApplicationInsightsQueries.md](ApplicationInsightsQueries.md).
+
 ## Cost management (test)
 
 Stop the `test` Postgres server when you're not using it — you're not billed for compute while stopped (storage is still billed, but that's marginal at 32 GB).
