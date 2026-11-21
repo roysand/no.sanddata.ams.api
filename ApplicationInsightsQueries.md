@@ -7,9 +7,25 @@ Run them in the Azure portal under **appi-ams-api-prod → Logs** (query 8 runs 
 Nothing shows until the API runs with `APPLICATIONINSIGHTS_CONNECTION_STRING` set, and new data takes about
 2-5 minutes to arrive.
 
-> **Not yet checked against real data.** If query 3 returns nothing, run `requests | take 10` to see the exact
-> `name` and `url` values. If `category` is empty in queries 4 and 7, run `traces | take 5` and look in
-> `customDimensions` for the key that holds the logger name. Query 7 can't catch database logs until that key is right.
+## What a log line holds
+
+Checked against production data (November 2026). Every log line in `traces` has these keys in `customDimensions`:
+
+| Key | Example | Meaning |
+|-----|---------|---------|
+| `CategoryName` | `Infrastructure.Middleware.RequestResponseLoggingMiddleware` | The logger (class) that wrote it |
+| `EventId` | `2001` | Stable id from the feature's `LogMessages` class (ranges in [CLAUDE.md](CLAUDE.md#logging)) |
+| `EventName` | `ResponseSent` | Name of the log method |
+| *message values* | `StatusCode`, `LocationId`, `Reason`, ... | Each `{Placeholder}` in the message, under its own name |
+
+The queries match on `EventName`, not on message text, so rewording a message doesn't break them. Some reason codes
+are part of the message text (`(reason: HttpError)`) rather than a `{Reason}` value; query 10 reads both.
+
+A few event names are shared. `LocationAccessDenied` is used by Measurements, ElectricityCost and WaterHeater, and
+`LoginFailed` by both login-failure events; filter on `CategoryName` too if you need just one. Event 1003 (user
+creation failed) is named `UserCreated`, the same as a successful creation, so use `EventId == "1003"` for it.
+
+If query 3 returns nothing, run `requests | take 10` to see the exact `name` and `url` values.
 
 ## 1. Is anything arriving?
 
@@ -103,9 +119,8 @@ Usage
 
 ## More queries
 
-The log queries below match on the start of a log message (`message startswith ...`) and read its structured
-values (`Reason`, `LocationId`, `ActingUserId`, ...) from `customDimensions`. If a value comes back empty, check
-the key name with `traces | take 5`.
+The log queries below match on `customDimensions.EventName` and read message values (`Reason`, `LocationId`,
+`ActingUserId`, ...) from `customDimensions`; see [What a log line holds](#what-a-log-line-holds).
 
 ## 9. When did the meter last post?
 
@@ -123,25 +138,27 @@ requests
 
 ## 10. Background jobs: failures by reason
 
-Water heater sampling (every 60 s), EV charger reads (every 15 min) and price fetches (every 6 h) log a warning
-with a stable reason code when they fail.
+Water heater sampling (every 60 s), EV charger reads (every 15 min) and price fetches (every 6 h) log a stable
+reason code when they fail or have nothing to do. `NoData`, `NotPublished` and `NotConfigured` are information, not
+failures.
 
 ```kql
 traces
 | where timestamp > ago(7d)
-| where severityLevel >= 2
-| where message startswith "Water heater power"
-     or message has "EV charger"
-     or message startswith "Spot price"
-     or message startswith "Exchange rate"
-     or message startswith "Price fetch failed"
-| extend job = case(message startswith "Water heater", "WaterHeater",
-                    message has "EV charger", "EvCharger",
-                    "Prices"),
-         reason = tostring(customDimensions.Reason)
-| summarize count(), first = min(timestamp), last = max(timestamp) by job, reason
+| extend event = tostring(customDimensions.EventName)
+| where event in (
+    "WaterHeaterSampleFailing", "WaterHeaterSampleStillFailing", "WaterHeaterSamplingCycleFailed",
+    "EvChargerReadFailing", "EvChargerReadStillFailing", "EvChargerReadCycleFailed", "EvChargerNotConfigured",
+    "PriceFetchFailed", "SpotPriceTokenMissing", "SpotPriceRequestFailed", "SpotPriceInvalidResponse",
+    "SpotPriceUnavailable", "SpotPriceNoData", "ExchangeRateRequestFailed", "ExchangeRateUnavailable",
+    "ExchangeRateInvalidResponse", "ExchangeRateNotPublished")
+| extend job = case(event startswith "WaterHeater", "WaterHeater", event startswith "EvCharger", "EvCharger", "Prices"),
+         reason = coalesce(tostring(customDimensions.Reason), extract(@"reason: (\w+)", 1, message))
+| summarize count(), first = min(timestamp), last = max(timestamp) by job, event, reason
 | order by last desc
 ```
+
+Recoveries (`WaterHeaterSampleRecovered`, `EvChargerReadRecovered`) say when a failing job started working again.
 
 ## 11. Were today's spot prices fetched?
 
@@ -150,9 +167,9 @@ ENTSO-E publishes the next day's prices around 13:00 CET. If `last_stored` is mo
 ```kql
 traces
 | where timestamp > ago(3d)
-| where message startswith "Spot prices stored" or message startswith "Exchange rate stored"
-| extend what = iff(message startswith "Spot", "SpotPrices", "ExchangeRate"),
-         region = tostring(customDimensions.PriceRegion),
+| extend what = tostring(customDimensions.EventName)
+| where what in ("SpotPricesStored", "ExchangeRateStored")
+| extend region = tostring(customDimensions.PriceRegion),
          new_rows = toint(customDimensions["Count"])
 | summarize last_stored = max(timestamp), new_rows = sum(new_rows) by what, region
 ```
@@ -164,12 +181,13 @@ Login failures, 401/403 answers and refused requests. A burst from one account c
 ```kql
 let logins = traces
     | where timestamp > ago(7d)
-    | where message startswith "Login failed"
-    | summarize count() by kind = "LoginFailed", detail = tostring(customDimensions.ReasonCode);
+    | where tostring(customDimensions.EventName) == "LoginFailed"
+    | summarize count() by kind = "LoginFailed", detail = coalesce(tostring(customDimensions.ReasonCode), "-");
 let refused = traces
     | where timestamp > ago(7d)
-    | where message startswith "Refused:" or message has "denied access" or message has "who may not see it"
-    | summarize count() by kind = "Refused", detail = tostring(customDimensions.CategoryName);
+    | extend event = tostring(customDimensions.EventName)
+    | where event in ("LastAdminProtected", "UserAccessDenied", "LocationAccessDenied")
+    | summarize count() by kind = event, detail = tostring(customDimensions.CategoryName);
 let unauthorized = requests
     | where timestamp > ago(7d)
     | where resultCode in ("401", "403")
@@ -185,8 +203,7 @@ The API logs its migration step on every start, so each row is one start (a depl
 ```kql
 traces
 | where timestamp > ago(30d)
-| where message startswith "Applying database migrations"
-     or message startswith "Database migrations skipped"
+| where tostring(customDimensions.EventName) in ("MigrationsStarting", "MigrationsSkipped")
 | project started = timestamp, cloud_RoleInstance
 | order by started desc
 ```
@@ -249,8 +266,12 @@ traces
 | where timestamp > ago(30d)
 | extend actor = coalesce(tostring(customDimensions.ActingUserId), tostring(customDimensions.CallerId))
 | where isnotempty(actor)
-| where message !has " listed for " and message !has " queried by " and message !has " read by "
-| project timestamp, actor, message
+| extend event = tostring(customDimensions.EventName)
+// Reads and refusals carry an actor too; leave them out so only changes remain.
+| where event !in ("RatesListed", "Listed", "LocationsListed", "KeyRemindersListed", "WaterHeaterStateRead",
+                   "LocationAccessDenied", "UserAccessDenied", "LastAdminProtected", "RateRefused", "Refused",
+                   "WaterHeaterConnectRefused", "EvChargerConnectRefused")
+| project timestamp, actor, event, message
 | order by timestamp desc
 ```
 
@@ -261,9 +282,7 @@ Reads of measurements and cost per user and location, as a picture of how much t
 ```kql
 traces
 | where timestamp > ago(30d)
-| where message startswith "Measurements queried"
-     or message startswith "Latest measurement queried"
-     or message startswith "Cost queried"
+| where tostring(customDimensions.EventName) in ("MeasurementsQueried", "LatestMeasurementQueried", "CostQueried")
 | summarize reads = count(), last = max(timestamp)
           by user = tostring(customDimensions.UserId), location = tostring(customDimensions.LocationId)
 | order by reads desc
@@ -271,14 +290,14 @@ traces
 
 ## 20. Which logs cost the most
 
-Billed size per log category. Use it to decide what to filter out if the volume grows (for example the request
+Billed size per log event. Use it to decide what to filter out if the volume grows (for example the request
 middleware's two lines per request, which repeat what `requests` already holds).
 
 ```kql
 traces
 | where timestamp > ago(7d)
 | summarize MB = round(sum(_BilledSize) / 1024.0 / 1024.0, 2), lines = count()
-          by category = tostring(customDimensions.CategoryName)
+          by category = tostring(customDimensions.CategoryName), event = tostring(customDimensions.EventName)
 | order by MB desc
 ```
 
