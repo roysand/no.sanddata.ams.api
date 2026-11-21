@@ -174,6 +174,41 @@ Translate this into an Npgsql connection string for `ApplicationSettings:DbConne
 Host=<PG_SERVER_NAME>.postgres.database.azure.com;Database=<PG_DATABASE_NAME>;Username=<PG_ADMIN_USER>;Password=<PG_ADMIN_PASSWORD>;Ssl Mode=Require;
 ```
 
+## 3. Application Insights (logs and requests)
+
+The API itself runs on Hetzner (see [DockerDeployment.md](DockerDeployment.md)); only its logs and request data go
+to Application Insights. Database logs (EF Core, Npgsql) and PostgreSQL calls are not sent; they stay in the
+container's console log on the server. With the meter posting every 10 s this is about 1.5-2 GB per month, inside
+Azure Monitor's free 5 GB per billing account per month.
+
+```bash
+# Workspace with a daily cap of 0.3 GB, so a log loop can't run up a bill. Ingestion stops for the rest of the
+# day (UTC) when the cap is reached.
+az monitor log-analytics workspace create \
+  --resource-group "$RESOURCE_GROUP" \
+  --workspace-name "log-ams-api-${ENV}" \
+  --location "$LOCATION" \
+  --quota 0.3
+
+az monitor app-insights component create \
+  --resource-group "$RESOURCE_GROUP" \
+  --app "appi-ams-api-${ENV}" \
+  --location "$LOCATION" \
+  --kind web \
+  --application-type web \
+  --workspace "$(az monitor log-analytics workspace show \
+      --resource-group "$RESOURCE_GROUP" --workspace-name "log-ams-api-${ENV}" --query id -o tsv)"
+
+# Connection string for APPLICATIONINSIGHTS_CONNECTION_STRING in the server's /opt/ams-api/.env.
+az monitor app-insights component show \
+  --resource-group "$RESOURCE_GROUP" \
+  --app "appi-ams-api-${ENV}" \
+  --query connectionString -o tsv
+```
+
+Without `APPLICATIONINSIGHTS_CONNECTION_STRING` the API logs to the console only, as before. Locally, leave it out
+of `local.settings.json` unless you want your own runs to show up in Application Insights.
+
 ## Cost management (test)
 
 Stop the `test` Postgres server when you're not using it — you're not billed for compute while stopped (storage is still billed, but that's marginal at 32 GB).

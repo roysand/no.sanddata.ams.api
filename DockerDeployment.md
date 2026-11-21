@@ -149,6 +149,7 @@ ENTSOE_SECURITY_TOKEN=<your-entso-e-security-token>
 WATER_HEATER_KEY_ENCRYPTION_KEY=<openssl rand -base64 32>
 ZAPTEC_USERNAME=<the Zaptec portal e-mail>
 ZAPTEC_PASSWORD=<the Zaptec portal password>
+APPLICATIONINSIGHTS_CONNECTION_STRING=<from AzureDeployment.md section 3, or leave empty>
 ```
 
 > `ENTSOE_SECURITY_TOKEN` is the ENTSO-E Transparency Platform token used to fetch day-ahead spot prices.
@@ -174,6 +175,15 @@ ZAPTEC_PASSWORD=<the Zaptec portal password>
 > `503 EvCharger.NotConfigured`. If the password is changed in the Zaptec app, update it here and restart the API;
 > the missed charging data is read on the next run. Added in the release with spec 016: copy `compose.prod.yaml` to
 > the server again for that release.
+
+> `APPLICATIONINSIGHTS_CONNECTION_STRING` sends the API's logs and request data to Application Insights (create
+> it with [AzureDeployment.md](AzureDeployment.md#3-application-insights-logs-and-requests)). Database logs are
+> not sent; they stay in `docker logs ams-api`. Empty or missing means console logging only.
+
+> **Old logs are deleted automatically.** `compose.prod.yaml` caps each container's log at 5 files of 20 MB
+> (`x-logging`); Docker deletes the oldest file when a new one starts, so the logs never take more than about
+> 100 MB per container (about 3 weeks for the API). The cap only applies to containers created after the change:
+> copy `compose.prod.yaml` to the server and run `docker compose -f compose.prod.yaml up -d --force-recreate`.
 
 > `BOOTSTRAP_OWNER_PASSWORD` creates the `Bootstrap:OwnerEmail` account (default `roy@sanddata.no`) the first
 > time the API starts with no Admin yet, so you can log in without a manual SQL step - see
@@ -268,4 +278,5 @@ side, check that the port is published: `ss -tlnp | grep 5432` must show `127.0.
 - [ ] `/opt/ams-api/compose.prod.yaml`, `/opt/ams-api/Caddyfile` and `/opt/ams-api/.env` present on the server
 - [ ] `WATER_HEATER_KEY_ENCRYPTION_KEY` set in `/opt/ams-api/.env` (spec 011)
 - [ ] `ZAPTEC_USERNAME` and `ZAPTEC_PASSWORD` set in `/opt/ams-api/.env` (spec 016)
+- [ ] `APPLICATIONINSIGHTS_CONNECTION_STRING` set in `/opt/ams-api/.env` (optional, Application Insights)
 - [ ] DNS for the domain points at the server; ports 22, 80 and 443 open (not 8080 or 5432)
