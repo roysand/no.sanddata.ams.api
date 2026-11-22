@@ -4,7 +4,7 @@ Status: the API side is built (spec `specs/018-norgespris-limit-status`, PR #58,
 frontend spec is written (`no.sanddata.ams.frontend` → `specs/015-norgespris-limit-warnings/spec.md`, branch
 `015-norgespris-limit-warnings`). Its assumptions say "the field names come from its plan", so this note is input
 for that plan. Remove this note once the frontend's plan for spec 015 has settled the field names. The two
-production checks of API spec 018 (T022, T023 in its `tasks.md`) are tracked there, not here.
+production checks of API spec 018 (T022, T023 in its `tasks.md`) were done by Roy on 2026-11-22.
 
 ## For the frontend
 
