@@ -145,10 +145,10 @@ reset time; and the car counts toward the limit everywhere when counted with the
   No doc lists the endpoints or the 1500 range's messages; `NorgesPrisStatusQueried` was added to query 19 of
   `ApplicationInsightsQueries.md`.
 - [X] T021 Run `dotnet build` (no new warnings), `dotnet test` and `dotnet format --verify-no-changes`.
-- [ ] T022 Quickstart §2 against the local database, if it is running: the status agrees with the bill per location.
-  Partly done: the API starts locally, the route is in the OpenAPI document and answers 401 without a token. The
-  signed-in comparison needs Roy's login; `TheProjection_IsTheBillsProjectedTotal` checks the same equality in tests.
-- [ ] T023 After the deploy: quickstart §4 in production (SC-003, SC-004). Roy does this.
+- [X] T022 Quickstart §2 against the local database, if it is running: the status agrees with the bill per location.
+  The API starts locally, the route is in the OpenAPI document and answers 401 without a token. Roy checked the
+  signed-in comparison on 2026-11-22.
+- [X] T023 After the deploy: quickstart §4 in production (SC-003, SC-004). Checked by Roy on 2026-11-22.
 
 ---
 
