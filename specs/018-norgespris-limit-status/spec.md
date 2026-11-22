@@ -60,9 +60,10 @@ limit for every location, on every page.
    `NorgesPrisCapHome`) for the current month.
 3. **Given** the month so far, **When** a location is listed, **Then** its kWh so far are the metered kWh of the
    current Oslo month up to now, counted the same way as the Norgespris limit in the cost calculation.
-4. **Given** a location that counts its car charger with the house (spec 016's setting on), **When** it is listed,
-   **Then** the car's kWh are added to its kWh so far and its projection, because the charger then draws on the
-   house's supply and under its Norgespris agreement. With the setting off, the car's kWh are not counted.
+4. **Given** a location with a car charger (spec 016), **When** it is listed, **Then** the car's kWh are never in its
+   kWh so far or its projection, also when the location counts the car with the house. The charger has its own meter
+   and its own agreement (at Hjemme: the garage's, shared by 12 garages), so it does not count toward the location's
+   Norgespris limit. The setting only adds the car to the usage figures.
 5. **Given** the current month, **When** a location is listed, **Then** its projected kWh are the month's kWh so far
    plus the projected rest of the month, the same figure as the current month's bill.
 6. **Given** the kWh so far at or above the limit, **When** the location is listed, **Then** it says it is over the
@@ -139,10 +140,8 @@ active Norgespris location the Admin can see in the app is listed.
   and the reset time (UTC instant of the 1st of next month 00:00 Oslo time).
 - **FR-003**: The limit, the kWh so far and the projection MUST be computed exactly as the cost calculation and the
   bill compute them, so the app's warnings agree with the bill and the prices.
-- **FR-004**: The car charger's kWh MUST be counted in the kWh so far and the projection exactly when the location
-  counts the car with the house (spec 016's setting), and MUST NOT be counted otherwise. The same rule MUST then hold
-  for the Norgespris limit in the cost calculation and the bill, so the status, the prices and the bill agree (see
-  Open question).
+- **FR-004**: The car charger's kWh MUST NOT be counted in the kWh so far or the projection, whatever the location's
+  "count the car with the house" setting.
 - **FR-005**: `GET /api/electricity-cost/prices` MUST add, for each hour, the spot energy price per kWh including VAT
   and nothing else, or null when its price or exchange rate is missing.
 - **FR-006**: No existing field MAY change meaning; the new fields are additions.
@@ -171,18 +170,6 @@ active Norgespris location the Admin can see in the app is listed.
 - **SC-004**: For the cabin over its limit, the status says it is over and by how many kWh, and tomorrow's prices give
   a spot energy price for every published hour.
 
-## Open question
-
-Spec 016 says the charger has its own supply and is never priced: with the setting on, today the car's kWh are only
-added to the usage figures, not to the cost, the bill or the Norgespris limit. Roy said on 2026-11-22 that with the
-setting on, the charger draws on the house's power and its kWh belong to the house's usage. Before planning:
-
-- **Is the car's power already measured by the location's AMS meter?** If yes, the meter's kWh already include the car,
-  and adding the charger's kWh would count it twice, in the usage charts too.
-- **If not** (the charger is behind its own meter but on the house's agreement), the car's kWh must count toward the
-  Norgespris limit, and probably be priced in the bill and the costs. That changes spec 016's "never priced" rule and
-  is a larger change than this spec.
-
 ## Assumptions
 
 - The rules in the app (90 %, 4 × Norgespris, showing for every location, the banner's wording) stay in the frontend's
@@ -191,5 +178,8 @@ setting on, the charger draws on the house's power and its kWh belong to the hou
   location, so no list of prices for every location is needed.
 - The projection is the bill's: it already exists, and using it keeps the warning and the bill's expected total in
   agreement.
+- The car charger is on its own meter and agreement. Roy confirmed on 2026-11-22 that at Hjemme the garage (100 m from
+  the house, 12 garages on one agreement) has Norgespris, so car charging can be taken to cost the Norgespris price.
+  Pricing the car is out of scope here; it is a possible later feature.
 - No warning is sent outside the app: web push is out of scope (frontend `backlog.md`, "Warnings").
 - A frontend spec 015 follows, which shows the three warnings in the existing banner.
