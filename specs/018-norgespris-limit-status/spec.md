@@ -59,16 +59,17 @@ limit for every location, on every page.
    otherwise it is the home limit. Both are the values the cost calculation uses (`NorgesPrisCapHolidayHome` and
    `NorgesPrisCapHome`) for the current month.
 3. **Given** the month so far, **When** a location is listed, **Then** its kWh so far are the metered kWh of the
-   current Oslo month up to now, counted the same way as the Norgespris limit in the cost calculation. The car
-   charger's kWh are never counted, also when the location counts the car with the house (spec 016): the charger has
-   its own supply, so its kWh are not under the location's Norgespris agreement.
-4. **Given** the current month, **When** a location is listed, **Then** its projected kWh are the month's kWh so far
+   current Oslo month up to now, counted the same way as the Norgespris limit in the cost calculation.
+4. **Given** a location that counts its car charger with the house (spec 016's setting on), **When** it is listed,
+   **Then** the car's kWh are added to its kWh so far and its projection, because the charger then draws on the
+   house's supply and under its Norgespris agreement. With the setting off, the car's kWh are not counted.
+5. **Given** the current month, **When** a location is listed, **Then** its projected kWh are the month's kWh so far
    plus the projected rest of the month, the same figure as the current month's bill.
-5. **Given** the kWh so far at or above the limit, **When** the location is listed, **Then** it says it is over the
+6. **Given** the kWh so far at or above the limit, **When** the location is listed, **Then** it says it is over the
    limit and by how many kWh.
-6. **Given** a location without readings this month, **When** it is listed, **Then** its kWh so far are 0 and its
+7. **Given** a location without readings this month, **When** it is listed, **Then** its kWh so far are 0 and its
    projection is null. It is not an error.
-7. **Given** a user with no Norgespris locations, **When** they ask, **Then** the answer is an empty list.
+8. **Given** a user with no Norgespris locations, **When** they ask, **Then** the answer is an empty list.
 
 ---
 
@@ -138,7 +139,10 @@ active Norgespris location the Admin can see in the app is listed.
   and the reset time (UTC instant of the 1st of next month 00:00 Oslo time).
 - **FR-003**: The limit, the kWh so far and the projection MUST be computed exactly as the cost calculation and the
   bill compute them, so the app's warnings agree with the bill and the prices.
-- **FR-004**: The car charger's kWh MUST NOT be counted in the kWh so far or the projection.
+- **FR-004**: The car charger's kWh MUST be counted in the kWh so far and the projection exactly when the location
+  counts the car with the house (spec 016's setting), and MUST NOT be counted otherwise. The same rule MUST then hold
+  for the Norgespris limit in the cost calculation and the bill, so the status, the prices and the bill agree (see
+  Open question).
 - **FR-005**: `GET /api/electricity-cost/prices` MUST add, for each hour, the spot energy price per kWh including VAT
   and nothing else, or null when its price or exchange rate is missing.
 - **FR-006**: No existing field MAY change meaning; the new fields are additions.
@@ -166,6 +170,18 @@ active Norgespris location the Admin can see in the app is listed.
   production server.
 - **SC-004**: For the cabin over its limit, the status says it is over and by how many kWh, and tomorrow's prices give
   a spot energy price for every published hour.
+
+## Open question
+
+Spec 016 says the charger has its own supply and is never priced: with the setting on, today the car's kWh are only
+added to the usage figures, not to the cost, the bill or the Norgespris limit. Roy said on 2026-11-22 that with the
+setting on, the charger draws on the house's power and its kWh belong to the house's usage. Before planning:
+
+- **Is the car's power already measured by the location's AMS meter?** If yes, the meter's kWh already include the car,
+  and adding the charger's kWh would count it twice, in the usage charts too.
+- **If not** (the charger is behind its own meter but on the house's agreement), the car's kWh must count toward the
+  Norgespris limit, and probably be priced in the bill and the costs. That changes spec 016's "never priced" rule and
+  is a larger change than this spec.
 
 ## Assumptions
 
