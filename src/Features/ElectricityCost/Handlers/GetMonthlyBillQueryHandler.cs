@@ -28,8 +28,6 @@ public class GetMonthlyBillQueryHandler(
     ILogger<GetMonthlyBillQueryHandler> logger)
     : IQueryHandler<GetMonthlyBillQuery, Result<MonthlyBillResponse>>
 {
-    private const int WindowHours = 7 * 24;
-
     public async Task<Result<MonthlyBillResponse>> Handle(GetMonthlyBillQuery query, CancellationToken ct)
     {
         if (!await locationRepository.IsUserAssociatedAsync(query.UserId, query.LocationId, ct))
@@ -75,9 +73,14 @@ public class GetMonthlyBillQueryHandler(
         CapacityChargeResult capacity = CapacityCharge.Calculate(
             soFar.Select(h => (h.HourStart, h.ConsumptionKwh)), table, vat);
 
+        // The car counts toward the Norgespris cap when it is counted with the house (spec 018, FR-004), so the
+        // projection continues from the meter's kWh plus the car's.
+        decimal meterKwhSoFar = soFar.Sum(h => h.ConsumptionKwh);
+        EvChargerTotal? evCharger = EvChargerShare.Sum(soFar.Select(h => h.EvCharger), costs.UnmatchedChargerHours);
         (IReadOnlyList<HourCost> projected, BillProjectionResponse? projection) = ended
             ? ([], null)
-            : await ProjectAsync(location, currentHourStartUtc, monthEndUtc, soFar.Sum(h => h.ConsumptionKwh), ct);
+            : await ProjectAsync(
+                location, currentHourStartUtc, monthEndUtc, EvChargerShare.TotalKwh(meterKwhSoFar, evCharger), ct);
 
         MonthlyBill bill = MonthlyBillBuilder.Build(location, soFar, projected, capacity, vat);
         var hours = new BillHoursResponse(
@@ -90,33 +93,23 @@ public class GetMonthlyBillQueryHandler(
 
         return Result.Success(BillMapper.ToResponse(
             month, ended, bill, hours, projection, capacity, WaterHeaterShare.Sum(soFar.Select(h => h.WaterHeater)),
-            EvChargerShare.Sum(soFar.Select(h => h.EvCharger), costs.UnmatchedChargerHours),
-            soFar.Sum(h => h.ConsumptionKwh)));
+            evCharger,
+            meterKwhSoFar));
     }
 
     /// <summary>
     /// The current hour and the rest of the month: the kWh from the profile of the 168 hours before the current hour,
     /// priced by the calculator with the published spot price where there is one and otherwise the plain average spot
-    /// price of those 168 hours. The running month kWh continues from the hours so far, so the Norgespris cap applies.
+    /// price of those 168 hours. The running month kWh continues from the hours so far (with the car's kWh when counted
+    /// with the house), so the Norgespris cap applies.
     /// </summary>
     private async Task<(IReadOnlyList<HourCost>, BillProjectionResponse)> ProjectAsync(
         Location location, DateTime fromUtc, DateTime monthEndUtc, decimal monthKwhSoFar, CancellationToken ct)
     {
-        DateTime windowStartUtc = fromUtc.AddHours(-WindowHours);
+        DateTime windowStartUtc = fromUtc.AddHours(-ConsumptionProjection.WindowHours);
         IReadOnlyList<HourConsumption> rows =
             await consumptionRepository.GetHourlyAsync(location.Id, null, windowStartUtc, fromUtc, ct);
-        List<(DateTime, decimal)> window = rows
-            .GroupBy(r => DateTime.SpecifyKind(r.BucketStart, DateTimeKind.Utc))
-            .Select(g => (g.Key, g.Sum(r => r.ConsumptionKwh)))
-            .ToList();
-
-        var remaining = new List<DateTime>();
-        for (DateTime hour = fromUtc; hour < monthEndUtc; hour = hour.AddHours(1))
-        {
-            remaining.Add(hour);
-        }
-
-        ProjectionResult projection = ConsumptionProjection.Project(window, remaining);
+        ProjectionResult projection = ConsumptionProjection.ProjectRestOfMonth(rows, fromUtc, monthEndUtc);
 
         // One query for the prices of the window and the rest of the month, not one per hour.
         await costCalculator.PreloadAsync(location, windowStartUtc, monthEndUtc, ct);
@@ -142,7 +135,7 @@ public class GetMonthlyBillQueryHandler(
 
         return (projected, new BillProjectionResponse(
             fromUtc,
-            remaining.Count,
+            projection.Hours.Count,
             projected.Sum(h => h.ConsumptionKwh),
             projection.BasedOnHours,
             projection.BasedOnHours / 24m,

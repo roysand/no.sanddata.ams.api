@@ -137,4 +137,22 @@ public class GetDayPricesQueryHandlerTests
         Assert.False(result.IsSuccess);
         Assert.Equal("Location.NotFound", result.Error.Code);
     }
+
+    [Fact]
+    public async Task Handle_GivesTheSpotEnergyPrice_WhateverThePricingModel()
+    {
+        DateTime hour = new(2026, 9, 30, 22, 0, 0, DateTimeKind.Utc); // 2026-10-01 00:00 in Oslo
+        _prices.GetByRegionAndHourAsync("NO1", hour, Arg.Any<CancellationToken>())
+            .Returns(new ElectricityPrice(Guid.NewGuid(), "NO1", hour, 50m));
+
+        Result<DayPricesResponse> spot = await Handler().Handle(
+            new GetDayPricesQuery(Guid.NewGuid(), _spot.Id, DateTime.Parse("2026-10-01")), CancellationToken.None);
+        Result<DayPricesResponse> norgesPris = await Handler().Handle(
+            new GetDayPricesQuery(Guid.NewGuid(), _norgesPris.Id, DateTime.Parse("2026-10-01")), CancellationToken.None);
+
+        // 50 EUR/MWh at 10 NOK per EUR; these rates have no VAT (the VAT is in CostCalculatorStatusFiguresTests).
+        Assert.Equal(0.50m, spot.Value.Items[0].SpotEnergyPricePerKwh);
+        Assert.Equal(0.50m, norgesPris.Value.Items[0].SpotEnergyPricePerKwh);
+        Assert.Null(spot.Value.Items[1].SpotEnergyPricePerKwh); // no price published for the next hour
+    }
 }

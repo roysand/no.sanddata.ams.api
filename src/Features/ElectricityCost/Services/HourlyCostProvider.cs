@@ -19,7 +19,7 @@ public record HourCost(
 
 /// <summary>
 /// The hours with a meter reading, and the charger's hours that had none (spec 016, research R7): those are counted in
-/// the day's and month's charger kWh, but never added to the hourly list, so no cost changes.
+/// the day's and month's charger kWh, but never added to the hourly list, so they are never priced.
 /// </summary>
 public record HourlyCosts(IReadOnlyList<HourCost> Hours, IReadOnlyList<EvChargerHour> UnmatchedChargerHours);
 
@@ -46,7 +46,8 @@ public class HourlyCostProvider(
 
     /// <summary>
     /// The hours with the EV charger's part attached, and the charger's hours that had no meter reading. Costs are the
-    /// same as <see cref="GetAsync"/>: the charger is never priced.
+    /// same as <see cref="GetAsync"/>: the charger is never priced, though its kWh count toward the Norgespris cap when
+    /// the location counts it with the house (spec 018, FR-004), in both methods.
     /// </summary>
     public Task<HourlyCosts> GetWithEvChargerAsync(
         Location location, DateTime fromUtc, DateTime toUtc, CancellationToken ct, bool withWaterHeater = false) =>
@@ -72,11 +73,19 @@ public class HourlyCostProvider(
                 .ToDictionary(e => e.HourStartUtc)
             : new Dictionary<DateTime, WaterHeaterHourEnergy>();
 
-        IReadOnlyDictionary<DateTime, EvChargerHourEnergy> charger = withEvCharger && chargingSessions is not null
-            ? (await chargingSessions.GetHourlyEnergyAsync(location.Id, fromUtc, HourCeiling(toUtc), ct))
-                .ToDictionary(e => e.HourStartUtc)
-            : new Dictionary<DateTime, EvChargerHourEnergy>();
+        // With the car counted with the house, its kWh count toward the Norgespris cap (spec 018, FR-004), so they are
+        // read from the start of the month like the meter's; only the hours from 'from' are attached to the result.
         bool included = location.IncludeEvChargerInTotals;
+        bool carInCap = included && chargingSessions is not null;
+        IReadOnlyList<EvChargerHourEnergy> chargerHours = (withEvCharger || carInCap) && chargingSessions is not null
+            ? await chargingSessions.GetHourlyEnergyAsync(
+                location.Id, carInCap ? monthStart : fromUtc, HourCeiling(toUtc), ct)
+            : [];
+        IReadOnlyDictionary<DateTime, EvChargerHourEnergy> charger = withEvCharger
+            ? chargerHours.Where(e => e.HourStartUtc >= fromUtc).ToDictionary(e => e.HourStartUtc)
+            : new Dictionary<DateTime, EvChargerHourEnergy>();
+        IReadOnlyList<EvChargerHourEnergy> carForCap = carInCap ? chargerHours : [];
+        int nextCar = 0;
 
         var result = new List<HourCost>();
         decimal monthKwh = 0m;
@@ -91,6 +100,15 @@ public class HourlyCostProvider(
             {
                 currentMonth = hourMonth;
                 monthKwh = 0m;
+            }
+
+            // The car's kWh of the earlier hours of the same month; within an hour the car counts after the house.
+            for (; nextCar < carForCap.Count && carForCap[nextCar].HourStartUtc < hourStart; nextCar++)
+            {
+                if (carForCap[nextCar].HourStartUtc >= currentMonth)
+                {
+                    monthKwh += carForCap[nextCar].Kwh;
+                }
             }
 
             if (hourStart >= fromUtc)

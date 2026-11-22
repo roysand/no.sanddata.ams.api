@@ -35,6 +35,15 @@ internal static class LogMessages
             new EventId(1504, nameof(LocationAccessDenied)),
             "Cost query denied: user {UserId} has no access to location {LocationId} (reason: LocationNotFound)");
 
+    private static readonly Action<ILogger, Guid, int, Exception?> _norgesPrisStatusQueried =
+        LoggerMessage.Define<Guid, int>(
+            LogLevel.Information,
+            new EventId(1505, nameof(NorgesPrisStatusQueried)),
+            "Norgespris status queried by {UserId}: {Count} locations");
+
+    public static void NorgesPrisStatusQueried(ILogger logger, Guid userId, int count)
+        => _norgesPrisStatusQueried(logger, userId, count, null);
+
     public static void CostQueried(ILogger logger, Guid userId, Guid locationId)
         => _costQueried(logger, userId, locationId, null);
 
