@@ -87,6 +87,7 @@ public record MonthlyBillResponse(
 /// <summary>
 /// The EV charger's kWh in the month's hours so far (spec 016), never projected and never priced: no line, subtotal,
 /// total or capacity step includes it. TotalKwh (the meter's kWh so far) adds it only when <paramref name="Included"/>.
+/// When included, its kWh count toward the Norgespris cap (spec 018, FR-004), so the house's kWh pass it sooner.
 /// </summary>
 public record EvChargerBillResponse(
     decimal Kwh,

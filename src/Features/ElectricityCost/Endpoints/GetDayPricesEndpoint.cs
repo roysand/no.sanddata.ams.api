@@ -26,6 +26,7 @@ public class GetDayPricesEndpoint : Endpoint<GetDayPricesRequest, DayPricesRespo
             s.Description = "Returns one entry for every real hour of the Oslo calendar day (23, 24 or 25), with the " +
                              "NOK rate per kWh for the location's enrolled pricing model, including hours with no " +
                              "readings and hours still to come. The rate is null when price data is not available yet. " +
+                             "Each hour also has its spot energy price including VAT, without fees, taxes or markup. " +
                              "Defaults to today.";
             s.Response(200, "Day prices retrieved successfully");
             s.Response(404, "Location not found");

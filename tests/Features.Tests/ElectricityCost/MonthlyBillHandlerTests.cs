@@ -481,7 +481,7 @@ public class MonthlyBillHandlerTests
     }
 
     [Fact]
-    public async Task TheChargerPart_AddsToTotalKwhOnlyWhenIncluded_AndChangesNoAmount()
+    public async Task TheChargerPart_AddsToTotalKwhOnlyWhenIncluded_AndCountsTowardTheNorgesPrisCap()
     {
         ReadingsEveryHour(Utc("2026-11-30T23:00:00Z"), Utc("2026-12-10T13:00:00Z"), 2m);
         Charging("2026-12-02T20:00:00Z", 4.4m);
@@ -498,12 +498,30 @@ public class MonthlyBillHandlerTests
         Assert.Equal(new EvChargerBillResponse(8.8m, false, true, 0, Utc("2026-12-02T20:00:00Z"),
             Utc("2026-12-02T21:00:00Z")), on.EvCharger);
         Assert.False(off.EvCharger!.Included);
-        Assert.Equal(off.Total, on.Total);
         Assert.Equal(off.Capacity, on.Capacity);
-        Assert.Equal(off.Strom.Amount, on.Strom.Amount);
-        Assert.Equal(off.Nettleie.Amount, on.Nettleie.Amount);
-        Assert.Equal(off.Strom.Lines.Select(l => l.Amount), on.Strom.Lines.Select(l => l.Amount));
-        Assert.Equal(off.Nettleie.Lines.Select(l => l.Amount), on.Nettleie.Lines.Select(l => l.Amount));
+
+        // The month passes the 1 000 kWh cap, 8.8 kWh sooner with the car (spec 018, FR-004): only the Norgespris
+        // credit changes; the car itself is never priced, so every other line and quantity is the meter's.
+        Assert.Equal(Line(off, "NorgesPrisCredit").Quantity - 8.8m, Line(on, "NorgesPrisCredit").Quantity);
+        Assert.True(on.Total.Amount > off.Total.Amount);
+        Assert.Equal(off.Strom.Lines, on.Strom.Lines);
+        Assert.Equal(
+            off.Nettleie.Lines.Where(l => l.Code != "NorgesPrisCredit"),
+            on.Nettleie.Lines.Where(l => l.Code != "NorgesPrisCredit"));
+    }
+
+    [Fact]
+    public async Task TheCharger_NotIncluded_ChangesNoAmount()
+    {
+        ReadingsEveryHour(Utc("2026-11-30T23:00:00Z"), Utc("2026-12-10T13:00:00Z"), 2m);
+        MonthlyBillResponse without = (await Bill("2026-12")).Value;
+        Charging("2026-12-02T20:00:00Z", 400m);
+
+        MonthlyBillResponse with = (await Bill("2026-12")).Value;
+
+        Assert.Equal(without.Total, with.Total);
+        Assert.Equal(without.Strom.Lines, with.Strom.Lines);
+        Assert.Equal(without.Nettleie.Lines, with.Nettleie.Lines);
     }
 
     [Fact]

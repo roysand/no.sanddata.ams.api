@@ -1,3 +1,5 @@
+using Application.Common.Interfaces.Repositories;
+
 namespace Features.ElectricityCost.Services;
 
 /// <param name="Hours">One projected kWh per remaining hour, in the order given.</param>
@@ -12,6 +14,9 @@ public sealed record ProjectionResult(IReadOnlyList<(DateTime HourStartUtc, deci
 /// </summary>
 public static class ConsumptionProjection
 {
+    /// <summary>The window the profile is taken from: the 7 days before the current hour.</summary>
+    public const int WindowHours = 7 * 24;
+
     private static readonly TimeZoneInfo Oslo = TimeZoneInfo.FindSystemTimeZoneById("Europe/Oslo");
 
     /// <param name="window">The hours with readings in the 7 days before the current hour, one entry per hour.</param>
@@ -29,6 +34,31 @@ public static class ConsumptionProjection
             .ToList();
 
         return new ProjectionResult(hours, window.Count);
+    }
+
+    /// <summary>
+    /// The current hour and the rest of the month, projected from the hourly rows of the 168 hours before the current
+    /// hour. The bill and the Norgespris status both call this, so their projections are the same (spec 018, R5).
+    /// </summary>
+    /// <param name="rows">Hourly rows (any meters); those outside the 168-hour window are ignored.</param>
+    public static ProjectionResult ProjectRestOfMonth(
+        IReadOnlyList<HourConsumption> rows, DateTime currentHourStartUtc, DateTime monthEndUtc)
+    {
+        DateTime windowStartUtc = currentHourStartUtc.AddHours(-WindowHours);
+        List<(DateTime, decimal)> window = rows
+            .Select(r => (Hour: DateTime.SpecifyKind(r.BucketStart, DateTimeKind.Utc), r.ConsumptionKwh))
+            .Where(r => r.Hour >= windowStartUtc && r.Hour < currentHourStartUtc)
+            .GroupBy(r => r.Hour)
+            .Select(g => (g.Key, g.Sum(r => r.ConsumptionKwh)))
+            .ToList();
+
+        var remaining = new List<DateTime>();
+        for (DateTime hour = currentHourStartUtc; hour < monthEndUtc; hour = hour.AddHours(1))
+        {
+            remaining.Add(hour);
+        }
+
+        return Project(window, remaining);
     }
 
     private static (DayOfWeek, int) Key(DateTime hourStartUtc)

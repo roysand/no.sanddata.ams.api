@@ -276,12 +276,14 @@ traces
 
 ## 19. Who uses the API
 
-Reads of measurements and cost per user and location, as a picture of how much the frontend is used.
+Reads of measurements and cost per user and location, as a picture of how much the frontend is used. The Norgespris
+status (`NorgesPrisStatusQueried`) covers all of a user's locations at once, so its rows have an empty location.
 
 ```kql
 traces
 | where timestamp > ago(30d)
-| where tostring(customDimensions.EventName) in ("MeasurementsQueried", "LatestMeasurementQueried", "CostQueried")
+| where tostring(customDimensions.EventName) in ("MeasurementsQueried", "LatestMeasurementQueried", "CostQueried",
+                                                  "NorgesPrisStatusQueried")
 | summarize reads = count(), last = max(timestamp)
           by user = tostring(customDimensions.UserId), location = tostring(customDimensions.LocationId)
 | order by reads desc

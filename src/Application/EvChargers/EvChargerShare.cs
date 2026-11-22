@@ -18,6 +18,8 @@ public sealed record EvChargerTotal(
 /// <summary>
 /// The pure rules for the charger's part of the figures (spec 016, research R6/R7). The charger is never priced, and
 /// the meter's kWh, on which every cost is based, never changes: the charger only adds to the total kWh when included.
+/// When included, its kWh also count toward the Norgespris monthly cap, so the house reaches it sooner (spec 018,
+/// FR-004).
 /// </summary>
 public static class EvChargerShare
 {

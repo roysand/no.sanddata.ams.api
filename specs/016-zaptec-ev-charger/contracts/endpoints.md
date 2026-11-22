@@ -163,6 +163,9 @@ Adds:
 
 - **Hours counted:** only the hours so far (`soFar`), never projected.
 - **What does not change:** every line, subtotal, `total`, the capacity step and `projection`, whatever the setting.
+  Since spec 018 (FR-004), one exception: on a Norgespris location with the setting on, the car's kWh count toward
+  the Norgespris limit, so the lines change as the limit is passed sooner. See
+  [the 018 contract](../../018-norgespris-limit-status/contracts/endpoints.md).
 - **`totalKwh`:** the meter's kWh so far, plus `evCharger.kwh` when the charger is included.
 
 ## Unchanged

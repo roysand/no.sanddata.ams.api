@@ -38,8 +38,16 @@ public class GetCurrentHourCostQueryHandler(
         var hourStart = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0, DateTimeKind.Utc);
 
         decimal kwh = await consumptionRepository.GetHourConsumptionKwhAsync(query.LocationId, hourStart, ct);
+        DateTime monthStart = CostTime.LocalMonthStartUtc(hourStart);
         decimal monthKwhBefore = await consumptionRepository.GetConsumptionKwhAsync(
-            query.LocationId, CostTime.LocalMonthStartUtc(hourStart), hourStart, ct);
+            query.LocationId, monthStart, hourStart, ct);
+
+        // A car counted with the house counts toward the Norgespris cap (spec 018, FR-004).
+        if (location.IncludeEvChargerInTotals && chargingSessions is not null)
+        {
+            monthKwhBefore += (await chargingSessions.GetHourlyEnergyAsync(location.Id, monthStart, hourStart, ct))
+                .Sum(e => e.Kwh);
+        }
         CostResult cost = await costCalculator.CalculateAsync(location, hourStart, kwh, monthKwhBefore, ct);
 
         // The charger only has data here when a session ended in this hour: Zaptec gives completed sessions only.

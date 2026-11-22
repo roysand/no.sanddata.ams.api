@@ -1,6 +1,7 @@
 using Application.Common.Interfaces.Repositories;
 using Application.CQRS;
 using Application.ElectricityCost;
+using Application.EvChargers;
 using Domain.Common;
 using Domain.Common.Entities;
 using Features.ElectricityCost.Logging;
@@ -14,7 +15,8 @@ public class GetDayPricesQueryHandler(
     ILocationRepository<Location> locationRepository,
     IConsumptionRepository consumptionRepository,
     CostCalculator costCalculator,
-    ILogger<GetDayPricesQueryHandler> logger)
+    ILogger<GetDayPricesQueryHandler> logger,
+    IChargingSessionRepository? chargingSessions = null)
     : IQueryHandler<GetDayPricesQuery, Result<DayPricesResponse>>
 {
     public async Task<Result<DayPricesResponse>> Handle(GetDayPricesQuery query, CancellationToken ct)
@@ -40,13 +42,25 @@ public class GetDayPricesQueryHandler(
         await costCalculator.PreloadAsync(location, start, end, ct);
 
         // The Norgespris cap counts the month so far: the kWh before the day, then each measured hour of the day.
-        decimal monthKwh = await consumptionRepository.GetConsumptionKwhAsync(
-            location.Id, CostTime.LocalMonthStartUtc(start), start, ct);
+        DateTime monthStart = CostTime.LocalMonthStartUtc(start);
+        decimal monthKwh = await consumptionRepository.GetConsumptionKwhAsync(location.Id, monthStart, start, ct);
         IReadOnlyList<HourConsumption> dayRows =
             await consumptionRepository.GetHourlyAsync(location.Id, null, start, end, ct);
         var measured = dayRows
             .GroupBy(r => DateTime.SpecifyKind(r.BucketStart, DateTimeKind.Utc))
             .ToDictionary(g => g.Key, g => g.Sum(r => r.ConsumptionKwh));
+
+        // A car counted with the house counts toward the cap too (spec 018, FR-004): before the day, then per hour.
+        if (location.IncludeEvChargerInTotals && chargingSessions is not null)
+        {
+            IReadOnlyList<EvChargerHourEnergy> car =
+                await chargingSessions.GetHourlyEnergyAsync(location.Id, monthStart, end, ct);
+            monthKwh += car.Where(e => e.HourStartUtc < start).Sum(e => e.Kwh);
+            foreach (EvChargerHourEnergy hour in car.Where(e => e.HourStartUtc >= start))
+            {
+                measured[hour.HourStartUtc] = measured.GetValueOrDefault(hour.HourStartUtc) + hour.Kwh;
+            }
+        }
 
         // The rate is the rate of the next kWh in the hour, read from a one-kWh calculation so it is exactly the rate
         // used in the cost endpoints. Once the month has passed the cap, a Norgespris location sees the spot rate.
@@ -58,7 +72,8 @@ public class GetDayPricesQueryHandler(
             monthKwh += measured.GetValueOrDefault(hour);
             pricingModel = cost.PricingModel.ToString();
             RateCost? spot = cost.PricingModel == PricingModel.Spot ? cost.Actual : cost.Comparison;
-            items.Add(new HourPriceResponse(hour, cost.Actual?.RatePerKwh, spot?.RatePerKwh));
+            decimal? spotEnergy = await costCalculator.SpotEnergyWithVatAsync(location, hour, ct);
+            items.Add(new HourPriceResponse(hour, cost.Actual?.RatePerKwh, spot?.RatePerKwh, spotEnergy));
         }
 
         LogMessages.CostQueried(logger, query.UserId, query.LocationId);

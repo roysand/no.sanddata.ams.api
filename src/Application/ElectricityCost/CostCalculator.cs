@@ -110,7 +110,7 @@ public class CostCalculator(
             return spot is null ? null : new RateCost(spot.Total, consumptionKwh * spot.Total, spot);
         }
 
-        decimal? cap = await CapForAsync(location, hourStartUtc, ct);
+        decimal? cap = await NorgesPrisCapAsync(location, hourStartUtc, ct);
         (decimal within, decimal above) = NorgesPrisCap.Split(monthKwhBefore, consumptionKwh, cap);
 
         // An hour with no consumption gets the rate of the next kWh.
@@ -181,10 +181,13 @@ public class CostCalculator(
             vat.Value);
     }
 
-    /// <summary>The cap of the location kind valid on the first Oslo day of the month of the hour, or null.</summary>
-    private async Task<decimal?> CapForAsync(Location location, DateTime hourStartUtc, CancellationToken ct)
+    /// <summary>
+    /// The Norgespris monthly cap in kWh of the location kind (holiday home or home) valid on the first Oslo day of the
+    /// month of the instant, or null when none is set. The pricing uses the same value (spec 018, research R3).
+    /// </summary>
+    public async Task<decimal?> NorgesPrisCapAsync(Location location, DateTime instantUtc, CancellationToken ct)
     {
-        DateOnly date = NorgesPrisSchedule.OsloDateOf(hourStartUtc);
+        DateOnly date = NorgesPrisSchedule.OsloDateOf(instantUtc);
         PriceRateKind kind = location.IsHolidayHome
             ? PriceRateKind.NorgesPrisCapHolidayHome
             : PriceRateKind.NorgesPrisCapHome;
@@ -223,6 +226,35 @@ public class CostCalculator(
         NorgesPrisRate? rate = NorgesPrisSchedule.RateFor(await _norgesPris, hourStartUtc);
         return rate?.RatePerKwh;
     }
+
+    /// <summary>
+    /// The Norgespris rate in effect at the instant, including VAT (none for a VAT-exempt location), without grid charge,
+    /// taxes or supplier markup; null when the rate or the VAT is missing (spec 018, research R6).
+    /// </summary>
+    public async Task<decimal?> NorgesPrisPriceWithVatAsync(Location location, DateTime instantUtc, CancellationToken ct)
+    {
+        decimal? rate = await GetNorgesPrisEnergyAsync(instantUtc, ct);
+        decimal? vat = await VatAsync(location, instantUtc, ct);
+        return rate * (1m + vat);
+    }
+
+    /// <summary>
+    /// The spot energy of the hour in NOK per kWh including VAT (none for a VAT-exempt location) and nothing else; null
+    /// when the price, the exchange rate or the VAT is missing (spec 018, research R10).
+    /// </summary>
+    public async Task<decimal?> SpotEnergyWithVatAsync(Location location, DateTime hourStartUtc, CancellationToken ct)
+    {
+        decimal? energy = await GetSpotEnergyAsync(location.Zone, hourStartUtc, null, ct);
+        if (energy is null)
+        {
+            return null;
+        }
+
+        return energy * (1m + await VatAsync(location, hourStartUtc, ct));
+    }
+
+    private async Task<decimal?> VatAsync(Location location, DateTime instantUtc, CancellationToken ct) =>
+        location.VatExempt ? 0m : (await GetBookAsync(ct)).ValueFor(PriceRateKind.Vat, instantUtc);
 
     /// <summary>
     /// The spot energy of the hour in NOK per kWh excluding VAT (the spot price at the exchange rate the calculation
