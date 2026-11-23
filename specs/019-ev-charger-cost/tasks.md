@@ -102,7 +102,7 @@ No setup: no new project, package, table or migration.
   (SC-003), in `EvChargerCostBillTests.cs`. Add a pointer in spec 016's contract
   (`specs/016-zaptec-ev-charger/contracts/endpoints.md`) to the two new fields.
 - [X] T012 Run `dotnet build` (no new warnings), `dotnet test` and `dotnet format --verify-no-changes`.
-- [ ] T013 After the deploy: quickstart §2 (SC-001, SC-002, SC-003, SC-004). Roy does this.
+- [X] T013 After the deploy: quickstart §2 (SC-001, SC-002, SC-003, SC-004). Checked by Roy on 2026-11-23.
 
 ---
 
