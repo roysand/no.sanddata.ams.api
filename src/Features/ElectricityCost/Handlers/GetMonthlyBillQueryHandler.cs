@@ -77,6 +77,11 @@ public class GetMonthlyBillQueryHandler(
         // projection continues from the meter's kWh plus the car's.
         decimal meterKwhSoFar = soFar.Sum(h => h.ConsumptionKwh);
         EvChargerTotal? evCharger = EvChargerShare.Sum(soFar.Select(h => h.EvCharger), costs.UnmatchedChargerHours);
+
+        // The car's own cost (spec 019), before the projection preloads other hours, so its prices are in memory.
+        EvChargerCostResult? evChargerCost = evCharger is null
+            ? null
+            : await EvChargerCost.PriceAsync(location, soFar, costs.UnmatchedChargerHours, costCalculator, ct);
         (IReadOnlyList<HourCost> projected, BillProjectionResponse? projection) = ended
             ? ([], null)
             : await ProjectAsync(
@@ -94,7 +99,8 @@ public class GetMonthlyBillQueryHandler(
         return Result.Success(BillMapper.ToResponse(
             month, ended, bill, hours, projection, capacity, WaterHeaterShare.Sum(soFar.Select(h => h.WaterHeater)),
             evCharger,
-            meterKwhSoFar));
+            meterKwhSoFar,
+            evChargerCost));
     }
 
     /// <summary>
