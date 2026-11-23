@@ -85,17 +85,27 @@ public record MonthlyBillResponse(
     EvChargerBillResponse? EvCharger);
 
 /// <summary>
-/// The EV charger's kWh in the month's hours so far (spec 016), never projected and never priced: no line, subtotal,
-/// total or capacity step includes it. TotalKwh (the meter's kWh so far) adds it only when <paramref name="Included"/>.
-/// When included, its kWh count toward the Norgespris cap (spec 018, FR-004), so the house's kWh pass it sooner.
+/// The EV charger's kWh in the month's hours so far (spec 016), never projected. No line, subtotal, total or capacity
+/// step includes it. TotalKwh (the meter's kWh so far) adds it only when <paramref name="Included"/>. When included,
+/// its kWh count toward the Norgespris cap (spec 018, FR-004), so the house's kWh pass it sooner. Its own cost
+/// (spec 019) is in <paramref name="Cost"/>, priced by the rule in <paramref name="PricedAt"/>, and is added to no sum.
 /// </summary>
+/// <param name="Cost">
+/// What the car's kWh so far cost, NOK including VAT, not rounded; null when any of its hours can't be priced.
+/// </param>
+/// <param name="PricedAt">
+/// HousePrice (counted with the house: the house's price per kWh in each hour) or NorgesPrisPrice (its own agreement:
+/// the Norgespris price including VAT, energy only).
+/// </param>
 public record EvChargerBillResponse(
     decimal Kwh,
     bool Estimated,
     bool Included,
     int HoursWithoutMeterReading,
     DateTime FirstHour,
-    DateTime LastHour);
+    DateTime LastHour,
+    decimal? Cost,
+    string PricedAt);
 
 /// <summary>
 /// The water heater's part of the month's hours so far (spec 012). It is part of the energy cost, not a bill line, and

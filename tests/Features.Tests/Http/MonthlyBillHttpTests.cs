@@ -43,6 +43,20 @@ public class MonthlyBillHttpTests
         Assert.Contains("\"waterHeater\":null", none);
     }
 
+    [Fact]
+    public async Task TheCarPart_HasItsCostAndTheRule_InCamelCase()
+    {
+        var part = new EvChargerBillResponse(
+            212.7m, false, false, 0,
+            new DateTime(2026, 11, 1, 6, 0, 0, DateTimeKind.Utc), new DateTime(2026, 11, 20, 21, 0, 0, DateTimeKind.Utc),
+            106.35m, "NorgesPrisPrice");
+        await using EndpointHost host = await StartHost(bill: Bill with { EvCharger = part });
+
+        string json = await host.Client.GetStringAsync($"/api/electricity-cost/bill?locationId={LocationId}");
+
+        Assert.Contains("\"lastHour\":\"2026-11-20T21:00:00Z\",\"cost\":106.35,\"pricedAt\":\"NorgesPrisPrice\"}", json);
+    }
+
     [Theory]
     [InlineData("&month=2026-10")]
     [InlineData("")]

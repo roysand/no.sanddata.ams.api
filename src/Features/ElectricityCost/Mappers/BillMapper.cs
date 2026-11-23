@@ -20,7 +20,8 @@ public static class BillMapper
         CapacityChargeResult capacity,
         WaterHeaterTotal? waterHeater,
         EvChargerTotal? evCharger = null,
-        decimal meterKwhSoFar = 0m) =>
+        decimal meterKwhSoFar = 0m,
+        EvChargerCostResult? evChargerCost = null) =>
         new(
             month.ToString("yyyy-MM"),
             ended ? Final : Estimate,
@@ -40,7 +41,11 @@ public static class BillMapper
             evCharger is null
                 ? null
                 : new EvChargerBillResponse(evCharger.Kwh, evCharger.Estimated, evCharger.Included,
-                    evCharger.HoursWithoutMeterReading, evCharger.FirstHourUtc, evCharger.LastHourUtc));
+                    evCharger.HoursWithoutMeterReading, evCharger.FirstHourUtc, evCharger.LastHourUtc,
+                    evChargerCost?.Cost,
+                    evChargerCost?.PricedAt ?? (evCharger.Included
+                        ? EvChargerCost.HousePrice
+                        : EvChargerCost.NorgesPrisPrice)));
 
     private static WaterHeaterBillResponse? ToWaterHeater(WaterHeaterTotal? total) =>
         total is null

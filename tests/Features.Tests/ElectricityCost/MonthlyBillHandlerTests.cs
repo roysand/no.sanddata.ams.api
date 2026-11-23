@@ -496,7 +496,7 @@ public class MonthlyBillHandlerTests
         Assert.Equal(meterKwh, off.TotalKwh);
         Assert.Equal(meterKwh + 8.8m, on.TotalKwh);
         Assert.Equal(new EvChargerBillResponse(8.8m, false, true, 0, Utc("2026-12-02T20:00:00Z"),
-            Utc("2026-12-02T21:00:00Z")), on.EvCharger);
+            Utc("2026-12-02T21:00:00Z"), null, "HousePrice"), on.EvCharger! with { Cost = null });
         Assert.False(off.EvCharger!.Included);
         Assert.Equal(off.Capacity, on.Capacity);
 

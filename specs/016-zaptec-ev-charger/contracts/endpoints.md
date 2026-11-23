@@ -167,6 +167,8 @@ Adds:
   the Norgespris limit, so the lines change as the limit is passed sooner. See
   [the 018 contract](../../018-norgespris-limit-status/contracts/endpoints.md).
 - **`totalKwh`:** the meter's kWh so far, plus `evCharger.kwh` when the charger is included.
+- **Since spec 019:** `evCharger` also has `cost` (what the car's kWh so far cost, added to no sum) and `pricedAt`
+  (`HousePrice` or `NorgesPrisPrice`). See [the 019 contract](../../019-ev-charger-cost/contracts/endpoints.md).
 
 ## Unchanged
 
