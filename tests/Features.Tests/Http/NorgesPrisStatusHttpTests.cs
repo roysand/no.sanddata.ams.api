@@ -7,6 +7,7 @@ using NSubstitute;
 namespace Features.Tests.Http;
 
 /// <summary>The real pipeline for the Norgespris status endpoint (spec 018): sign-in and the answer's shape.</summary>
+[Collection(FastEndpointsHostCollection.Name)]
 public class NorgesPrisStatusHttpTests
 {
     private const string Url = "/api/electricity-cost/norgespris-status";

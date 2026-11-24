@@ -7,6 +7,7 @@ using NSubstitute;
 namespace Features.Tests.Http;
 
 /// <summary>The real pipeline for the heater's 5-minute power: sign-in, binding, validation, JSON shape, errors.</summary>
+[Collection(FastEndpointsHostCollection.Name)]
 public class WaterHeaterPowerHttpTests
 {
     private static readonly Guid LocationId = Guid.NewGuid();

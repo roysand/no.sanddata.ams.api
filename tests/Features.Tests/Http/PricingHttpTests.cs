@@ -8,6 +8,7 @@ using NSubstitute;
 namespace Features.Tests.Http;
 
 /// <summary>The real pipeline for the Pricing endpoints: who may call them, and how a request is bound.</summary>
+[Collection(FastEndpointsHostCollection.Name)]
 public class PricingHttpTests
 {
     private static readonly Guid RateId = Guid.NewGuid();
