@@ -468,6 +468,25 @@ Keep this mapping in sync as new features are added, to avoid EventId collisions
 | 1900-1999 | EvCharger |
 | 2000-2099 | Infra/Logging |
 
+## EV charger (Zaptec)
+
+`src/Features/EvChargers/` connects one Zaptec charger per location (Admin), reads its finished charging sessions every
+15 minutes (spec 016; [contract](specs/016-zaptec-ev-charger/contracts/endpoints.md)), and gives its state right now
+(spec 021; [contract](specs/021-ev-charger-live/contracts/endpoints.md)).
+
+- The Zaptec login is the server's own (`Zaptec:Username` / `Zaptec:Password`). `ZaptecTokenCache` shares one token
+  between the read job and the endpoints, and the Zaptec `HttpClient` is registered with `.RemoveAllLoggers()`.
+- `GET /api/locations/{id}/ev-charger/state` reads Zaptec through `ChargerStateCache`, a singleton that shares one
+  read per charger for 3 minutes (1 minute after a failure). Callers who ask during a read wait for it, and nobody
+  asking means no calls. Don't add a background poller: Zaptec's fair-use rules forbid aggressive polling.
+- The state read gives up after 3 seconds and doesn't retry after a 429. The session reads keep their 15-second
+  timeout and their one retry. `GetJsonAsync`'s `retryBusy` argument is the switch.
+- The client keeps only the six state ids the answer needs (-2, -1, 513, 553, 710, 721) and drops the rest (serial,
+  SIM numbers, signed meter data, PIN). Never log a URL, the charger id or a token: `NoSecretsInLogsTests` fails if
+  any of them reaches a log.
+- The live figures are never stored or added to any usage, cost or bill. The charge is counted once it ends, from
+  spec 016's stored sessions.
+
 ## Water heater (OSO)
 
 `src/Features/WaterHeaters/` connects one OSO water heater per location, reads its state from OSO's inCharge API and

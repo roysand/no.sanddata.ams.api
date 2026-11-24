@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Application.EvChargers;
 using Domain.Common;
 using Infrastructure.External;
@@ -226,6 +227,152 @@ public class ZaptecEvChargerClientTests
         time.Advance(TimeSpan.FromMinutes(2));
         await client.GetChargersAsync(default);
         Assert.Equal(2, handler.Count(ZaptecStubHandler.TokenPath));
+    }
+
+    // Spec 021: the charger's state right now.
+
+    [Fact]
+    public async Task GetStateAsync_KeepsTheSixValues()
+    {
+        Result<ZaptecChargerState> result =
+            await Client(new ZaptecStubHandler()).GetStateAsync(ZaptecSamples.ChargerId, default);
+
+        Assert.True(result.IsSuccess);
+        ZaptecChargerState state = result.Value;
+        Assert.Equal(3, state.OperationMode!.Value);
+        Assert.Equal(new DateTime(2026, 11, 24, 15, 37, 41, DateTimeKind.Utc), state.OperationMode.TimestampUtc);
+        Assert.Equal(DateTimeKind.Utc, state.OperationMode.TimestampUtc.Kind);
+        Assert.Equal(4414.704m, state.PowerW!.Value);
+        Assert.Equal(12.962m, state.SessionKwh!.Value);
+        Assert.Equal(new DateTime(2026, 11, 24, 18, 32, 0, DateTimeKind.Utc), state.SessionKwh.TimestampUtc);
+        Assert.True(state.Online!.Value);
+        Assert.Equal(new DateTime(2026, 11, 24, 18, 33, 10, 500, DateTimeKind.Utc), state.LastCheckInUtc);
+        Assert.Equal(new DateTime(2026, 11, 24, 14, 52, 3, DateTimeKind.Utc), state.SessionSetUtc);
+    }
+
+    [Fact]
+    public async Task GetStateAsync_DropsOtherValues()
+    {
+        Result<ZaptecChargerState> result =
+            await Client(new ZaptecStubHandler()).GetStateAsync(ZaptecSamples.ChargerId, default);
+
+        string json = JsonSerializer.Serialize(result.Value);
+        Assert.DoesNotContain(ZaptecSamples.FakeSerial, json);
+        Assert.DoesNotContain(ZaptecSamples.FakeSim, json);
+        Assert.DoesNotContain(ZaptecSamples.FakeMeter, json);
+        Assert.DoesNotContain(ZaptecSamples.StateSessionId, json);
+    }
+
+    [Fact]
+    public async Task GetStateAsync_UnreadableValuesAreNull()
+    {
+        ZaptecStubHandler handler = new ZaptecStubHandler()
+            .Answer(ZaptecStubHandler.StatePath, HttpStatusCode.OK, ZaptecSamples.StateUnreadable);
+
+        Result<ZaptecChargerState> result = await Client(handler).GetStateAsync(ZaptecSamples.ChargerId, default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value.OperationMode);
+        Assert.Null(result.Value.PowerW);
+        Assert.Null(result.Value.Online);
+        Assert.NotNull(result.Value.LastCheckInUtc);
+    }
+
+    [Fact]
+    public async Task GetStateAsync_AnIdTwice_KeepsTheLatest()
+    {
+        const string answer = """
+            [{"StateId":710,"Timestamp":"2026-11-24T15:00:00","ValueAsString":"2"},
+             {"StateId":710,"Timestamp":"2026-11-24T15:37:41","ValueAsString":"3"},
+             {"StateId":710,"Timestamp":"2026-11-24T14:00:00","ValueAsString":"1"}]
+            """;
+        ZaptecStubHandler handler =
+            new ZaptecStubHandler().Answer(ZaptecStubHandler.StatePath, HttpStatusCode.OK, answer);
+
+        Result<ZaptecChargerState> result = await Client(handler).GetStateAsync(ZaptecSamples.ChargerId, default);
+
+        Assert.Equal(3, result.Value.OperationMode!.Value);
+    }
+
+    [Fact]
+    public async Task GetStateAsync_NotAnArray_IsInvalidResponse()
+    {
+        ZaptecStubHandler handler =
+            new ZaptecStubHandler().Answer(ZaptecStubHandler.StatePath, HttpStatusCode.OK, "{}");
+
+        Result<ZaptecChargerState> result = await Client(handler).GetStateAsync(ZaptecSamples.ChargerId, default);
+
+        Assert.Equal(EvChargerErrors.InvalidResponse, result.Error);
+    }
+
+    [Fact]
+    public async Task GetStateAsync_RateLimited_FailsAtOnce()
+    {
+        ZaptecStubHandler handler = new ZaptecStubHandler().Answer(
+            ZaptecStubHandler.StatePath,
+            (HttpStatusCode.TooManyRequests, "[]"),
+            (HttpStatusCode.OK, ZaptecSamples.StateCharging));
+
+        Result<ZaptecChargerState> result = await Client(handler).GetStateAsync(ZaptecSamples.ChargerId, default);
+
+        Assert.Equal(EvChargerErrors.Unavailable, result.Error);
+        Assert.Equal(1, handler.Count(ZaptecStubHandler.StatePath));
+    }
+
+    [Fact]
+    public async Task GetStateAsync_SlowZaptec_GivesUpAfter3Seconds()
+    {
+        var handler = new ZaptecStubHandler();
+        ZaptecEvChargerClient client = Client(handler);
+        await client.GetChargersAsync(default); // the token is cached, so only the state call is slow
+        handler.Delay = TimeSpan.FromSeconds(5);
+
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        Result<ZaptecChargerState> result = await client.GetStateAsync(ZaptecSamples.ChargerId, default);
+
+        Assert.Equal(EvChargerErrors.Unavailable, result.Error);
+        Assert.InRange(watch.Elapsed, TimeSpan.FromSeconds(2.5), TimeSpan.FromSeconds(4.5));
+    }
+
+    [Fact]
+    public async Task GetStateAsync_401_SignsInAgainOnce()
+    {
+        ZaptecStubHandler handler = new ZaptecStubHandler().Answer(
+            ZaptecStubHandler.StatePath,
+            (HttpStatusCode.Unauthorized, "[]"),
+            (HttpStatusCode.OK, ZaptecSamples.StateCharging));
+
+        Result<ZaptecChargerState> result = await Client(handler).GetStateAsync(ZaptecSamples.ChargerId, default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, handler.Count(ZaptecStubHandler.TokenPath));
+    }
+
+    [Fact]
+    public async Task GetStateAsync_NotConfigured_SendsNothing()
+    {
+        var handler = new ZaptecStubHandler();
+
+        Result<ZaptecChargerState> result =
+            await Client(handler, configured: false).GetStateAsync(ZaptecSamples.ChargerId, default);
+
+        Assert.Equal(EvChargerErrors.NotConfigured, result.Error);
+        Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
+    public async Task GetCompletedSessionsAsync_StillRetriesAfterA429()
+    {
+        ZaptecStubHandler handler = new ZaptecStubHandler().Answer(
+            ZaptecStubHandler.SessionsPath,
+            (HttpStatusCode.TooManyRequests, "{}"),
+            (HttpStatusCode.OK, ZaptecSamples.SessionsPage2)); // one page, so the count is the retry
+
+        Result<IReadOnlyList<ZaptecSession>> result =
+            await Client(handler).GetCompletedSessionsAsync(ZaptecSamples.ChargerId, From, To, default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, handler.Count(ZaptecStubHandler.SessionsPath));
     }
 
     private sealed class ManualTimeProvider(DateTimeOffset start) : TimeProvider

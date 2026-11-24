@@ -70,14 +70,24 @@ public class NoSecretsInLogsTests
             case "data-401":
                 _zaptec.Answer(ZaptecStubHandler.ChargersPath, HttpStatusCode.Unauthorized);
                 _zaptec.Answer(ZaptecStubHandler.SessionsPath, HttpStatusCode.Unauthorized);
+                _zaptec.Answer(ZaptecStubHandler.StatePath, HttpStatusCode.Unauthorized);
                 break;
             case "data-503":
                 _zaptec.Answer(ZaptecStubHandler.ChargersPath, HttpStatusCode.ServiceUnavailable);
                 _zaptec.Answer(ZaptecStubHandler.SessionsPath, HttpStatusCode.ServiceUnavailable);
+                _zaptec.Answer(ZaptecStubHandler.StatePath, HttpStatusCode.ServiceUnavailable);
                 break;
             case "bad-json":
                 _zaptec.Answer(ZaptecStubHandler.ChargersPath, HttpStatusCode.OK, $"{{\"Data\": [{ZaptecSamples.Token}");
                 _zaptec.Answer(ZaptecStubHandler.SessionsPath, HttpStatusCode.OK, $"{{\"sessions\": [{ZaptecSamples.Token}");
+                _zaptec.Answer(
+                    ZaptecStubHandler.StatePath, HttpStatusCode.OK, $"[{{\"StateId\": {ZaptecSamples.Token}");
+                break;
+            case "rate-limited":
+                _zaptec.Answer(ZaptecStubHandler.StatePath, HttpStatusCode.TooManyRequests, "[]");
+                break;
+            case "slow":
+                _zaptec.Delay = TimeSpan.FromSeconds(5);
                 break;
             case "network":
                 _zaptec.Throw = new HttpRequestException(
@@ -128,6 +138,47 @@ public class NoSecretsInLogsTests
 
         Assert.NotEmpty(_logs.Lines);
         AssertNoSecrets();
+    }
+
+    public static TheoryData<string> StateCases =>
+        ["ok", "token-401", "data-401", "data-503", "bad-json", "network", "rate-limited", "slow"];
+
+    /// <summary>
+    /// Spec 021 FR-006/FR-007: the state read, through the shared cache and the handler, logs no login, token, charger
+    /// id or other charger value, and its answer carries none of them.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(StateCases))]
+    public async Task TheStateRead_LogsNoSecretsOrChargerValues(string scenario)
+    {
+        Arrange(scenario);
+        await using ServiceProvider sp = Build();
+        var locationId = Guid.NewGuid();
+        ILocationRepository<Location> locations = Substitute.For<ILocationRepository<Location>>();
+        locations.GetByIdAsync(locationId, Arg.Any<CancellationToken>())
+            .Returns(new Location(locationId, "Hjemme", "Address", "SN-1", "NO1", true, false));
+        IEvChargerRepository<EvCharger> chargers = Substitute.For<IEvChargerRepository<EvCharger>>();
+        chargers.GetByLocationAsync(locationId, Arg.Any<CancellationToken>()).Returns(
+            new EvCharger(Guid.NewGuid(), locationId, ZaptecSamples.ChargerId, "Test charger",
+                ZaptecSamples.InstallationId, "Test installation"));
+        var cache = new ChargerStateCache(sp.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System,
+            sp.GetRequiredService<ILoggerFactory>().CreateLogger<ChargerStateCache>());
+
+        Result<ChargerStateResponse> result = await new GetChargerStateQueryHandler(
+                locations, chargers, sp.GetRequiredService<IEvChargerClient>(), cache, TimeProvider.System)
+            .Handle(new GetChargerStateQuery(Guid.NewGuid(), true, locationId), default);
+
+        Assert.Equal(scenario == "ok", result.IsSuccess);
+        Assert.NotEmpty(_logs.Lines);
+        AssertNoSecrets(result.IsSuccess ? result.Value : result.Error);
+        string[] chargerValues = [ZaptecSamples.ChargerId.ToString(), ZaptecSamples.FakeSerial, ZaptecSamples.FakeSim,
+            ZaptecSamples.FakeMeter, ZaptecSamples.StateSessionId];
+        string answer = JsonSerializer.Serialize<object>(result.IsSuccess ? result.Value : result.Error);
+        foreach (string value in chargerValues)
+        {
+            Assert.DoesNotContain(_logs.Lines, l => l.Contains(value, StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(value, answer);
+        }
     }
 
     [Fact]
