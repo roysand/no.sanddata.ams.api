@@ -83,4 +83,36 @@ internal static class ZaptecSamples
            "startDateTime":"2026-10-09T10:00:00+00:00","endDateTime":null,"energy":1.0,"energyDetails":[]}],
          "cursor":null,"hasMore":false}
         """;
+
+    // State answers (spec 021, research R1): an array of { StateId, Timestamp, ValueAsString } (Zaptec also sends
+    // the ChargerId, which isn't read), with timestamps in UTC without a "Z". Figures from Roy's Go during a charge on
+    // 2026-11-24; ids and other values are made up. Provisional until spec 021 T002 confirms the format by hand.
+    public const string StateSessionId = "88888888-8888-8888-8888-888888888888";
+    public const string FakeSerial = "ZAP-FAKE-SERIAL-908";
+    public const string FakeSim = "8947-FAKE-SIM-960";
+    public const string FakeMeter = "OCMF|FAKE-SIGNED-METER-DATA-554";
+
+    public const string StateCharging = $$"""
+        [{"StateId":-2,"Timestamp":"2026-11-24T14:00:12.03","ValueAsString":"1"},
+         {"StateId":-1,"Timestamp":"2026-11-24T18:33:10.5","ValueAsString":"0"},
+         {"StateId":513,"Timestamp":"2026-11-24T17:54:02","ValueAsString":"4414.704"},
+         {"StateId":553,"Timestamp":"2026-11-24T18:32:00","ValueAsString":"12.962"},
+         {"StateId":710,"Timestamp":"2026-11-24T15:37:41","ValueAsString":"3"},
+         {"StateId":721,"Timestamp":"2026-11-24T14:52:03","ValueAsString":"{{StateSessionId}}"},
+         {"StateId":908,"Timestamp":"2026-11-01T10:00:00","ValueAsString":"{{FakeSerial}}"},
+         {"StateId":960,"Timestamp":"2026-11-01T10:00:00","ValueAsString":"{{FakeSim}}"},
+         {"StateId":554,"Timestamp":"2026-11-24T18:00:00","ValueAsString":"{{FakeMeter}}"}]
+        """;
+
+    public const string StateNoCar = """
+        [{"StateId":-2,"Timestamp":"2026-11-24T14:00:12","ValueAsString":"1"},
+         {"StateId":-1,"Timestamp":"2026-11-24T18:33:10","ValueAsString":"0"},
+         {"StateId":710,"Timestamp":"2026-11-24T08:10:00","ValueAsString":"1"}]
+        """;
+
+    public const string StateUnreadable = """
+        [{"StateId":-1,"Timestamp":"2026-11-24T18:33:10","ValueAsString":"0"},
+         {"StateId":710,"Timestamp":"2026-11-24T15:37:41","ValueAsString":"x"},
+         {"StateId":513,"Timestamp":"2026-11-24T17:54:02","ValueAsString":""}]
+        """;
 }
