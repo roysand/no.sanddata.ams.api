@@ -37,6 +37,39 @@ public static class WaterHeaterMapper
         return new WaterHeaterPowerItem(step.StepStartUtc, powerKw, seconds);
     }
 
+    /// <summary>
+    /// Rolls the hourly litres up into the period's parts (spec 020, research R7). Only parts that start before
+    /// <paramref name="nowUtc"/> get an item; each part ends at the next start, the last at <paramref name="toUtc"/>.
+    /// A part without hours has null litres. Otherwise the litres are summed, then rounded half away from zero, and
+    /// the sampled minutes are rounded down and capped at the part's length (a pair spills into its later hour).
+    /// </summary>
+    public static IReadOnlyList<WaterHeaterHotWaterItem> ToHotWaterItems(
+        IReadOnlyList<DateTime> partStarts, DateTime toUtc, DateTime nowUtc, IReadOnlyList<WaterHeaterHotWaterHour> hours)
+    {
+        var items = new List<WaterHeaterHotWaterItem>();
+        for (int i = 0; i < partStarts.Count && partStarts[i] < nowUtc; i++)
+        {
+            DateTime start = partStarts[i];
+            DateTime end = i + 1 < partStarts.Count ? partStarts[i + 1] : toUtc;
+
+            var inPart = hours.Where(h => h.HourStartUtc >= start && h.HourStartUtc < end).ToList();
+            if (inPart.Count == 0)
+            {
+                items.Add(new WaterHeaterHotWaterItem(start, null, 0));
+                continue;
+            }
+
+            int litres = (int)Math.Round(inPart.Sum(h => h.Litres), MidpointRounding.AwayFromZero);
+            int minutes = Math.Min((int)(inPart.Sum(h => h.SampledSeconds) / 60), (int)(end - start).TotalMinutes);
+            items.Add(new WaterHeaterHotWaterItem(start, litres, minutes));
+        }
+
+        return items;
+    }
+
+    /// <summary>The period as the response names it: <c>day</c>, <c>week</c>, <c>month</c> or <c>year</c>.</summary>
+    public static string ToWire(HotWaterPeriod p) => p.ToString().ToLowerInvariant();
+
     public static WaterHeaterStateResponse ToState(Guid locationId, WaterHeaterReading reading, DateTime nowUtc)
     {
         // A reading slightly "in the future" (clock skew between OSO and us) counts as brand new.

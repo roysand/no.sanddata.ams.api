@@ -60,6 +60,42 @@ public sealed record WaterHeaterPowerResponse(
 /// </summary>
 public sealed record WaterHeaterPowerItem(DateTime Start, decimal PowerKw, int SampledSeconds);
 
+/// <summary>The period of the hot water view and what its items are: hours, days, days or months (spec 020).</summary>
+public enum HotWaterPeriod
+{
+    Day,
+    Week,
+    Month,
+    Year
+}
+
+/// <summary>
+/// The 40 °C litres used per part of a period, for a user who may see the location (or an Admin). A
+/// <paramref name="Date"/> left out is today in Oslo (spec 020, contracts/endpoints.md).
+/// </summary>
+public sealed record GetWaterHeaterHotWaterQuery(
+    Guid UserId, bool IsAdmin, Guid LocationId, HotWaterPeriod Period, DateOnly? Date)
+    : IQuery<Result<WaterHeaterHotWaterResponse>>;
+
+/// <summary>
+/// The whole period in UTC, one item per part that starts before now, and the items' totals (spec 020,
+/// contracts/endpoints.md). <paramref name="TotalLitres"/> is null when no item has litres.
+/// </summary>
+public sealed record WaterHeaterHotWaterResponse(
+    Guid LocationId,
+    string Period,
+    DateTime From,
+    DateTime To,
+    int? TotalLitres,
+    int SampledMinutes,
+    IReadOnlyList<WaterHeaterHotWaterItem> Items);
+
+/// <summary>
+/// One part of the period: whole 40 °C litres used, or null when the part has no sampled time (never 0 for that), and
+/// how many minutes were sampled (spec 020, contracts/endpoints.md).
+/// </summary>
+public sealed record WaterHeaterHotWaterItem(DateTime Start, int? Litres, int SampledMinutes);
+
 /// <summary>OSO's undocumented codes, passed on as they are.</summary>
 public sealed record WaterHeaterOsoCodes(
     int? ControlMode, int? OptimizationOption, int? OptimizationSubOption, int? ProfileId);

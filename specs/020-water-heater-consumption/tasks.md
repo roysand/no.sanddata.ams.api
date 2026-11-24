@@ -158,7 +158,7 @@ today. `?period=week|month|year` give 7, 28–31 and 12 items (or fewer up to no
 
 ### Tests for User Story 2
 
-- [ ] T013 [P] [US2] Write `tests/Features.Tests/WaterHeaters/HotWaterPeriodsTests.cs` (pure, no substitutes):
+- [X] T013 [P] [US2] Write `tests/Features.Tests/WaterHeaters/HotWaterPeriodsTests.cs` (pure, no substitutes):
   - **`Bounds`:**
     - `Day` 2026-11-21 is 2026-11-20T23:00Z … 2026-11-21T23:00Z;
     - `Week` 2026-12-31 (a Thursday) is Monday 2026-12-28 … Monday 2027-01-04, Oslo midnights in UTC;
@@ -170,7 +170,7 @@ today. `?period=week|month|year` give 7, 28–31 and 12 items (or fewer up to no
     - `Month` of November 2026 has 30;
     - `Year` has 12 Oslo firsts of the month.
   - **`TodayInOslo`:** 2026-11-20T23:30Z is 2026-11-21.
-- [ ] T014 [P] [US2] Write the mapping cases in `tests/Features.Tests/WaterHeaters/GetWaterHeaterHotWaterHandlerTests.cs`.
+- [X] T014 [P] [US2] Write the mapping cases in `tests/Features.Tests/WaterHeaters/GetWaterHeaterHotWaterHandlerTests.cs`.
   - **Setup:**
     - substitute `ILocationRepository<Location>` with `IsUserAssociatedAsync` → true, and
       `IWaterHeaterPowerSampleRepository<WaterHeaterPowerSample>`;
@@ -187,7 +187,7 @@ today. `?period=week|month|year` give 7, 28–31 and 12 items (or fewer up to no
       period is wholly in the future (`items` empty).
     - **The repository call:** it gets the period's `from` and `to`, `now`, and `HotWaterRule.Current`.
     - **Defaults:** `Period = Day` with `Date = null` uses today in Oslo.
-- [ ] T015 [P] [US2] Write `tests/Features.Tests/Http/WaterHeaterHotWaterHttpTests.cs` with `EndpointHost.StartAsync`
+- [X] T015 [P] [US2] Write `tests/Features.Tests/Http/WaterHeaterHotWaterHttpTests.cs` with `EndpointHost.StartAsync`
   (pattern: `tests/Features.Tests/Http/WaterHeaterPowerHttpTests.cs`), URL `/api/locations/{id}/water-heater/hot-water`:
   - **The JSON shape** is camelCase: `locationId`, `period`, `from`, `to`, `totalLitres`, `sampledMinutes`, and
     `items[].start`, `litres`, `sampledMinutes`. A `null` litres is written as `null`, not left out.
@@ -199,13 +199,13 @@ today. `?period=week|month|year` give 7, 28–31 and 12 items (or fewer up to no
 
 ### Implementation for User Story 2
 
-- [ ] T016 [P] [US2] Create `src/Application/WaterHeaters/WaterHeaterHotWater.cs` with two records:
+- [X] T016 [P] [US2] Create `src/Application/WaterHeaters/WaterHeaterHotWater.cs` with two records:
   - `public sealed record HotWaterRuleValues(decimal KwhPerLitre, int MinFallLitres);`
   - `public sealed record WaterHeaterHotWaterHour(DateTime HourStartUtc, decimal Litres, decimal SampledSeconds);`,
     whose property names are the SQL column aliases, as for `WaterHeaterPowerStep`.
 
   XML docs per data-model.md.
-- [ ] T017 [US2] Add `GetHourlyHotWaterAsync` to
+- [X] T017 [US2] Add `GetHourlyHotWaterAsync` to
   `src/Application/Common/Interfaces/Repositories/IWaterHeaterPowerSampleRepository.cs`, and implement it in
   `src/Infrastructure/Database/Repositories/WaterHeaterPowerSampleEfRepository.cs` (research R4). Depends on T004 and
   T016.
@@ -243,11 +243,11 @@ today. `?period=week|month|year` give 7, 28–31 and 12 items (or fewer up to no
   - **The mapping:** map `HourStartUtc` to `DateTimeKind.Utc`.
   - **The remark:** add a `<remarks>` explaining each CTE, as `QueryStepsAsync` has. Update the class remark: the
     repository now holds two raw SQL queries (spec 020, plan Complexity Tracking).
-- [ ] T018 [P] [US2] Create `src/Features/WaterHeaters/Services/HotWaterRule.cs`:
+- [X] T018 [P] [US2] Create `src/Features/WaterHeaters/Services/HotWaterRule.cs`:
   `public static class HotWaterRule { public static readonly HotWaterRuleValues Current = new(0.035m, 2); }`.
   Its XML doc gives the source of each value (research R5) and says that calibration (research R6, "Calibration
   results") is where they are checked and changed.
-- [ ] T019 [US2] Create `src/Features/WaterHeaters/Services/HotWaterPeriods.cs` (research R7). It has its own
+- [X] T019 [US2] Create `src/Features/WaterHeaters/Services/HotWaterPeriods.cs` (research R7). It has its own
   `private static readonly TimeZoneInfo Oslo = TimeZoneInfo.FindSystemTimeZoneById("Europe/Oslo");`, in the style of
   `CostTime`, not a reference to it.
   - `public static DateOnly TodayInOslo(DateTime nowUtc)`.
@@ -266,7 +266,7 @@ today. `?period=week|month|year` give 7, 28–31 and 12 items (or fewer up to no
 
     All in UTC.
   - Depends on T020 for the `HotWaterPeriod` enum.
-- [ ] T020 [US2] Add to `src/Features/WaterHeaters/Queries/WaterHeaterQueries.cs`:
+- [X] T020 [US2] Add to `src/Features/WaterHeaters/Queries/WaterHeaterQueries.cs`:
   - `public enum HotWaterPeriod { Day, Week, Month, Year }`
   - `public sealed record GetWaterHeaterHotWaterQuery(Guid UserId, bool IsAdmin, Guid LocationId, HotWaterPeriod Period,
     DateOnly? Date) : IQuery<Result<WaterHeaterHotWaterResponse>>;`
@@ -275,7 +275,7 @@ today. `?period=week|month|year` give 7, 28–31 and 12 items (or fewer up to no
   - `public sealed record WaterHeaterHotWaterItem(DateTime Start, int? Litres, int SampledMinutes);`
 
   Short XML docs pointing to spec 020 and the contract.
-- [ ] T021 [US2] Add the roll-up to `src/Features/WaterHeaters/Mappers/WaterHeaterMapper.cs`. Depends on T016 and
+- [X] T021 [US2] Add the roll-up to `src/Features/WaterHeaters/Mappers/WaterHeaterMapper.cs`. Depends on T016 and
   T020.
   - The signature: `public static IReadOnlyList<WaterHeaterHotWaterItem> ToHotWaterItems(IReadOnlyList<DateTime>
     partStarts, DateTime toUtc, DateTime nowUtc, IReadOnlyList<WaterHeaterHotWaterHour> hours)`.
@@ -286,7 +286,7 @@ today. `?period=week|month|year` give 7, 28–31 and 12 items (or fewer up to no
   - **Sampled minutes:** `SampledMinutes = Math.Min((int)(Σ seconds / 60), (int)(end - start).TotalMinutes)`.
   - Add `public static string ToWire(HotWaterPeriod p) => p.ToString().ToLowerInvariant();` for the response's
     `Period`.
-- [ ] T022 [US2] Create `src/Features/WaterHeaters/Handlers/GetWaterHeaterHotWaterQueryHandler.cs`. Depends on T017,
+- [X] T022 [US2] Create `src/Features/WaterHeaters/Handlers/GetWaterHeaterHotWaterQueryHandler.cs`. Depends on T017,
   T018, T019 and T021.
   - **The constructor:** primary, taking `ILocationRepository<Location> locations`,
     `IWaterHeaterPowerSampleRepository<WaterHeaterPowerSample> samples`, `TimeProvider clock` and
@@ -302,7 +302,7 @@ today. `?period=week|month|year` give 7, 28–31 and 12 items (or fewer up to no
   - **The response:** `WaterHeaterHotWaterResponse`.
   - **The class doc:** it reads only, needs no connected heater, and doesn't re-validate (Principle IV).
   - **Access:** added in T026. Leave a clear spot for it at the top of `Handle`.
-- [ ] T023 [US2] Create `src/Features/WaterHeaters/Endpoints/GetWaterHeaterHotWaterEndpoint.cs`. Depends on T020.
+- [X] T023 [US2] Create `src/Features/WaterHeaters/Endpoints/GetWaterHeaterHotWaterEndpoint.cs`. Depends on T020.
   - **The request:** `public record GetWaterHeaterHotWaterRequest(Guid LocationId, string? Period, string? Date);`,
     with `<param>` docs.
   - **Configuration:**
@@ -319,7 +319,7 @@ today. `?period=week|month|year` give 7, 28–31 and 12 items (or fewer up to no
     - both are safe because the validator already refused bad values;
     - send the query as `GetWaterHeaterPowerEndpoint` does;
     - map a failure with `AddError` + `ThrowIfAnyErrors(WaterHeaterErrorStatus.Of(result.Error, onConnect: false))`.
-- [ ] T024 [US2] Create `src/Features/WaterHeaters/Validators/GetWaterHeaterHotWaterValidator.cs`:
+- [X] T024 [US2] Create `src/Features/WaterHeaters/Validators/GetWaterHeaterHotWaterValidator.cs`:
   - `Validator<GetWaterHeaterHotWaterRequest>`;
   - `LocationId` is `NotEmpty()`;
   - `Period`, when given, must be one of the four, ignoring case. Message:
@@ -328,7 +328,7 @@ today. `?period=week|month|year` give 7, 28–31 and 12 items (or fewer up to no
     Message: `"date must be a real date as yyyy-MM-dd"`, error code `Validation.InvalidDate`.
 
   Depends on T023 (the request record).
-- [ ] T025 [US2] Run `dotnet test tests/Features.Tests --filter "FullyQualifiedName~HotWater"` and make T013–T015
+- [X] T025 [US2] Run `dotnet test tests/Features.Tests --filter "FullyQualifiedName~HotWater"` and make T013–T015
   pass.
 
 **Checkpoint**: US2 works locally. The endpoint answers for any signed-in caller (access comes in US3). Quickstart §3's
@@ -346,7 +346,7 @@ location id, get the same 404. Without a token, get 401 (already covered by T015
 
 ### Tests for User Story 3
 
-- [ ] T026 [US3] Add access cases to `tests/Features.Tests/WaterHeaters/GetWaterHeaterHotWaterHandlerTests.cs`, as in
+- [X] T026 [US3] Add access cases to `tests/Features.Tests/WaterHeaters/GetWaterHeaterHotWaterHandlerTests.cs`, as in
   `GetWaterHeaterPowerHandlerTests`:
   - **Allowed:**
     - a user with `IsUserAssociatedAsync` → true gets 200;
@@ -356,12 +356,12 @@ location id, get the same 404. Without a token, get 401 (already covered by T015
       called;
     - an Admin with `GetByIdAsync` → null gets `Location.NotFound`;
     - the user's error and the missing location's error are identical.
-- [ ] T027 [P] [US3] Add to `tests/Features.Tests/Http/WaterHeaterHotWaterHttpTests.cs`: a handler failure with
+- [X] T027 [P] [US3] Add to `tests/Features.Tests/Http/WaterHeaterHotWaterHttpTests.cs`: a handler failure with
   `Error.NotFound("Location.NotFound", "Location not found")` maps to 404 with that code.
 
 ### Implementation for User Story 3
 
-- [ ] T028 [US3] Add the access check at the top of `Handle` in
+- [X] T028 [US3] Add the access check at the top of `Handle` in
   `src/Features/WaterHeaters/Handlers/GetWaterHeaterHotWaterQueryHandler.cs`. Copy it from
   `GetWaterHeaterPowerQueryHandler`:
   - `mayRead` is `IsAdmin ? GetByIdAsync(...) is not null : IsUserAssociatedAsync(...)`;
