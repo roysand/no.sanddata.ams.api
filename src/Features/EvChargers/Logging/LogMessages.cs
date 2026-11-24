@@ -4,7 +4,8 @@ namespace Features.EvChargers.Logging;
 
 /// <summary>
 /// EV charger (Zaptec): event ids 1900 - 1999 (1900 - 1909 the connection and setting, 1910 - 1919 the read job, the
-/// Zaptec client 1920 - 1929). Ids and reason codes only: the Zaptec user name, password and tokens are never logged.
+/// Zaptec client 1920 - 1929, 1930 - 1939 the live state of spec 021). Ids and reason codes only: the Zaptec user
+/// name, password and tokens are never logged.
 /// Reason codes are the error codes without the prefix: NotConfigured, SignInRejected, Unavailable, InvalidResponse,
 /// UnknownCharger, ChargerInUse, NotConnected, NotFound, Unexpected.
 /// </summary>
@@ -70,6 +71,18 @@ internal static class LogMessages
             new EventId(1915, nameof(EvChargerSessionsStored)),
             "Stored {Count} charging sessions for location {LocationId}");
 
+    private static readonly Action<ILogger, Guid, long, Exception?> _stateRead =
+        LoggerMessage.Define<Guid, long>(
+            LogLevel.Information,
+            new EventId(1930, nameof(EvChargerStateRead)),
+            "EV charger state of location {LocationId} read from Zaptec in {ElapsedMs} ms");
+
+    private static readonly Action<ILogger, Guid, string, Exception?> _stateFailed =
+        LoggerMessage.Define<Guid, string>(
+            LogLevel.Warning,
+            new EventId(1931, nameof(EvChargerStateFailed)),
+            "EV charger state of location {LocationId} could not be read (reason: {Reason})");
+
     public static void EvChargerConnected(ILogger logger, Guid actingUserId, Guid locationId, bool replaced) =>
         _connected(logger, locationId, actingUserId, replaced, null);
 
@@ -98,6 +111,14 @@ internal static class LogMessages
 
     public static void EvChargerSessionsStored(ILogger logger, Guid locationId, int count) =>
         _sessionsStored(logger, locationId, count, null);
+
+    /// <summary>Once per Zaptec read, not per request: SC-002/SC-003 count these, SC-004 checks the time.</summary>
+    public static void EvChargerStateRead(ILogger logger, Guid locationId, long elapsedMs) =>
+        _stateRead(logger, locationId, elapsedMs, null);
+
+    /// <summary>Once per failed read; the failure is then shared for a minute.</summary>
+    public static void EvChargerStateFailed(ILogger logger, Guid locationId, string reason) =>
+        _stateFailed(logger, locationId, reason, null);
 
     public static string Reason(Domain.Common.Error error) =>
         error.Code[(error.Code.IndexOf('.', StringComparison.Ordinal) + 1)..];

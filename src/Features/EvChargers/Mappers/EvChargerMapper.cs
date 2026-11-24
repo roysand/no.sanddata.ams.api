@@ -26,4 +26,18 @@ public static class EvChargerMapper
             DateTime.SpecifyKind(session.EndUtc, DateTimeKind.Utc),
             session.Kwh,
             !session.HasEnergyDetails);
+
+    public static ChargerStateResponse ToStateResponse(ChargerLiveState state) =>
+        new(
+            state.State,
+            state.Online,
+            state.PowerKw,
+            state.SessionKwh,
+            Utc(state.PluggedInAtUtc),
+            Utc(state.ChargingSinceUtc),
+            Utc(state.LastReportedAtUtc),
+            Utc(state.ReadAtUtc));
+
+    private static DateTime? Utc(DateTime? value) =>
+        value is { } v ? DateTime.SpecifyKind(v, DateTimeKind.Utc) : null;
 }

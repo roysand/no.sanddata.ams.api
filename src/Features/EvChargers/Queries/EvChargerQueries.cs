@@ -31,3 +31,31 @@ public sealed record GetChargingSessionsQuery(Guid UserId, bool IsAdmin, Guid Lo
 public sealed record ChargingSessionResponse(DateTime Start, DateTime End, decimal Kwh, bool Estimated);
 
 public sealed record ChargingSessionsResponse(IReadOnlyList<ChargingSessionResponse> Items);
+
+/// <summary>
+/// A location's car charger state right now (spec 021), for an owner, a viewer or an Admin, as the session list.
+/// </summary>
+public sealed record GetChargerStateQuery(Guid UserId, bool IsAdmin, Guid LocationId)
+    : IQuery<Result<ChargerStateResponse>>;
+
+/// <summary>
+/// The charger's state right now (spec 021, contracts/endpoints.md). Read from Zaptec at most every 3 minutes and
+/// shared; never stored, and never added to any usage, cost, bill or Norgespris figure.
+/// </summary>
+/// <param name="State">noCharger, offline, noCar, connected, charging, finished or unknown.</param>
+/// <param name="Online">Null only with noCharger.</param>
+/// <param name="PowerKw">Only while charging.</param>
+/// <param name="SessionKwh">The charge's kWh so far: connected, charging, finished or unknown.</param>
+/// <param name="PluggedInAt">When the car was plugged in: connected, charging or finished.</param>
+/// <param name="ChargingSince">When charging last started (after a pause, when it resumed): charging only.</param>
+/// <param name="LastReportedAt">The charger's last check-in.</param>
+/// <param name="ReadAt">When Zaptec was read.</param>
+public sealed record ChargerStateResponse(
+    string State,
+    bool? Online,
+    decimal? PowerKw,
+    decimal? SessionKwh,
+    DateTime? PluggedInAt,
+    DateTime? ChargingSince,
+    DateTime? LastReportedAt,
+    DateTime? ReadAt);
