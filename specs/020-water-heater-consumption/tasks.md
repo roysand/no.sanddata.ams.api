@@ -137,7 +137,7 @@ while the tap ran, with the power next to them. Older rows have `NULL`.
 - [X] T011 [US1] Run `dotnet build` and
   `dotnet test tests/Features.Tests --filter "FullyQualifiedName~WaterHeater"`. Make T001–T003 pass, and fix every
   other compile error from the removed `GetActualLoadAsync` (`grep -rn GetActualLoadAsync src tests` must be empty).
-- [ ] T012 [US1] Run US1's Independent Test locally (`dotnet ef database update`, then let the sampler run against the
+- [X] T012 [US1] Run US1's Independent Test locally (`dotnet ef database update`, then let the sampler run against the
   real heater). Check that the litres change while a hot tap runs, and that `/water-heater/power` and
   `/electricity-cost/hourly` answer as before for the same hours (FR-010).
 
@@ -379,7 +379,7 @@ location id, get the same 404. Without a token, get 401 (already covered by T015
 **Purpose**: settle the three details the spec left to real data (research R6), and check SC-001 to SC-003, before
 PR 2 is finished.
 
-- [ ] T029 Follow quickstart §4.1: list the samples around a known shower in production. Decide whether OSO's litres
+- [X] T029 Follow quickstart §4.1: list the samples around a known shower in production. Decide whether OSO's litres
   change about every minute (keep the pairing) or in steps (switch to runs). If it's runs, add a task to rework the
   `pairs` CTE of T017 as research R6 point 1 describes, before going on.
 - [ ] T030 Follow quickstart §4.2: count three quiet nights with `MinFallLitres` 1 and 2. Set

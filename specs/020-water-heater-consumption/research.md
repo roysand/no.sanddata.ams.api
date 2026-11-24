@@ -210,3 +210,10 @@ untested.
 ## Calibration results
 
 _Filled in after R6's check, with the dates of the samples used, the values chosen and the day totals compared._
+
+**1. How often OSO's litres change (T029), 2026-11-24.** Production samples taken while a hot tap was running: the
+litres drop every minute. So the pairing stays as R4 describes: each sample with the one just before it. There is no
+switch to runs.
+
+**T012, 2026-11-24.** Checked in production, not locally. After PR #66 was deployed, new samples have
+`AvailableLitres40`, and the litres fall while a hot tap runs.
