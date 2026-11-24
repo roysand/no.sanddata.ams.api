@@ -403,7 +403,7 @@ PR 2 is finished.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T034 [P] If a doc lists the water heater endpoints (`grep -n "water-heater" *.md`), add
+- [X] T034 [P] If a doc lists the water heater endpoints (`grep -n "water-heater" *.md`), add
   `GET /api/locations/{id}/water-heater/hot-water` with one line and a link to
   `specs/020-water-heater-consumption/contracts/endpoints.md`. Skip it if none does.
 - [ ] T035 Run `dotnet build` (no new warnings), `dotnet format --verify-no-changes` and `dotnet test`. Everything must

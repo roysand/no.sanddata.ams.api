@@ -489,3 +489,6 @@ samples its power once a minute (spec 011; endpoints in `specs/011-oso-water-hea
   stored samples (spec 017; [contract](specs/017-water-heater-power/contracts/endpoints.md)). It shares one SQL query
   with spec 012's hourly heater kWh, `QueryStepsAsync` in `WaterHeaterPowerSampleEfRepository`, with the step size
   as a parameter. Change the hold rule there only, and check that the hourly figures stay the same.
+- `GET /api/locations/{id}/water-heater/hot-water?period=&date=` gives the 40 °C litres used per hour, day or month
+  of an Oslo day, week, month or year (spec 020; [contract](specs/020-water-heater-consumption/contracts/endpoints.md)).
+  It has its own SQL query, `GetHourlyHotWaterAsync`, and the rule's numbers live in `HotWaterRule`.
