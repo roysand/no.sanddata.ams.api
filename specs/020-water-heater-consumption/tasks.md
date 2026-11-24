@@ -415,7 +415,7 @@ PR 2 is finished.
   - today's items look like the OSO app's Day view.
 
   Record the results in a short PR note. If a year is slow, apply research R9's covering index as a follow-up.
-- [ ] T037 Create `specs/_backlog/water-heater-hot-water-frontend.md`, in the style of
+- [X] T037 Create `specs/_backlog/water-heater-hot-water-frontend.md`, in the style of
   `specs/_backlog/norgespris-limit-warnings.md`. It is the handover for the frontend's heater tab chart in
   `no.sanddata.ams.frontend`. It says:
   - the API side is built and deployed (spec 020, with the PR numbers);
