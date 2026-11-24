@@ -6,6 +6,7 @@ using NSubstitute;
 namespace Features.Tests.Http;
 
 /// <summary>The real pipeline for the capacity-charge endpoint: sign-in, the month parameter, the not-found mapping.</summary>
+[Collection(FastEndpointsHostCollection.Name)]
 public class CapacityChargeHttpTests
 {
     private static readonly Guid LocationId = Guid.NewGuid();

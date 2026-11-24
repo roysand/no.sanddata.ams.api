@@ -9,6 +9,7 @@ using NSubstitute;
 namespace Features.Tests.Http;
 
 /// <summary>The real pipeline for the Admin water heater endpoints: roles, validation and the error mapping.</summary>
+[Collection(FastEndpointsHostCollection.Name)]
 public class WaterHeaterAdminHttpTests
 {
     private static readonly Guid LocationId = Guid.NewGuid();

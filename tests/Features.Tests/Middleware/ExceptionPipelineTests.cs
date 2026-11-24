@@ -4,6 +4,7 @@ using Application.CQRS;
 using Domain.Common.Entities;
 using FastEndpoints;
 using Features.Measurements.Endpoints;
+using Features.Tests.Http;
 using Infrastructure.Authentication;
 using Infrastructure.Logging;
 using Infrastructure.Middleware;
@@ -25,6 +26,7 @@ namespace Features.Tests.Middleware;
 /// real sign-in handlers. Checks that neither the response nor any log message carries the exception text (spec 013,
 /// FR-009), and that failures during the API-key check get the same answer (spec 014).
 /// </summary>
+[Collection(FastEndpointsHostCollection.Name)]
 public class ExceptionPipelineTests
 {
     private const string FixedBody = "\"message\":\"An unexpected error occurred.\"";

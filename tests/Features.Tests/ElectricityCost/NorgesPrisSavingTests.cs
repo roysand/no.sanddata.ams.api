@@ -15,6 +15,7 @@ using NSubstitute;
 
 namespace Features.Tests.ElectricityCost;
 
+[Collection(FastEndpointsHostCollection.Name)]
 public class NorgesPrisSavingTests
 {
     private static DateTime Utc(string iso) =>

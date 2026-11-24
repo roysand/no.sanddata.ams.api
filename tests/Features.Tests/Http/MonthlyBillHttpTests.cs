@@ -6,6 +6,7 @@ using NSubstitute;
 namespace Features.Tests.Http;
 
 /// <summary>The real pipeline for the bill endpoint: sign-in, the month parameter, the error mapping.</summary>
+[Collection(FastEndpointsHostCollection.Name)]
 public class MonthlyBillHttpTests
 {
     private static readonly Guid LocationId = Guid.NewGuid();

@@ -8,6 +8,7 @@ using NSubstitute;
 
 namespace Features.Tests.ElectricityCost;
 
+[Collection(FastEndpointsHostCollection.Name)]
 public class CostMapperPartsTests
 {
     private static readonly DateTime Hour = new(2026, 12, 2, 13, 0, 0, DateTimeKind.Utc);
