@@ -41,6 +41,22 @@ Chosen with Roy on 2026-11-24:
   16:37".
 - An update **every 3 minutes** is enough.
 
+## Clarifications
+
+### Session 2026-11-24
+
+- Q: When someone with access asks for the charger state of a location that has no charger, what should the API
+  answer? → A: `200` with the state "no charger" and no figures; Zaptec is not called.
+- Q: When should the state say "offline"? → A: When Zaptec's online flag (-2) is 0, or the charger's last check-in
+  (-1) is more than 10 minutes old (about three missed check-ins).
+- Q: If reading Zaptec's state fails, how long should the API keep the "unavailable" answer before it tries Zaptec
+  again? → A: 1 minute, shared by everyone who asks for that charger.
+- Q: When the car is connected but not charging (waiting, paused or finished), what should the answer show for the
+  power? → A: Power is given only while charging and left out in every other state; the charge's kWh is given while
+  connected, charging or finished.
+- Q: How long should a request wait for Zaptec before it gives up and answers "unavailable"? → A: 3 seconds, with no
+  retry after a rate limit; signing in again after an expired token is still allowed.
+
 ## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - See the charger's state right now (Priority: P1)
@@ -59,12 +75,13 @@ power and kWh the Zaptec app shows, within one charger check-in.
 1. **Given** a car charging, **When** the state is read, **Then** it says charging, with the power now in kW, the
    charge's kWh so far, and when charging started.
 2. **Given** a car connected but not charging (waiting or paused), **When** the state is read, **Then** it says
-   connected and not charging, with the charge's kWh so far if it has any.
+   connected and not charging, with the charge's kWh so far if it has any, and no power (even if Zaptec still
+   reports the last one).
 3. **Given** a charge finished with the car still connected, **When** the state is read, **Then** it says finished,
-   with the charge's kWh.
+   with the charge's kWh and no power.
 4. **Given** no car connected, **When** the state is read, **Then** it says no car, with no power or kWh.
-5. **Given** a charger that is offline, **When** the state is read, **Then** it says offline, with when it last
-   reported, and no power or kWh are presented as current.
+5. **Given** a charger that is offline (online flag 0, or no check-in for more than 10 minutes), **When** the state
+   is read, **Then** it says offline, with when it last reported, and no power or kWh are presented as current.
 6. **Given** any answer, **When** it is read, **Then** it says when the values were read from Zaptec and when the
    charger last reported, so the app can say how old they are.
 
@@ -84,8 +101,8 @@ spec 016's session reads.
    answered, **Then** Zaptec is called once.
 2. **Given** nobody asks, **When** time passes, **Then** Zaptec's state is not read at all.
 3. **Given** Zaptec answers with an error, rate-limits or times out, **When** the state is asked for, **Then** the
-   answer says the state is unavailable, the error is not retried at once, and spec 016's session reads are not
-   affected.
+   answer says the state is unavailable, everyone who asks for that charger in the next minute gets the same answer
+   without Zaptec being called, and spec 016's session reads are not affected.
 
 ---
 
@@ -95,18 +112,19 @@ spec 016's session reads.
 
 1. **Given** an owner, viewer or Admin of the location, **When** they ask, **Then** they get its charger's state.
 2. **Given** no access to the location, **When** someone asks, **Then** it is refused as the session list is.
-3. **Given** a location without a charger, **When** someone with access asks, **Then** the answer says there is no
-   charger (as the session list does), and Zaptec is not called.
+3. **Given** a location without a charger, **When** someone with access asks, **Then** it succeeds with the state
+   "no charger" and no figures, and Zaptec is not called. "Location not found" stays reserved for a location that
+   doesn't exist or the caller may not see.
 
 ---
 
 ### Edge Cases
 
-- **A value Zaptec doesn't send**, or an operation mode the API doesn't know (such as 4): the state is "unknown" and
-  the figures it has are still given.
+- **A value Zaptec doesn't send**, or an operation mode the API doesn't know (such as 4): the state is "unknown", the
+  charge's kWh is still given if Zaptec sends it, and no power is given (power only while charging).
 - **Stale values**: Zaptec keeps a value until it changes. Steady power can be 40 minutes old while still true. The
-  answer gives the charger's last check-in, so a charger that stopped reporting shows as offline or old, not as
-  charging.
+  answer gives the charger's last check-in, and a charger with no check-in for more than 10 minutes is offline even
+  if its online flag still says 1, so it never shows as charging.
 - **A new charge**: the charge's kWh start again from 0 with a new session id.
 - **The finished session**: once a charge ends, spec 016 reads it within 15 minutes and stores its hours as today. The
   live figures are never stored and never added to any usage, cost, bill or Norgespris figure, so nothing is counted
@@ -118,13 +136,15 @@ spec 016's session reads.
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST answer a location's car charger state: online or not, one of no car / connected, not
-  charging / charging / finished / unknown, the power now in kW, the charge's kWh so far, when the car was plugged in,
-  when charging started, when the charger last reported, and when the values were read from Zaptec.
+- **FR-001**: The system MUST answer a location's car charger state: online or not, one of no charger / offline /
+  no car / connected, not charging / charging / finished / unknown, the power now in kW (only while charging), the
+  charge's kWh so far (while connected, charging, finished or unknown), when the car was plugged in, when charging
+  started, when the charger last reported, and when the values were read from Zaptec.
 - **FR-002**: The system MUST read Zaptec's state only when asked, at most once every 3 minutes per charger, and share
   that answer between all who ask.
-- **FR-003**: A failure to read the state MUST give an "unavailable" answer, MUST NOT be retried at once, and MUST NOT
-  affect the session reads of spec 016.
+- **FR-003**: A failure to read the state MUST give an "unavailable" answer, which MUST be kept and shared for
+  1 minute before Zaptec is read again, and MUST NOT affect the session reads of spec 016. A read MUST give up after
+  3 seconds and MUST NOT be retried after a rate limit; signing in again once after an expired token is allowed.
 - **FR-004**: The live figures MUST NOT be stored or added to any usage, cost, bill or Norgespris figure.
 - **FR-005**: Access MUST follow the location's rules, as the charging session list.
 - **FR-006**: Only the state values needed for FR-001 MAY be passed on; the charger's other values (device ids, SIM
@@ -133,8 +153,9 @@ spec 016's session reads.
 
 ### Key Entities
 
-- **Charger state now**: per location with a charger: online, state, power kW, charge kWh, plugged in at, charging
-  since, last reported at, read at. Derived from Zaptec; nothing is stored beyond the 3-minute shared answer.
+- **Charger state now**: per location (state "no charger" and no figures when it has none): online, state (including
+  offline), power kW, charge kWh, plugged in at, charging since, last reported at, read at. Derived from Zaptec;
+  nothing is stored beyond the shared answer (3 minutes, or 1 minute for "unavailable").
 
 ## Success Criteria _(mandatory)_
 
@@ -143,10 +164,10 @@ spec 016's session reads.
 - **SC-001**: During a charge, the state's power and kWh match the Zaptec app within one charger check-in (about
   3 minutes).
 - **SC-002**: With the app open on two devices for an hour during a charge, Zaptec's state is read at most 20 times
-  for the charger.
+  for the charger while Zaptec answers, and at most 60 times while it fails.
 - **SC-003**: With nobody using the app, Zaptec's state is never read.
 - **SC-004**: The answer comes in under 1 second when Zaptec has to be read, and under 100 ms otherwise, at the 95th
-  percentile.
+  percentile, and never later than about 3 seconds (then as "unavailable").
 
 ## Assumptions
 
