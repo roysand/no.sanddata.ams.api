@@ -69,7 +69,7 @@
 
 ## Phase 1: Setup
 
-- [ ] T001 In the worktree `../no.sanddata.ams.api-021` on `feature/021-ev-charger-live`, check that the baseline is
+- [X] T001 In the worktree `../no.sanddata.ams.api-021` on `feature/021-ev-charger-live`, check that the baseline is
   green: run `dotnet build`, `dotnet test` and `dotnet format --verify-no-changes` from the repo root, and note the
   test count.
 - [ ] T002 **Gate:** Roy runs [quickstart.md](quickstart.md) §0 with his Zaptec login, typed in the shell and never
@@ -89,7 +89,7 @@
 
 ### Application
 
-- [ ] T003 [P] Add to `src/Application/EvChargers/EvChargerModels.cs`:
+- [X] T003 [P] Add to `src/Application/EvChargers/EvChargerModels.cs`:
   - `public sealed record ZaptecStateValue<T>(T Value, DateTime TimestampUtc);`
   - `public sealed record ZaptecChargerState(ZaptecStateValue<bool>? Online, DateTime? LastCheckInUtc,
     ZaptecStateValue<decimal>? PowerW, ZaptecStateValue<decimal>? SessionKwh, ZaptecStateValue<int>? OperationMode,
@@ -97,14 +97,14 @@
 
   Give each a doc comment with the Zaptec state id of each field (-2, -1, 513, 553, 710, 721; data-model.md), and
   say that no other value is kept (FR-006).
-- [ ] T004 [P] Add `Task<Result<ZaptecChargerState>> GetStateAsync(Guid chargerId, CancellationToken
+- [X] T004 [P] Add `Task<Result<ZaptecChargerState>> GetStateAsync(Guid chargerId, CancellationToken
   cancellationToken);` to `src/Application/Common/Interfaces/External/IEvChargerClient.cs`. Its doc comment should
   say: the charger's latest reported values; at most 3 seconds; no wait-and-retry after a 429; `NotConfigured`
   without a login; never throws for HTTP, timeout or parsing failures (research R4).
 
 ### Test fixtures
 
-- [ ] T005 [P] In `tests/Features.Tests/EvChargers/ZaptecSamples.cs`, add the samples below. Use the field names and
+- [X] T005 [P] In `tests/Features.Tests/EvChargers/ZaptecSamples.cs`, add the samples below. Use the field names and
   timestamp format from T002, with no `Z` on timestamps.
   - `StateCharging`: the filtered "charging" answer from T002. Use `ChargerId` from the samples, and a made-up
     session id for 721. Add three extra entries with other ids (for example 908 with a fake serial-like value, 960
@@ -112,13 +112,16 @@
     dropped.
   - `StateNoCar`: mode 1, online 1, with a recent check-in.
   - `StateUnreadable`: 710 with value `"x"` and 513 with value `""`.
-- [ ] T006 [P] In `tests/Features.Tests/EvChargers/ZaptecStubHandler.cs`, add `public static string StatePath =>
+  - **Done provisionally (2026-11-24):** the samples use the shape and figures in the spec's input (Roy's read during a
+    charge), because T002 is still open. When T002 is run, check the field names and timestamp format against them
+    and update `ZaptecSamples` if they differ.
+- [X] T006 [P] In `tests/Features.Tests/EvChargers/ZaptecStubHandler.cs`, add `public static string StatePath =>
   $"/api/chargers/{ZaptecSamples.ChargerId}/state";` and a default answer `[StatePath] = (OK,
   ZaptecSamples.StateCharging)`. The stub already keys by `AbsolutePath`, so no other change is needed.
 
 ### Infrastructure: the client
 
-- [ ] T007 Write the failing client tests in `tests/Features.Tests/EvChargers/ZaptecEvChargerClientTests.cs`, using
+- [X] T007 Write the failing client tests in `tests/Features.Tests/EvChargers/ZaptecEvChargerClientTests.cs`, using
   the existing `Client(...)` helper:
   - **`GetStateAsync_KeepsTheSixValues`:** `StateCharging` gives:
     - `OperationMode.Value == 3`, with the timestamp from the sample, in UTC and `DateTimeKind.Utc`;
@@ -139,7 +142,7 @@
   - **`GetStateAsync_NotConfigured`:** gives `NotConfigured`, with no request recorded.
   - **`GetCompletedSessionsAsync_StillRetriesAfterA429`:** a 429 then a 200 on `SessionsPath` succeeds, with
     `Count(SessionsPath) == 2`. This shows spec 016 is unaffected (FR-003).
-- [ ] T008 Implement `GetStateAsync` in `src/Infrastructure/External/ZaptecEvChargerClient.cs` so that T007 passes:
+- [X] T008 Implement `GetStateAsync` in `src/Infrastructure/External/ZaptecEvChargerClient.cs` so that T007 passes:
   - **Constants:** `public static readonly TimeSpan StateTimeout = TimeSpan.FromSeconds(3);`, and the six ids as
     `private const int` (`OnlineId = -2`, `CheckInId = -1`, `PowerId = 513`, `SessionKwhId = 553`, `ModeId = 710`,
     `SessionId = 721`).
@@ -173,7 +176,7 @@ and kWh match the Zaptec app.
 
 ### Tests for User Story 1
 
-- [ ] T009 [P] [US1] Write `tests/Features.Tests/EvChargers/ChargerLiveStateTests.cs` (pure). Use a fixed `now` and a
+- [X] T009 [P] [US1] Write `tests/Features.Tests/EvChargers/ChargerLiveStateTests.cs` (pure). Use a fixed `now` and a
   `values` builder, one test per rule in data-model.md "Rules":
   - **Mode mapping:** 1 → `noCar`, 2 → `connected`, 3 → `charging`, 5 → `finished`, and 4 or null → `unknown`.
   - **Offline from the flag:** `Online` false → `offline`, with only `LastReportedAtUtc` and `ReadAtUtc` set.
@@ -187,7 +190,7 @@ and kWh match the Zaptec app.
   - **Times:** `PluggedInAtUtc` is 721's timestamp with `connected`, `charging` or `finished`, and null with
     `noCar`. `ChargingSinceUtc` is 710's timestamp only with `charging`.
   - **No charger:** `NoCharger()` has `State == noCharger` and every other field null.
-- [ ] T010 [P] [US1] Write `tests/Features.Tests/EvChargers/GetChargerStateHandlerTests.cs`, following
+- [X] T010 [P] [US1] Write `tests/Features.Tests/EvChargers/GetChargerStateHandlerTests.cs`, following
   `EvChargerHandlerTests` (substitutes, `FixedTimeProvider`):
   - a linked user with a charger, and a client returning a "charging" `ZaptecChargerState`, gets success with
     `state == "charging"` and `readAt` set;
@@ -197,7 +200,7 @@ and kWh match the Zaptec app.
 
 ### Implementation for User Story 1
 
-- [ ] T011 [P] [US1] Create `src/Application/EvChargers/ChargerLiveState.cs`, a `public sealed record` with the fields
+- [X] T011 [P] [US1] Create `src/Application/EvChargers/ChargerLiveState.cs`, a `public sealed record` with the fields
   in data-model.md:
   - a `public static class States` with the seven string constants;
   - `public static readonly TimeSpan OfflineAfter = TimeSpan.FromMinutes(10);`
@@ -207,7 +210,7 @@ and kWh match the Zaptec app.
 
   Round with `Math.Round(…, MidpointRounding.AwayFromZero)`: 2 decimals for kW and 3 for kWh. Add doc comments citing
   spec 021 and research R2, including that "charging since" is when charging last resumed.
-- [ ] T012 [P] [US1] In `src/Features/EvChargers/Queries/EvChargerQueries.cs`, add:
+- [X] T012 [P] [US1] In `src/Features/EvChargers/Queries/EvChargerQueries.cs`, add:
   - `public sealed record GetChargerStateQuery(Guid UserId, bool IsAdmin, Guid LocationId) :
     IQuery<Result<ChargerStateResponse>>;`
   - `public sealed record ChargerStateResponse(string State, bool? Online, decimal? PowerKw, decimal? SessionKwh,
@@ -215,10 +218,10 @@ and kWh match the Zaptec app.
 
   Add `<param>` docs that match contracts/endpoints.md, including that these figures are never stored or counted
   (FR-004).
-- [ ] T013 [P] [US1] Add `public static ChargerStateResponse ToStateResponse(ChargerLiveState state)` to
+- [X] T013 [P] [US1] Add `public static ChargerStateResponse ToStateResponse(ChargerLiveState state)` to
   `src/Features/EvChargers/Mappers/EvChargerMapper.cs`. Every `DateTime?` goes through `DateTime.SpecifyKind(…,
   DateTimeKind.Utc)`, so the JSON has `Z`.
-- [ ] T014 [US1] Create `src/Features/EvChargers/Handlers/GetChargerStateQueryHandler.cs`:
+- [X] T014 [US1] Create `src/Features/EvChargers/Handlers/GetChargerStateQueryHandler.cs`:
   - **Dependencies:** `ILocationRepository<Location> locations`, `IEvChargerRepository<EvCharger> chargers`,
     `IEvChargerClient client`, `TimeProvider timeProvider` and `ILogger<GetChargerStateQueryHandler> logger`.
   - **Order:**
@@ -232,7 +235,7 @@ and kWh match the Zaptec app.
     list (FR-005).
 
   It needs T009–T013.
-- [ ] T015 [US1] Add `GetChargerStateEndpoint : Endpoint<GetChargerStateRequest, ChargerStateResponse>` to
+- [X] T015 [US1] Add `GetChargerStateEndpoint : Endpoint<GetChargerStateRequest, ChargerStateResponse>` to
   `src/Features/EvChargers/Endpoints/EvChargerEndpoints.cs`, with `public record GetChargerStateRequest(Guid
   LocationId);`:
   - **Route and auth:** `Get("/api/locations/{locationId}/ev-charger/state")`, JWT only, tag `EvCharger`.
@@ -240,7 +243,7 @@ and kWh match the Zaptec app.
     every 3 minutes and the answer is shared, and that the figures are never stored or counted.
   - **Responses:** list `200`, `401`, `404`, `502` and `503` as in the contract.
   - **Failure:** `ThrowIfAnyErrors(EvChargerErrorStatus.Of(result.Error, onConnect: false))`.
-- [ ] T016 [US1] Add `GetChargerStateValidator : Validator<GetChargerStateRequest>` with
+- [X] T016 [US1] Add `GetChargerStateValidator : Validator<GetChargerStateRequest>` with
   `RuleFor(r => r.LocationId).NotEmpty();` to `src/Features/EvChargers/Validators/EvChargerValidators.cs`, next to
   `GetChargingSessionsValidator` (Principle IV). The handler doesn't check the id again.
 
@@ -257,7 +260,7 @@ when nobody asks (FR-002, FR-003).
 
 ### Tests for User Story 2
 
-- [ ] T017 [P] [US2] Write `tests/Features.Tests/EvChargers/ChargerStateCacheTests.cs`:
+- [X] T017 [P] [US2] Write `tests/Features.Tests/EvChargers/ChargerStateCacheTests.cs`:
   - **Setup:** a substituted `IEvChargerClient`, registered in a `ServiceCollection` whose provider's
     `IServiceScopeFactory` goes to the cache, and a manual `TimeProvider`. Copy the `ManualTimeProvider` pattern
     from `ZaptecEvChargerClientTests` into this file, since it is private there.
@@ -271,7 +274,7 @@ when nobody asks (FR-002, FR-003).
     `CancellationToken.None`.
   - **Separate chargers:** two different charger ids make two calls.
   - **Nobody asks:** creating the cache and advancing time makes no client call (SC-003).
-- [ ] T018 [US2] Create `src/Features/EvChargers/Services/ChargerStateCache.cs`, a singleton class
+- [X] T018 [US2] Create `src/Features/EvChargers/Services/ChargerStateCache.cs`, a singleton class
   `ChargerStateCache(IServiceScopeFactory scopes, TimeProvider timeProvider, ILogger<ChargerStateCache> logger)`:
   - **Constants:** `public static readonly TimeSpan GoodFor = TimeSpan.FromMinutes(3)` and `FailedFor =
     TimeSpan.FromMinutes(1)`.
@@ -296,12 +299,12 @@ when nobody asks (FR-002, FR-003).
 
   The doc comment cites research R3: in memory, one container, lost on restart, and a read the caller can't cancel.
   The client is a transient typed `HttpClient` client, so the singleton resolves it per read and never holds one.
-- [ ] T019 [US2] Change `GetChargerStateQueryHandler` to take `ChargerStateCache cache` instead of
+- [X] T019 [US2] Change `GetChargerStateQueryHandler` to take `ChargerStateCache cache` instead of
   `IEvChargerClient client`, but keep `client` for `IsConfigured`. It reads through `cache.GetAsync(charger.ChargerId,
   query.LocationId, ct)`, and gets `ReadAtUtc` from the result. Update T010's tests to build a real
   `ChargerStateCache` over the substituted client, registered as in T017. Add a test: two handler calls make one
   client call.
-- [ ] T020 [P] [US2] Add to `src/Features/EvChargers/Logging/LogMessages.cs` (research R7):
+- [X] T020 [P] [US2] Add to `src/Features/EvChargers/Logging/LogMessages.cs` (research R7):
   - **1930** `EvChargerStateRead`, Information: "EV charger state of location {LocationId} read from Zaptec in
     {ElapsedMs} ms". The time is how long the Zaptec read took, sign-in included, for the SC-004 check.
   - **1931** `EvChargerStateFailed`, Warning: "EV charger state of location {LocationId} could not be read (reason:
@@ -309,7 +312,7 @@ when nobody asks (FR-002, FR-003).
 
   Update the class's doc comment to "1930 - 1939 the live state (spec 021)". If there is a `Reason(Error)` helper,
   reuse it. Otherwise add one that strips the `EvCharger.` prefix, as the comment describes.
-- [ ] T021 [US2] Register `services.AddSingleton<Features.EvChargers.Services.ChargerStateCache>();` in
+- [X] T021 [US2] Register `services.AddSingleton<Features.EvChargers.Services.ChargerStateCache>();` in
   `src/Features/ServiceCollectionExtensions.cs`, next to the hosted services. Then run the API and check that it starts
   with no DI error.
 
@@ -326,7 +329,7 @@ when nobody asks (FR-002, FR-003).
 
 ### Tests for User Story 3
 
-- [ ] T022 [P] [US3] Add to `tests/Features.Tests/EvChargers/GetChargerStateHandlerTests.cs`:
+- [X] T022 [P] [US3] Add to `tests/Features.Tests/EvChargers/GetChargerStateHandlerTests.cs`:
   - **Not linked, not Admin:** `Location.NotFound`, and neither `chargers.GetByLocationAsync` nor the client is
     called.
   - **Admin, not linked:** success.
@@ -339,7 +342,7 @@ when nobody asks (FR-002, FR-003).
 
 ### Implementation for User Story 3
 
-- [ ] T023 [US3] Fix anything in `GetChargerStateQueryHandler` that T022 shows is wrong. Check that the endpoint's
+- [X] T023 [US3] Fix anything in `GetChargerStateQueryHandler` that T022 shows is wrong. Check that the endpoint's
   `Summary` in `EvChargerEndpoints.cs` describes `404` as "Not linked to the location, or no such location", and the
   `200` as including `noCharger`.
 
@@ -349,20 +352,22 @@ when nobody asks (FR-002, FR-003).
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T024 [P] Extend `tests/Features.Tests/EvChargers/NoSecretsInLogsTests.cs` with a theory over the same scenarios
+- [X] T024 [P] Extend `tests/Features.Tests/EvChargers/NoSecretsInLogsTests.cs` with a theory over the same scenarios
   as the existing one, but on `StatePath` (`ok`, `token-401`, `data-401`, `data-503`, `bad-json`, `network`), plus
   `rate-limited` (429) and `slow` (`Delay` 5 s). It calls the real client's `GetStateAsync` and asserts the following
   (FR-006, FR-007):
   - `AssertNoSecrets(result)`;
   - no log line contains `ZaptecSamples.ChargerId.ToString()`;
   - no log line contains the fake serial, SIM or meter strings from T005.
-- [ ] T025 [P] Add a `## EV charger (Zaptec)` section to `DevelopmentGuide.md`, after the water heater section, with
+- [X] T025 [P] Add a `## EV charger (Zaptec)` section to `DevelopmentGuide.md`, after the water heater section, with
   4–5 bullets:
   - spec 016's read job and spec 021's state endpoint (link the contract);
   - the shared `ChargerStateCache` (3 min, 1 min after a failure, single flight, in memory);
   - the state read gives up after 3 s and doesn't retry after a 429, while the session reads do;
   - only the six state ids are kept, and no charger id, URL or token is ever logged (`NoSecretsInLogsTests`);
   - the live figures are never stored or counted.
+  - **Done (2026-11-24):** the section is placed *before* "Water heater (OSO)", not after it. Spec 020's branch
+    appends a bullet at the end of the water heater section, and adding there too would make the two merges conflict.
 - [ ] T026 Create `specs/_backlog/ev-charger-live-frontend.md` in the style of
   `specs/_backlog/water-heater-hot-water-frontend.md`. It is the handover for the frontend's spec 017 in
   `no.sanddata.ams.frontend`:
@@ -375,8 +380,9 @@ when nobody asks (FR-002, FR-003).
   - on `502` or `503`, show "unavailable" and try at the next update;
   - `noCharger` hides the line and the tab section;
   - whether it is deployed (fill in the PR number once merged).
-- [ ] T027 Run `dotnet build` (no new warnings), `dotnet test` and `dotnet format --verify-no-changes` from the repo
+- [X] T027 Run `dotnet build` (no new warnings), `dotnet test` and `dotnet format --verify-no-changes` from the repo
   root. The test count should be T001's count plus the new tests.
+  - **Done (2026-11-24):** 1,131 tests (T001: 1,073), the same 1 build warning as before, and format clean.
 - [ ] T028 Run [quickstart.md](quickstart.md) §2, steps 1–7, locally with Roy's login while the car charges. Note
   anything that differs in research.md R1 "Verified by hand".
 - [ ] T029 After deploy, run quickstart §3 steps 1–5 (SC-001 to SC-004, FR-004) and record the results at the end of
