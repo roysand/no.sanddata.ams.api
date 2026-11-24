@@ -9,6 +9,7 @@ using NSubstitute;
 namespace Features.Tests.Http;
 
 /// <summary>The real pipeline for the Norgespris endpoints: who may call them, and how a request is bound.</summary>
+[Collection(FastEndpointsHostCollection.Name)]
 public class NorgesPrisHttpTests
 {
     private const string Url = "/api/admin/norgespris";

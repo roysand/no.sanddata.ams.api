@@ -11,6 +11,7 @@ namespace Features.Tests.Http;
 /// PUT /api/users/{id}/locations/{locationId} has an OPTIONAL body. The first version of the role feature
 /// answered 415 (and then 400) to a PUT without a body, which no handler test could see.
 /// </summary>
+[Collection(FastEndpointsHostCollection.Name)]
 public class LinkUserLocationHttpTests
 {
     private static readonly Guid UserId = Guid.NewGuid();
