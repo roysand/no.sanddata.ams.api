@@ -72,11 +72,59 @@ public class OsoWaterHeaterClientTests
     }
 
     [Fact]
-    public async Task GetActualLoadAsync_ReturnsKw()
+    public async Task GetSampleAsync_ReadsPowerAndLitres()
     {
-        Result<decimal> result = await Client(new OsoStubHandler()).GetActualLoadAsync(Credentials, default);
+        var handler = new OsoStubHandler();
 
-        Assert.Equal(0.011774m, result.Value);
+        Result<WaterHeaterSample> result = await Client(handler).GetSampleAsync(Credentials, default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(new WaterHeaterSample(0.011774m, 344, null), result.Value);
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Contains(handler.Requests, r => r.Path.EndsWith("/ActualLoad", StringComparison.Ordinal));
+        Assert.Contains(handler.Requests, r => r.Path.EndsWith("/Status", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.InternalServerError, "WaterHeater.Unavailable")]
+    [InlineData(HttpStatusCode.Unauthorized, "WaterHeater.Rejected")]
+    public async Task GetSampleAsync_StatusFails_KeepsThePower(HttpStatusCode status, string code)
+    {
+        OsoStubHandler handler = new OsoStubHandler().Answer("Status", status);
+
+        Result<WaterHeaterSample> result = await Client(handler).GetSampleAsync(Credentials, default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(0.011774m, result.Value.PowerKw);
+        Assert.Null(result.Value.Litres40);
+        Assert.Equal(code, result.Value.LitresError?.Code);
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("""{"availableMix40Volume":null}""")]
+    [InlineData("""{"availableMix40Volume":-1}""")]
+    [InlineData("not json")]
+    public async Task GetSampleAsync_NoUsableLitres_KeepsThePower(string statusBody)
+    {
+        OsoStubHandler handler = new OsoStubHandler().Answer("Status", HttpStatusCode.OK, statusBody);
+
+        Result<WaterHeaterSample> result = await Client(handler).GetSampleAsync(Credentials, default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(0.011774m, result.Value.PowerKw);
+        Assert.Null(result.Value.Litres40);
+        Assert.Equal("WaterHeater.InvalidResponse", result.Value.LitresError?.Code);
+    }
+
+    [Fact]
+    public async Task GetSampleAsync_PowerFails_FailsTheSample()
+    {
+        OsoStubHandler handler = new OsoStubHandler().Answer("ActualLoad", HttpStatusCode.Unauthorized);
+
+        Result<WaterHeaterSample> result = await Client(handler).GetSampleAsync(Credentials, default);
+
+        Assert.Equal("WaterHeater.Rejected", result.Error.Code);
     }
 
     [Fact]
@@ -105,7 +153,7 @@ public class OsoWaterHeaterClientTests
     {
         OsoStubHandler handler = new OsoStubHandler().Answer("ActualLoad", status, """{"error":"x"}""");
 
-        Result<decimal> load = await Client(handler).GetActualLoadAsync(Credentials, default);
+        Result<WaterHeaterSample> load = await Client(handler).GetSampleAsync(Credentials, default);
         Result<WaterHeaterReading> state = await Client(handler).GetStateAsync(Credentials, default);
 
         Assert.Equal(code, load.Error.Code);
@@ -127,8 +175,8 @@ public class OsoWaterHeaterClientTests
     {
         var handler = new OsoStubHandler { Delay = TimeSpan.FromSeconds(5) };
 
-        Result<decimal> result = await Client(handler, TimeSpan.FromMilliseconds(50))
-            .GetActualLoadAsync(Credentials, default);
+        Result<WaterHeaterSample> result = await Client(handler, TimeSpan.FromMilliseconds(50))
+            .GetSampleAsync(Credentials, default);
 
         Assert.Equal("WaterHeater.Unavailable", result.Error.Code);
     }

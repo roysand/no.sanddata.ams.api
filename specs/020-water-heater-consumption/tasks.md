@@ -52,7 +52,7 @@ while the tap ran, with the power next to them. Older rows have `NULL`.
 
 ### Tests for User Story 1
 
-- [ ] T001 [P] [US1] In `tests/Features.Tests/WaterHeaters/OsoWaterHeaterClientTests.cs`, replace the
+- [X] T001 [P] [US1] In `tests/Features.Tests/WaterHeaters/OsoWaterHeaterClientTests.cs`, replace the
   `GetActualLoadAsync` tests with `GetSampleAsync` tests, using `OsoStubHandler` (its `Status` answer is
   `OsoSamples.Status`):
   - **Both calls answer:** `PowerKw` is `ActualLoad`'s value, `Litres40` is the `availableMix40Volume` in
@@ -63,25 +63,25 @@ while the tap ran, with the power next to them. Older rows have `NULL`.
     set.
   - **`ActualLoad` gives 401:** the result fails with `WaterHeater.Rejected`, as the old load test did.
   - **Both calls go out:** the stub saw both `ActualLoad` and `Status`.
-- [ ] T002 [P] [US1] Update `tests/Features.Tests/WaterHeaters/WaterHeaterSamplingServiceTests.cs`:
+- [X] T002 [P] [US1] Update `tests/Features.Tests/WaterHeaters/WaterHeaterSamplingServiceTests.cs`:
   - The constructor stubs `_client.GetSampleAsync(...)` to return
     `Result.Success(new WaterHeaterSample(0.011774m, 287, null))`, and `Fail` stubs `GetSampleAsync` to fail.
   - The existing tests keep their meaning.
   - New: the inserted sample has `AvailableLitres40` 287.
   - New: a sample with `Litres40` null and a `LitresError` is still inserted, with its power and `AvailableLitres40`
     null.
-- [ ] T003 [P] [US1] In `tests/Features.Tests/WaterHeaters/NoSecretsInLogsTests.cs`, call `GetSampleAsync` where
+- [X] T003 [P] [US1] In `tests/Features.Tests/WaterHeaters/NoSecretsInLogsTests.cs`, call `GetSampleAsync` where
   `GetActualLoadAsync` was called. Add a case where `Status` fails: the captured log text still contains neither the
   device id nor the key.
 
 ### Implementation for User Story 1
 
-- [ ] T004 [P] [US1] Add `public int? AvailableLitres40 { get; private set; }` to
+- [X] T004 [P] [US1] Add `public int? AvailableLitres40 { get; private set; }` to
   `src/Domain/Common/Entities/WaterHeaterPowerSample.cs`.
   - The constructor gets an optional last argument `int? availableLitres40 = null`, which sets it.
   - Update the class XML doc: the sample now also holds the litres of 40 °C water in the tank, which may be missing
     (spec 020).
-- [ ] T005 [US1] In `src/Infrastructure/Database/Configuration/WaterHeaterPowerSampleConfiguration.cs`, add
+- [X] T005 [US1] In `src/Infrastructure/Database/Configuration/WaterHeaterPowerSampleConfiguration.cs`, add
   `builder.Property(s => s.AvailableLitres40);`. It is optional, with no default. Then create the migration (depends on
   T004):
   ```bash
@@ -93,16 +93,16 @@ while the tap ran, with the power next to them. Older rows have `NULL`.
   Check the generated `Up`: one `AddColumn<int>("AvailableLitres40", "WaterHeaterPowerSample", nullable: true)`, with
   no default and no data change. `Down` drops it. Commit the migration, its Designer file and the updated
   `ApplicationDbContextModelSnapshot.cs`.
-- [ ] T006 [P] [US1] Create `src/Application/WaterHeaters/WaterHeaterSample.cs`:
+- [X] T006 [P] [US1] Create `src/Application/WaterHeaters/WaterHeaterSample.cs`:
   `public sealed record WaterHeaterSample(decimal PowerKw, int? Litres40, Error? LitresError);`. Its XML doc says:
   - it is what one sampler call reads from OSO (spec 020, research R2);
   - `Litres40` is null when `Status` failed or had no number, and `LitresError` then says why.
-- [ ] T007 [US1] In `src/Application/Common/Interfaces/External/IWaterHeaterClient.cs`, replace
+- [X] T007 [US1] In `src/Application/Common/Interfaces/External/IWaterHeaterClient.cs`, replace
   `GetActualLoadAsync` with
   `Task<Result<WaterHeaterSample>> GetSampleAsync(WaterHeaterCredentials credentials, CancellationToken cancellationToken);`.
   Its doc says: the power and the litres of 40 °C water, read in parallel. The call fails only if the power can't be
   read. Depends on T006.
-- [ ] T008 [US1] Implement `GetSampleAsync` in `src/Infrastructure/External/OsoWaterHeaterClient.cs` and remove
+- [X] T008 [US1] Implement `GetSampleAsync` in `src/Infrastructure/External/OsoWaterHeaterClient.cs` and remove
   `GetActualLoadAsync`. Depends on T007.
   - Start `GetAsync<ActualLoadDto>(…, "ActualLoad", ct)` and `GetAsync<StatusDto>(…, "Status", ct)` and await both
     with `Task.WhenAll`.
@@ -113,7 +113,7 @@ while the tap ran, with the power next to them. Older rows have `NULL`.
     without a usable number. Otherwise it is null.
   - Return `new WaterHeaterSample(load.ActualLoad, litres, litresError)`.
   - `GetAsync` already logs request failures without the URL. Add nothing that logs the device id or key.
-- [ ] T009 [P] [US1] Add three `LoggerMessage` delegates and their public methods to
+- [X] T009 [P] [US1] Add three `LoggerMessage` delegates and their public methods to
   `src/Features/WaterHeaters/Logging/LogMessages.cs`, next to 1830–1832 and in the same style (research R3):
   - **1834 `WaterHeaterLitresFailing`** (Warning):
     `"Water heater litres of location {LocationId} could not be read (reason: {Reason}); power is still sampled"`
@@ -121,7 +121,7 @@ while the tap ran, with the power next to them. Older rows have `NULL`.
     `"Water heater litres of location {LocationId} still not read (reason: {Reason}) after {Minutes} minutes"`
   - **1836 `WaterHeaterLitresRecovered`** (Information):
     `"Water heater litres of location {LocationId} read again after {Minutes} minutes of failures"`
-- [ ] T010 [US1] Update `src/Features/WaterHeaters/Services/WaterHeaterSamplingService.cs`. Depends on T004, T008 and
+- [X] T010 [US1] Update `src/Features/WaterHeaters/Services/WaterHeaterSamplingService.cs`. Depends on T004, T008 and
   T009.
   - `ReadPowerAsync` becomes `ReadSampleAsync`, returning `Result<WaterHeaterSample>` from `client.GetSampleAsync`.
     The key-unreadable path returns `Result.Failure<WaterHeaterSample>(key.Error)`.
@@ -134,7 +134,7 @@ while the tap ran, with the power next to them. Older rows have `NULL`.
   - When the whole sample fails, the litres tracker is not touched: the power log covers it.
   - Update the class XML doc: it also stores the litres of 40 °C water (spec 020), and losing them never costs the
     power sample.
-- [ ] T011 [US1] Run `dotnet build` and
+- [X] T011 [US1] Run `dotnet build` and
   `dotnet test tests/Features.Tests --filter "FullyQualifiedName~WaterHeater"`. Make T001–T003 pass, and fix every
   other compile error from the removed `GetActualLoadAsync` (`grep -rn GetActualLoadAsync src tests` must be empty).
 - [ ] T012 [US1] Run US1's Independent Test locally (`dotnet ef database update`, then let the sampler run against the

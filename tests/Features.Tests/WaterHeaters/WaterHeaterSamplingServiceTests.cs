@@ -29,8 +29,8 @@ public class WaterHeaterSamplingServiceTests
     {
         _samples.Insert(Arg.Do<WaterHeaterPowerSample>(_inserted.Add));
         _protector.Unprotect(Arg.Any<string>(), Arg.Any<Guid>()).Returns(Result.Success(OsoSamples.Key));
-        _client.GetActualLoadAsync(Arg.Any<WaterHeaterCredentials>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(0.011774m));
+        _client.GetSampleAsync(Arg.Any<WaterHeaterCredentials>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new WaterHeaterSample(0.011774m, 287, null)));
         _heaters.GetForActiveLocationsAsync(Arg.Any<CancellationToken>()).Returns([_first, _second]);
     }
 
@@ -48,9 +48,9 @@ public class WaterHeaterSamplingServiceTests
     }
 
     private void Fail(WaterHeater heater, Error error) =>
-        _client.GetActualLoadAsync(Arg.Is<WaterHeaterCredentials>(c => c.LocationId == heater.LocationId),
+        _client.GetSampleAsync(Arg.Is<WaterHeaterCredentials>(c => c.LocationId == heater.LocationId),
                 Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<decimal>(error));
+            .Returns(Result.Failure<WaterHeaterSample>(error));
 
     [Fact]
     public async Task EveryHeater_GetsOneSample_AtTheSecondItWasRead()
@@ -62,9 +62,26 @@ public class WaterHeaterSamplingServiceTests
         {
             Assert.Equal(new DateTime(2026, 11, 20, 10, 0, 5, DateTimeKind.Utc), s.SampledAtUtc);
             Assert.Equal(0.011774m, s.PowerKw);
+            Assert.Equal(287, s.AvailableLitres40);
         });
         Assert.Equal([_first.LocationId, _second.LocationId], _inserted.Select(s => s.LocationId));
         await _samples.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task LitresThatCantBeRead_StillStoreThePower()
+    {
+        _client.GetSampleAsync(Arg.Is<WaterHeaterCredentials>(c => c.LocationId == _first.LocationId),
+                Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new WaterHeaterSample(2.1m, null, WaterHeaterErrors.Unavailable)));
+
+        await SampleOnce();
+
+        Assert.Equal(2, _inserted.Count);
+        WaterHeaterPowerSample first = _inserted.Single(s => s.LocationId == _first.LocationId);
+        Assert.Equal(2.1m, first.PowerKw);
+        Assert.Null(first.AvailableLitres40);
+        Assert.Equal(287, _inserted.Single(s => s.LocationId == _second.LocationId).AvailableLitres40);
     }
 
     [Fact]
@@ -87,7 +104,7 @@ public class WaterHeaterSamplingServiceTests
 
         await SampleOnce();
 
-        await _client.DidNotReceive().GetActualLoadAsync(
+        await _client.DidNotReceive().GetSampleAsync(
             Arg.Is<WaterHeaterCredentials>(c => c.LocationId == _first.LocationId), Arg.Any<CancellationToken>());
         Assert.Single(_inserted);
     }
@@ -95,9 +112,9 @@ public class WaterHeaterSamplingServiceTests
     [Fact]
     public async Task AnExceptionForOneHeater_DoesNotStopTheOthers()
     {
-        _client.GetActualLoadAsync(Arg.Is<WaterHeaterCredentials>(c => c.LocationId == _first.LocationId),
+        _client.GetSampleAsync(Arg.Is<WaterHeaterCredentials>(c => c.LocationId == _first.LocationId),
                 Arg.Any<CancellationToken>())
-            .Returns<Task<Result<decimal>>>(_ => throw new InvalidOperationException("boom"));
+            .Returns<Task<Result<WaterHeaterSample>>>(_ => throw new InvalidOperationException("boom"));
 
         await SampleOnce();
 
