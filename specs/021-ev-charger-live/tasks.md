@@ -371,7 +371,7 @@ when nobody asks (FR-002, FR-003).
   - the live figures are never stored or counted.
   - **Done (2026-11-24):** the section is placed *before* "Water heater (OSO)", not after it. Spec 020's branch
     appends a bullet at the end of the water heater section, and adding there too would make the two merges conflict.
-- [ ] T026 Create `specs/_backlog/ev-charger-live-frontend.md` in the style of
+- [X] T026 Create `specs/_backlog/ev-charger-live-frontend.md` in the style of
   `specs/_backlog/water-heater-hot-water-frontend.md`. It is the handover for the frontend's spec 017 in
   `no.sanddata.ams.frontend`:
   - the endpoint and a link to the contract;
@@ -383,6 +383,7 @@ when nobody asks (FR-002, FR-003).
   - on `502` or `503`, show "unavailable" and try at the next update;
   - `noCharger` hides the line and the tab section;
   - whether it is deployed (fill in the PR number once merged).
+  - **Done (2026-11-24):** written after PR #68 was merged and deployed.
 - [X] T027 Run `dotnet build` (no new warnings), `dotnet test` and `dotnet format --verify-no-changes` from the repo
   root. The test count should be T001's count plus the new tests.
   - **Done (2026-11-24):** 1,131 tests (T001: 1,073), the same 1 build warning as before, and format clean.
