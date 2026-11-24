@@ -15,6 +15,9 @@ jobs:
   build-and-push:
     name: Build & push image
     runs-on: ubuntu-latest
+    # A normal run takes 1-2 minutes. Without a limit, a stalled step (on 2026-11-24 the GitHub Actions cache export
+    # hung after the image was already pushed) holds the job for up to GitHub's default of 6 hours.
+    timeout-minutes: 15
     outputs:
       image_tag: ${{ steps.meta.outputs.image_tag }}
     steps:
@@ -50,6 +53,7 @@ jobs:
     name: Deploy to Hetzner
     needs: build-and-push
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.0
