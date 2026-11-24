@@ -53,11 +53,32 @@ public class OsoWaterHeaterClient(HttpClient httpClient, ILogger<OsoWaterHeaterC
         return reading;
     }
 
-    public async Task<Result<decimal>> GetActualLoadAsync(
+    /// <remarks>
+    /// The litres come from <c>Status.availableMix40Volume</c>, the number the state endpoint shows (spec 020, research
+    /// R2). A failed or unusable status never costs the power: the sample keeps it, with the litres missing.
+    /// </remarks>
+    public async Task<Result<WaterHeaterSample>> GetSampleAsync(
         WaterHeaterCredentials credentials, CancellationToken cancellationToken)
     {
-        Result<ActualLoadDto> load = await GetAsync<ActualLoadDto>(credentials, "ActualLoad", cancellationToken);
-        return load.IsFailure ? Result.Failure<decimal>(load.Error) : Result.Success(load.Value.ActualLoad);
+        Task<Result<ActualLoadDto>> load = GetAsync<ActualLoadDto>(credentials, "ActualLoad", cancellationToken);
+        Task<Result<StatusDto>> status = GetAsync<StatusDto>(credentials, "Status", cancellationToken);
+
+        await Task.WhenAll(load, status);
+
+        if (load.Result.IsFailure)
+        {
+            return Result.Failure<WaterHeaterSample>(load.Result.Error);
+        }
+
+        decimal power = load.Result.Value.ActualLoad;
+        if (status.Result.IsFailure)
+        {
+            return Result.Success(new WaterHeaterSample(power, null, status.Result.Error));
+        }
+
+        return status.Result.Value.AvailableMix40Volume is >= 0 and int litres
+            ? Result.Success(new WaterHeaterSample(power, litres, null))
+            : Result.Success(new WaterHeaterSample(power, null, WaterHeaterErrors.InvalidResponse));
     }
 
     private async Task<Result<T>> GetAsync<T>(WaterHeaterCredentials credentials, string call, CancellationToken ct)

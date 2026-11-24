@@ -76,7 +76,7 @@ public class NoSecretsInLogsTests
     {
         await using ServiceProvider sp = Build(removeFactoryLoggers: false);
 
-        await sp.GetRequiredService<IWaterHeaterClient>().GetActualLoadAsync(
+        await sp.GetRequiredService<IWaterHeaterClient>().GetSampleAsync(
             new(LocationId, OsoSamples.DeviceId, OsoSamples.Key), default);
 
         Assert.Contains(_logs.Lines, l => l.Contains(OsoSamples.DeviceId, StringComparison.OrdinalIgnoreCase));
@@ -127,13 +127,20 @@ public class NoSecretsInLogsTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Sampling_LogsNoSecrets(bool osoDown)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task Sampling_LogsNoSecrets(bool osoDown, bool statusFails)
     {
         if (osoDown)
         {
             _oso.Throw = new HttpRequestException($"connection failed for {OsoSamples.DeviceId}");
+        }
+
+        if (statusFails)
+        {
+            // The power is read, the litres are not: the litres log (1834) and the client's log must hold no secret.
+            _oso.Answer("Status", HttpStatusCode.Unauthorized, $$"""{"error":"{{OsoSamples.DeviceId}}"}""");
         }
 
         await using ServiceProvider sp = Build();
@@ -156,9 +163,15 @@ public class NoSecretsInLogsTests
             sp.GetRequiredService<ILoggerFactory>().CreateLogger<WaterHeaterSamplingService>());
         await sampler.SampleOnceAsync(scope, default);
 
-        if (osoDown)
+        if (osoDown || statusFails)
         {
             AssertNoSecrets();
+        }
+
+        if (statusFails)
+        {
+            Assert.Contains(_logs.Lines, l => l.Contains("litres of location", StringComparison.Ordinal)
+                                              && l.Contains("reason: Rejected", StringComparison.Ordinal));
         }
         else
         {

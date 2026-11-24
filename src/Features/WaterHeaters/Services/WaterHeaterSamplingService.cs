@@ -13,9 +13,11 @@ using Microsoft.Extensions.Logging;
 namespace Features.WaterHeaters.Services;
 
 /// <summary>
-/// Samples the power of every connected water heater at an active location about once a minute (spec 011, US3).
-/// OSO has no history, so these samples are the only record of the heater's use. A failed sample stores nothing (a
-/// gap, never 0 kW), never stops the other heaters or the host, and is logged at a limited rate.
+/// Samples the power of every connected water heater at an active location about once a minute (spec 011, US3), and
+/// since spec 020 the litres of 40 °C water in the tank. OSO has no history, so these samples are the only record of
+/// the heater's use. A failed sample stores nothing (a gap, never 0 kW), never stops the other heaters or the host,
+/// and is logged at a limited rate. Litres that can't be read never cost the power sample: it is stored without them,
+/// and that is logged at the same limited rate, apart from the power failures.
 /// </summary>
 public class WaterHeaterSamplingService(
     IServiceScopeFactory scopeFactory,
@@ -26,6 +28,7 @@ public class WaterHeaterSamplingService(
     private static readonly Error Unexpected = Error.Problem("WaterHeater.Unexpected", "Unexpected sampling failure");
 
     private readonly SampleFailureTracker _tracker = new();
+    private readonly SampleFailureTracker _litresTracker = new();
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -61,26 +64,32 @@ public class WaterHeaterSamplingService(
         int inserted = 0;
         foreach (WaterHeater heater in await heaters.GetForActiveLocationsAsync(ct))
         {
-            Result<decimal> power;
+            Result<WaterHeaterSample> sample;
             try
             {
-                power = await ReadPowerAsync(heater, client, protector, ct);
+                sample = await ReadSampleAsync(heater, client, protector, ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                power = Result.Failure<decimal>(Unexpected);
+                sample = Result.Failure<WaterHeaterSample>(Unexpected);
             }
 
             DateTime now = TruncateToSecond(timeProvider.GetUtcNow().UtcDateTime);
-            if (power.IsSuccess)
+            if (sample.IsSuccess)
             {
-                samples.Insert(new WaterHeaterPowerSample(Guid.NewGuid(), heater.LocationId, now, power.Value));
+                WaterHeaterSample read = sample.Value;
+                samples.Insert(new WaterHeaterPowerSample(
+                    Guid.NewGuid(), heater.LocationId, now, read.PowerKw, read.Litres40));
                 inserted++;
                 Log(_tracker.Succeeded(heater.LocationId, now), heater.LocationId, null);
+                // The litres' own log; when the whole sample fails, the power log above covers it.
+                LogLitres(read.LitresError is null
+                    ? _litresTracker.Succeeded(heater.LocationId, now)
+                    : _litresTracker.Failed(heater.LocationId, now), heater.LocationId, read.LitresError);
             }
             else
             {
-                Log(_tracker.Failed(heater.LocationId, now), heater.LocationId, power.Error);
+                Log(_tracker.Failed(heater.LocationId, now), heater.LocationId, sample.Error);
             }
         }
 
@@ -90,16 +99,16 @@ public class WaterHeaterSamplingService(
         }
     }
 
-    private static async Task<Result<decimal>> ReadPowerAsync(
+    private static async Task<Result<WaterHeaterSample>> ReadSampleAsync(
         WaterHeater heater, IWaterHeaterClient client, ISecretProtector protector, CancellationToken ct)
     {
         Result<string> key = protector.Unprotect(heater.ProtectedSubscriptionKey, heater.LocationId);
         if (key.IsFailure)
         {
-            return Result.Failure<decimal>(key.Error);
+            return Result.Failure<WaterHeaterSample>(key.Error);
         }
 
-        return await client.GetActualLoadAsync(new WaterHeaterCredentials(heater.LocationId, heater.DeviceId, key.Value), ct);
+        return await client.GetSampleAsync(new WaterHeaterCredentials(heater.LocationId, heater.DeviceId, key.Value), ct);
     }
 
     private void Log(SampleLogDecision decision, Guid locationId, Error? error)
@@ -116,6 +125,24 @@ public class WaterHeaterSamplingService(
                 break;
             case SampleLogKind.LogRecovered:
                 LogMessages.WaterHeaterSampleRecovered(logger, locationId, minutes);
+                break;
+        }
+    }
+
+    private void LogLitres(SampleLogDecision decision, Guid locationId, Error? error)
+    {
+        string reason = error is null ? string.Empty : LogMessages.Reason(error);
+        int minutes = (int)decision.Duration.TotalMinutes;
+        switch (decision.Kind)
+        {
+            case SampleLogKind.LogStart:
+                LogMessages.WaterHeaterLitresFailing(logger, locationId, reason);
+                break;
+            case SampleLogKind.LogStillFailing:
+                LogMessages.WaterHeaterLitresStillFailing(logger, locationId, reason, minutes);
+                break;
+            case SampleLogKind.LogRecovered:
+                LogMessages.WaterHeaterLitresRecovered(logger, locationId, minutes);
                 break;
         }
     }

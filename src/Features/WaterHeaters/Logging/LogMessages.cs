@@ -70,6 +70,24 @@ internal static class LogMessages
             new EventId(1832, nameof(WaterHeaterSampleRecovered)),
             "Water heater power of location {LocationId} sampled again after {Minutes} minutes of failures");
 
+    private static readonly Action<ILogger, Guid, string, Exception?> _litresFailing =
+        LoggerMessage.Define<Guid, string>(
+            LogLevel.Warning,
+            new EventId(1834, nameof(WaterHeaterLitresFailing)),
+            "Water heater litres of location {LocationId} could not be read (reason: {Reason}); power is still sampled");
+
+    private static readonly Action<ILogger, Guid, string, int, Exception?> _litresStillFailing =
+        LoggerMessage.Define<Guid, string, int>(
+            LogLevel.Warning,
+            new EventId(1835, nameof(WaterHeaterLitresStillFailing)),
+            "Water heater litres of location {LocationId} still not read (reason: {Reason}) after {Minutes} minutes");
+
+    private static readonly Action<ILogger, Guid, int, Exception?> _litresRecovered =
+        LoggerMessage.Define<Guid, int>(
+            LogLevel.Information,
+            new EventId(1836, nameof(WaterHeaterLitresRecovered)),
+            "Water heater litres of location {LocationId} read again after {Minutes} minutes of failures");
+
     private static readonly Action<ILogger, string, Exception?> _samplingCycleFailed =
         LoggerMessage.Define<string>(
             LogLevel.Error,
@@ -105,6 +123,15 @@ internal static class LogMessages
 
     public static void WaterHeaterSampleRecovered(ILogger logger, Guid locationId, int minutes)
         => _sampleRecovered(logger, locationId, minutes, null);
+
+    public static void WaterHeaterLitresFailing(ILogger logger, Guid locationId, string reason)
+        => _litresFailing(logger, locationId, reason, null);
+
+    public static void WaterHeaterLitresStillFailing(ILogger logger, Guid locationId, string reason, int minutes)
+        => _litresStillFailing(logger, locationId, reason, minutes, null);
+
+    public static void WaterHeaterLitresRecovered(ILogger logger, Guid locationId, int minutes)
+        => _litresRecovered(logger, locationId, minutes, null);
 
     public static void WaterHeaterSamplingCycleFailed(ILogger logger, string exceptionType)
         => _samplingCycleFailed(logger, exceptionType, null);
