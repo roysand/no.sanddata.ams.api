@@ -72,7 +72,7 @@
 - [X] T001 In the worktree `../no.sanddata.ams.api-021` on `feature/021-ev-charger-live`, check that the baseline is
   green: run `dotnet build`, `dotnet test` and `dotnet format --verify-no-changes` from the repo root, and note the
   test count.
-- [ ] T002 **Gate:** Roy runs [quickstart.md](quickstart.md) §0 with his Zaptec login, typed in the shell and never
+- [X] T002 **Gate:** Roy runs [quickstart.md](quickstart.md) §0 with his Zaptec login, typed in the shell and never
   written to a file. He reads the filtered state while charging, just after plugging in, and with no car. Record the
   following under a new "Verified by hand" block at the end of R1 in `specs/021-ev-charger-live/research.md`:
   - the exact field names and the `Timestamp` format, including whether it has fractions of a second;
@@ -82,6 +82,9 @@
   If 553 is reset to 0 at once when a car is plugged in, note that R2 rule 4 (kWh is 0 when 553 is older than 721)
   is still kept, as a guard. If the answer isn't an array of `{StateId, Timestamp, ValueAsString}`, stop and update
   R1 and data-model.md first.
+  - **Done in part (2026-11-24):** the charging read is recorded in research R1, and the samples now use its null
+    check-in. The other two reads were left out, on Roy's word. The code doesn't depend on them (R1, "Not read by
+    hand").
 
 ---
 

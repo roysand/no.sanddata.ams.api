@@ -36,6 +36,30 @@ forbids further in than needed. Zaptec's `GET api/chargers/{id}` (charger detail
 **Check by hand before implementation** (quickstart §0): the exact field names and timestamp format, what 553 holds
 right after a new car is plugged in, and what 710, 513 and 553 hold with no car.
 
+**Verified by hand** (Roy, 2026-11-24, during a charge on his Zaptec Go, filtered to the six ids):
+
+| Id  | Timestamp (UTC, no `Z`)   | Value      | Read as                                        |
+| --- | ------------------------- | ---------- | ---------------------------------------------- |
+| -2  | `2026-11-23T07:33:37.387` | `1`        | online; changed yesterday and kept since        |
+| -1  | `2026-11-24T20:28:48.134` | `null`     | the check-in: only its timestamp is used        |
+| 513 | `2026-11-24T19:52:50.927` | `4450.216` | 4.45 kW, unchanged for 36 minutes               |
+| 553 | `2026-11-24T20:27:21.103` | `21.483`   | 21.483 kWh; newer than 721, so not reset        |
+| 710 | `2026-11-24T15:37:47.26`  | `3`        | charging since 15:37:47                         |
+| 721 | `2026-11-24T14:52:37.97`  | (hidden)   | plugged in at 14:52:37                          |
+
+- **Field names:** `ChargerId`, `StateId`, `Timestamp` and `ValueAsString`, in PascalCase, as the client expects.
+- **Timestamps:** 2–3 decimals, and any number is read.
+- **The check-in's value is `null`:** the test samples now use that.
+- **The figures agree:** about 4.4 kW from 15:37 to 20:27 is about 21.4 kWh.
+
+**Not read by hand:** "just after plugging in" and "no car" (Roy, 2026-11-24: go ahead, and fix it if a bug shows up).
+The code doesn't depend on them:
+- With no car, power and kWh aren't given, whatever 513 and 553 still hold.
+- Just after plugging in, the kWh is 0 whether Zaptec resets 553 at once or keeps the old value until the next
+  check-in. Kept, it is older than 721, and rule 4 gives 0.
+
+If the Car tab shows last charge's kWh on a new charge, or a figure with no car, read the state by hand then.
+
 ## R2. From Zaptec's values to the answer
 
 **Decision**: A pure function in Application, `ChargerLiveState.From(values, readAtUtc, nowUtc)`, gives the answer
