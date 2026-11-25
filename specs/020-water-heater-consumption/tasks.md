@@ -376,8 +376,12 @@ location id, get the same 404. Without a token, get 401 (already covered by T015
 
 ## Phase 6: Calibration (needs 3–5 days of US1 in production)
 
-**Purpose**: settle the three details the spec left to real data (research R6), and check SC-001 to SC-003, before
-PR 2 is finished.
+**Purpose**: settle the three details the spec left to real data (research R6), and check SC-001 to SC-003.
+
+**Changed 2026-11-25**: PR 2 ships before the calibration, with the first-guess values (`KwhPerLitre` 0.035,
+`MinFallLitres` 2). Step 2 of quickstart §4 reads `?period=day`, which only exists in production once PR 2 is
+deployed. T030–T033 follow from about 2026-11-27, in a small follow-up PR that changes `HotWaterRule.cs` and
+research.md.
 
 - [X] T029 Follow quickstart §4.1: list the samples around a known shower in production. Decide whether OSO's litres
   change about every minute (keep the pairing) or in steps (switch to runs). If it's runs, add a task to rework the
@@ -406,8 +410,8 @@ PR 2 is finished.
 - [X] T034 [P] If a doc lists the water heater endpoints (`grep -n "water-heater" *.md`), add
   `GET /api/locations/{id}/water-heater/hot-water` with one line and a link to
   `specs/020-water-heater-consumption/contracts/endpoints.md`. Skip it if none does.
-- [ ] T035 Run `dotnet build` (no new warnings), `dotnet format --verify-no-changes` and `dotnet test`. Everything must
-  pass. Then commit and open PR 2 (US2 + US3 + calibration).
+- [X] T035 Run `dotnet build` (no new warnings), `dotnet format --verify-no-changes` and `dotnet test`. Everything must
+  pass. Then commit and open PR 2 (US2 + US3; the calibration follows, see Phase 6).
 - [ ] T036 After deploying PR 2, follow quickstart §5 in production:
   - SC-004: under 0.3 s for a day and under 1 s for a year;
   - SC-005: 95 % of a day's samples have litres;

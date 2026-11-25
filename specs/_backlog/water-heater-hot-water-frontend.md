@@ -2,9 +2,9 @@
 
 Status: the API side is built (spec `specs/020-water-heater-consumption`). Storing the litres (US1, PR #66) was
 merged and deployed on 2026-11-24. The endpoint itself (US2 and US3) is built on the branch
-`feature/020-water-heater-consumption-build`. It is **not deployed yet**: PR 2 follows once calibration (T030–T033 in
-`specs/020-water-heater-consumption/tasks.md`) has checked the counting rule against the OSO app. Update this note with
-PR 2's number when it is merged.
+`feature/020-water-heater-consumption-build` and ships in PR 2, before the calibration (T030–T033 in
+`specs/020-water-heater-consumption/tasks.md`). The calibration checks the counting rule against the OSO app from about
+2026-11-27, in a small follow-up PR. Update this note with PR 2's number when it is merged.
 
 This note is the handover for a chart of the hot water used on the Heater tab in `no.sanddata.ams.frontend` (frontend
 spec 009). It should look like the OSO app's "Total v40 used" view. Remove this note once the frontend's spec has
@@ -37,8 +37,8 @@ and [`data-model.md`](../020-water-heater-consumption/data-model.md).
   the sum over the bars.
 - **History begins on 2026-11-24**, when US1 was deployed. Earlier periods answer with null litres and a null total,
   as does a location without a heater. That is not an error.
-- **The numbers can still move a little:** calibration may adjust the counting rule before PR 2 ships, so check the
-  figures against the OSO app once the endpoint is deployed, not before.
+- **The numbers can still move a little:** the calibration's follow-up PR may adjust the counting rule after PR 2 is
+  deployed. The response shape stays the same, but check the figures against the OSO app after that PR, not before.
 - **Who may see it:** owners and viewers of the location, and Admins. Everyone else gets `404 Location.NotFound`, the
   same as for a location that does not exist. No connected heater is needed: the samples belong to the location.
 - **Errors:** 400 for a `period` that isn't one of the four or a `date` that isn't a real `yyyy-MM-dd` date, 401

@@ -7,6 +7,7 @@ using NSubstitute;
 namespace Features.Tests.Http;
 
 /// <summary>The real pipeline for the hot water used: sign-in, binding, validation, JSON shape, errors (spec 020).</summary>
+[Collection(FastEndpointsHostCollection.Name)]
 public class WaterHeaterHotWaterHttpTests
 {
     private static readonly Guid LocationId = Guid.NewGuid();
