@@ -8,6 +8,7 @@ using NSubstitute;
 namespace Features.Tests.Http;
 
 /// <summary>The real pipeline for reading a water heater's state: sign-in, the JSON shape, the error mapping.</summary>
+[Collection(FastEndpointsHostCollection.Name)]
 public class WaterHeaterStateHttpTests
 {
     private static readonly Guid LocationId = Guid.NewGuid();

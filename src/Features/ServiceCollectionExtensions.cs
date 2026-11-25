@@ -24,6 +24,8 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<Features.ElectricityCost.Services.PriceFetchService>();
         services.AddHostedService<Features.WaterHeaters.Services.WaterHeaterSamplingService>();
         services.AddHostedService<Features.EvChargers.Services.EvChargerReadService>();
+        // Spec 021: one shared Zaptec state read per charger (3 minutes, 1 after a failure).
+        services.AddSingleton<Features.EvChargers.Services.ChargerStateCache>();
         services.AddScoped<Features.ElectricityCost.Services.HourlyCostProvider>();
 
         return services;

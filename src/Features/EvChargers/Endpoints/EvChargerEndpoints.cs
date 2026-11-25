@@ -58,6 +58,56 @@ public class GetChargingSessionsEndpoint : Endpoint<GetChargingSessionsRequest, 
 
 /// <param name="LocationId">The location, from the route.</param>
 /// <param name="Include">Count the charger's kWh with the house's.</param>
+/// <param name="LocationId">The location, from the route.</param>
+public record GetChargerStateRequest(Guid LocationId);
+
+public class GetChargerStateEndpoint : Endpoint<GetChargerStateRequest, ChargerStateResponse>
+{
+    private readonly IDispatcher _dispatcher;
+
+    public GetChargerStateEndpoint(IDispatcher dispatcher) => _dispatcher = dispatcher;
+
+    public override void Configure()
+    {
+        Get("/api/locations/{locationId}/ev-charger/state");
+        Tags("EvCharger");
+        Description(b => b.WithTags("EvCharger"));
+        AuthSchemes(JwtBearerDefaults.AuthenticationScheme);
+        Summary(s =>
+        {
+            s.Summary = "The location's car charger state right now";
+            s.Description = "Online, the state (noCharger, offline, noCar, connected, charging, finished or " +
+                             "unknown), the power while charging, the charge's kWh, and when Zaptec was read. Zaptec " +
+                             "is read at most every 3 minutes per charger and the answer is shared (1 minute after a " +
+                             "failure). The figures are never stored or counted in any usage, cost or bill. An " +
+                             "owner, a viewer or an Admin may read it.";
+            s.Response(200, "The state, including noCharger when no charger is connected");
+            s.Response(400, "locationId is empty");
+            s.Response(401, "Not signed in");
+            s.Response(404, "Not linked to the location, or no such location (Location.NotFound)");
+            s.Response(502, "Zaptec answered in a way the API can't read (EvCharger.InvalidResponse)");
+            s.Response(503, "Zaptec failed, rate-limited, took more than 3 s, rejected the server's login, or no " +
+                             "login is set up (EvCharger.Unavailable, SignInRejected, NotConfigured)");
+        });
+    }
+
+    public override async Task HandleAsync(GetChargerStateRequest req, CancellationToken ct)
+    {
+        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+        Result<ChargerStateResponse> result = await _dispatcher.Send(
+            new GetChargerStateQuery(userId, User.IsInRole(RoleNames.Admin), req.LocationId), ct);
+
+        if (!result.IsSuccess)
+        {
+            AddError(result.Error.Description, result.Error.Code);
+            ThrowIfAnyErrors(EvChargerErrorStatus.Of(result.Error, onConnect: false));
+        }
+
+        Response = result.Value;
+    }
+}
+
 public record SetIncludeEvChargerRequest(Guid LocationId, bool? Include);
 
 public class SetIncludeEvChargerEndpoint : Endpoint<SetIncludeEvChargerRequest, EvChargerIncludeResponse>

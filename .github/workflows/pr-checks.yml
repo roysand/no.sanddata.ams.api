@@ -1,0 +1,45 @@
+name: PR checks
+
+# Builds, tests and format-checks every pull request to main. Merging to main deploys straight to production
+# (docker-publish.yml), and the Docker build runs no tests, so this is where the tests run before a merge.
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# A new push to the same pull request cancels the run it replaces.
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-format:
+    name: Build, test & format
+    runs-on: ubuntu-latest
+    # A normal run takes a few minutes; the limit stops a stalled step from holding the job for GitHub's 6 hours.
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore no.sanddata.ams.api.slnx
+
+      - name: Build
+        run: dotnet build no.sanddata.ams.api.slnx --no-restore
+
+      - name: Test
+        run: dotnet test no.sanddata.ams.api.slnx --no-build
+
+      # Format loads the projects in Debug, so it needs the Debug build above to see the CQRS generator's code.
+      - name: Check formatting
+        run: dotnet format no.sanddata.ams.api.slnx --verify-no-changes --no-restore

@@ -6,6 +6,7 @@ using NSubstitute;
 namespace Features.Tests.Http;
 
 /// <summary>The real pipeline for the reminder list: sign-in, the Admin role and the JSON shape.</summary>
+[Collection(FastEndpointsHostCollection.Name)]
 public class KeyRemindersHttpTests
 {
     private const string Url = "/api/admin/key-reminders";

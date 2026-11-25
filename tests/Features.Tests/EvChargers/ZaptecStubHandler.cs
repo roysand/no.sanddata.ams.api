@@ -13,6 +13,7 @@ internal sealed class ZaptecStubHandler : HttpMessageHandler
     public const string ChargersPath = "/api/chargers";
     public const string SessionsPath = "/api/sessions/archived";
     public const string SessionsPage2Key = SessionsPath + "?cursor";
+    public static readonly string StatePath = $"/api/chargers/{ZaptecSamples.ChargerId}/state";
 
     private readonly Dictionary<string, Queue<(HttpStatusCode Status, string Body)>> _answers = new()
     {
@@ -20,6 +21,7 @@ internal sealed class ZaptecStubHandler : HttpMessageHandler
         [ChargersPath] = new([(HttpStatusCode.OK, ZaptecSamples.Chargers)]),
         [SessionsPath] = new([(HttpStatusCode.OK, ZaptecSamples.SessionsPage1)]),
         [SessionsPage2Key] = new([(HttpStatusCode.OK, ZaptecSamples.SessionsPage2)]),
+        [StatePath] = new([(HttpStatusCode.OK, ZaptecSamples.StateCharging)]),
     };
 
     public List<Recorded> Requests { get; } = [];

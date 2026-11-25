@@ -19,4 +19,10 @@ public interface IEvChargerClient
     /// <summary>Completed sessions of the charger that ended in [<paramref name="fromUtc"/>, <paramref name="toUtc"/>).</summary>
     Task<Result<IReadOnlyList<ZaptecSession>>> GetCompletedSessionsAsync(
         Guid chargerId, DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The charger's latest reported values (spec 021, research R4). Gives up after 3 seconds and doesn't wait and
+    /// retry after a 429 (both become <see cref="EvChargerErrors.Unavailable"/>); signs in again once after a 401.
+    /// </summary>
+    Task<Result<ZaptecChargerState>> GetStateAsync(Guid chargerId, CancellationToken cancellationToken);
 }

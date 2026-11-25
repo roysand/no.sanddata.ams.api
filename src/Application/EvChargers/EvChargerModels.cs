@@ -32,6 +32,29 @@ public sealed record ChargingSessionToStore(ZaptecSession Session, IReadOnlyList
 /// <summary>A location's charger kWh in one UTC hour, summed over its sessions.</summary>
 public sealed record EvChargerHourEnergy(DateTime HourStartUtc, decimal Kwh, bool Estimated);
 
+/// <summary>One of Zaptec's state values and when it last changed (UTC); Zaptec keeps a value until it changes.
+/// </summary>
+public sealed record ZaptecStateValue<T>(T Value, DateTime TimestampUtc);
+
+/// <summary>
+/// The charger's latest reported values from Zaptec's <c>GET api/chargers/{id}/state</c> (spec 021, research R1). Only
+/// these six are kept; every other value (serial, SIM numbers, signed meter data, PIN, the session id) is dropped in
+/// the client (FR-006). Each is null when Zaptec didn't send it or it couldn't be read.
+/// </summary>
+/// <param name="Online">State -2: the charger is online (1) or not.</param>
+/// <param name="LastCheckInUtc">State -1: the time of the charger's last check-in (its value isn't used).</param>
+/// <param name="PowerW">State 513: total charge power now, in W.</param>
+/// <param name="SessionKwh">State 553: energy delivered in the current session, in kWh.</param>
+/// <param name="OperationMode">State 710: 1 no car, 2 connected, 3 charging, 5 finished.</param>
+/// <param name="SessionSetUtc">State 721: when the current session id was set (the car was plugged in).</param>
+public sealed record ZaptecChargerState(
+    ZaptecStateValue<bool>? Online,
+    DateTime? LastCheckInUtc,
+    ZaptecStateValue<decimal>? PowerW,
+    ZaptecStateValue<decimal>? SessionKwh,
+    ZaptecStateValue<int>? OperationMode,
+    DateTime? SessionSetUtc);
+
 /// <summary>Errors of the EV charger feature. Descriptions are fixed text and never include a sign-in or token.</summary>
 public static class EvChargerErrors
 {

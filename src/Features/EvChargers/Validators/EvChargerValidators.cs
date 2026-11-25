@@ -21,6 +21,12 @@ public class GetChargingSessionsValidator : Validator<GetChargingSessionsRequest
     }
 }
 
+/// <summary>The charger's state right now (spec 021): only the route's location id.</summary>
+public class GetChargerStateValidator : Validator<GetChargerStateRequest>
+{
+    public GetChargerStateValidator() => RuleFor(r => r.LocationId).NotEmpty();
+}
+
 public class SetIncludeEvChargerValidator : Validator<SetIncludeEvChargerRequest>
 {
     public SetIncludeEvChargerValidator()

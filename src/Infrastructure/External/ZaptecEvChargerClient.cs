@@ -18,6 +18,8 @@ namespace Infrastructure.External;
 ///   case-insensitive.
 /// - <c>energyDetails</c> points are the kWh of the period ending at each timestamp, not cumulative (research R5).
 /// - A token lasts 24 hours and there is no refresh token; <see cref="ZaptecTokenCache"/> reuses it.
+/// - <c>/api/chargers/{id}/state</c> is an array of <c>{ StateId, Timestamp, ValueAsString }</c> with UTC timestamps
+///   without a <c>Z</c>, checked on Roy's Zaptec Go on 2026-11-24 (spec 021, research R1).
 /// The token request holds the password and every other request the token: this class never logs a URL, header, body,
 /// exception or message, and its HttpClient is registered without the factory's request loggers.
 /// </summary>
@@ -30,6 +32,17 @@ public class ZaptecEvChargerClient(
     private const string UserAgent = "AmsApi/1.0";
     private const int SessionsPageSize = 200;
     private const int MaxSessionPages = 50;
+
+    /// <summary>The state read gives up after this, sign-in included (spec 021, research R4).</summary>
+    public static readonly TimeSpan StateTimeout = TimeSpan.FromSeconds(3);
+
+    // The only state ids kept (spec 021 FR-006); every other value is dropped here.
+    private const int OnlineId = -2;
+    private const int CheckInId = -1;
+    private const int PowerId = 513;
+    private const int SessionKwhId = 553;
+    private const int ModeId = 710;
+    private const int SessionId = 721;
 
     private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
 
@@ -82,6 +95,72 @@ public class ZaptecEvChargerClient(
         return Result.Failure<IReadOnlyList<ZaptecSession>>(EvChargerErrors.InvalidResponse);
     }
 
+    public async Task<Result<ZaptecChargerState>> GetStateAsync(Guid chargerId, CancellationToken cancellationToken)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(StateTimeout);
+        try
+        {
+            // No wait-and-retry after a 429: the caller holds the failure for a minute instead (research R3/R4).
+            Result<List<StateDto>> values = await GetJsonAsync<List<StateDto>>(
+                $"api/chargers/{chargerId}/state", "state", timeout.Token, retryBusy: false);
+            return values.IsFailure
+                ? Result.Failure<ZaptecChargerState>(values.Error)
+                : Result.Success(ToState(values.Value));
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            ZaptecLogMessages.Unavailable(logger, "state");
+            return Result.Failure<ZaptecChargerState>(EvChargerErrors.Unavailable);
+        }
+    }
+
+    /// <summary>Keeps the six values the state needs, each from its latest entry; unreadable values are null.</summary>
+    private static ZaptecChargerState ToState(List<StateDto> values)
+    {
+        Dictionary<int, StateEntry> latest = [];
+        foreach (StateDto dto in values)
+        {
+            if (dto.StateId is not (OnlineId or CheckInId or PowerId or SessionKwhId or ModeId or SessionId)
+                || !TryParseUtc(dto.Timestamp, out DateTime timestamp))
+            {
+                continue;
+            }
+
+            if (!latest.TryGetValue(dto.StateId, out StateEntry? seen) || timestamp > seen.TimestampUtc)
+            {
+                latest[dto.StateId] = new StateEntry(dto.ValueAsString, timestamp);
+            }
+        }
+
+        return new ZaptecChargerState(
+            Online: IntValue(latest, OnlineId) is { } online ? new(online.Value == 1, online.TimestampUtc) : null,
+            LastCheckInUtc: latest.TryGetValue(CheckInId, out StateEntry? checkIn) ? checkIn.TimestampUtc : null,
+            PowerW: DecimalValue(latest, PowerId),
+            SessionKwh: DecimalValue(latest, SessionKwhId),
+            OperationMode: IntValue(latest, ModeId),
+            SessionSetUtc: latest.TryGetValue(SessionId, out StateEntry? session) ? session.TimestampUtc : null);
+    }
+
+    private static ZaptecStateValue<int>? IntValue(
+        Dictionary<int, StateEntry> latest, int id) =>
+        latest.TryGetValue(id, out StateEntry? entry)
+        && int.TryParse(entry.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value)
+            ? new ZaptecStateValue<int>(value, entry.TimestampUtc)
+            : null;
+
+    private static ZaptecStateValue<decimal>? DecimalValue(
+        Dictionary<int, StateEntry> latest, int id) =>
+        latest.TryGetValue(id, out StateEntry? entry)
+        && decimal.TryParse(entry.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out decimal value)
+            ? new ZaptecStateValue<decimal>(value, entry.TimestampUtc)
+            : null;
+
+    /// <summary>Zaptec's state timestamps are UTC without a "Z".</summary>
+    private static bool TryParseUtc(string? text, out DateTime utc) =>
+        DateTime.TryParse(text, CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out utc);
+
     /// <summary>Null for a session without an end (not completed): it is skipped.</summary>
     private static ZaptecSession? ToSession(SessionDto dto)
     {
@@ -102,14 +181,15 @@ public class ZaptecEvChargerClient(
             Discard: dto.Voided || dto.ReplacedBySessionId is not null);
     }
 
-    private async Task<Result<T>> GetJsonAsync<T>(string path, string call, CancellationToken ct) where T : class
+    private async Task<Result<T>> GetJsonAsync<T>(string path, string call, CancellationToken ct, bool retryBusy = true)
+        where T : class
     {
         if (!_options.IsConfigured)
         {
             return Result.Failure<T>(EvChargerErrors.NotConfigured);
         }
 
-        Result<string> body = await SendWithTokenAsync(path, call, retrySignIn: true, retryBusy: true, ct);
+        Result<string> body = await SendWithTokenAsync(path, call, retrySignIn: true, retryBusy, ct);
         return body.IsFailure ? Result.Failure<T>(body.Error) : Parse<T>(body.Value, call);
     }
 
@@ -271,4 +351,9 @@ public class ZaptecEvChargerClient(
         List<EnergyPointDto>? EnergyDetails);
 
     private sealed record EnergyPointDto(DateTimeOffset Timestamp, decimal Energy);
+
+    // Timestamp and value as text: both are parsed by hand, so one odd entry doesn't fail the whole answer.
+    private sealed record StateDto(int StateId, string? Timestamp, string? ValueAsString);
+
+    private sealed record StateEntry(string? Value, DateTime TimestampUtc);
 }
