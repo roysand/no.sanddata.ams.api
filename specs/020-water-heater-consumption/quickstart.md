@@ -61,23 +61,22 @@ Apply the migration and insert samples for a location by hand (or let the sample
 dotnet ef database update --project src/Infrastructure/Infrastructure.csproj --startup-project src/api/api.csproj
 ```
 
-**The pairing rule.** Seed one hour with these samples, one a minute at 0 kW unless said otherwise:
+**The hourly balance** (research R10). Seed these samples (UTC), one a minute at 0 kW unless said otherwise:
 
-| Samples | Litres | Expected used |
+| Samples | Litres | What it shows |
 |---|---|---|
-| 10:00–10:05 | 300 every minute | 0 (sampled, nothing used) |
-| 10:06–10:09 | 300, 291, 282, 273 | 27 |
-| 10:10–10:13 at 3 kW | 273, 266, 259, 252 | 21 + 3 × (3 / 60 / 0.035) ≈ 25.3 |
-| 10:14–10:20 at 3 kW | rising by 1 a minute | 0 |
-| 10:21–10:30 | falling by 1 a minute | 0 (below `MinFallLitres`) |
-| none 10:31–10:40, then 10:41 | 250 | 0, and 10:31–10:41 is not sampled |
+| 09:59 | 300 | The start of the 10:00 hour |
+| 10:00–10:29 | falling from 300 to 273 | 27 L drawn |
+| 10:30–10:59 at 2 kW | rising from 273 to 288 | 1 kWh heated = 25 L, while the litres rose |
+| 11:00–11:59 | falling from 288 to 286 | Standby cooling |
 
 ```bash
 curl -s -H "Authorization: Bearer $TOKEN" \
   "$API/api/locations/$LOC/water-heater/hot-water?period=day&date=$DAY" | jq '.items[] | select(.litres != null)'
 ```
 
-The hour shows about 52 litres and 30 sampled minutes. The 10:31–10:41 gap counts for neither.
+The 10:00 hour shows 300 − 288 + 1 ÷ 0.04 = 37 litres and 60 sampled minutes. The 11:00 hour shows 0: 2 L is under
+`MinHourLitres`. The same arithmetic is unit-tested in `HotWaterBalanceTests`, with Roy's hours of 2026-11-25.
 
 **The other figures are unchanged.** For the same location and day, the `/water-heater/power` and
 `/electricity-cost/hourly` answers are the same before and after the migration.
@@ -96,11 +95,10 @@ Do this once story 1 has been deployed and stored litres for 3–5 days (researc
    ORDER BY "SampledAtUtc";
    ```
 
-   - **The litres fall almost every minute while the tap runs:** keep the pairing rule.
-   - **They fall in steps every few minutes:** switch to run pairing (research R6, point 1).
-2. **`MinFallLitres`.** For three nights, 01:00–05:00 Oslo time, with no water drawn, read `?period=day`. Do this once
-   with `MinFallLitres` = 1 and once with 2. Pick the smallest value that keeps every quiet hour at 2 L or less
-   (SC-003).
+   - Done on 2026-11-25: they change in steps every 2–10 minutes, which led to the hourly balance (research R10).
+2. **`MinHourLitres`.** For three nights, 01:00–05:00 Oslo time, with no water drawn, list each hour's litres at
+   its start and end and its kWh (the query in step 1, or the power view). The quiet hours' balance before the floor
+   shows the idle loss. Keep `MinHourLitres` (3) if the loss stays under it, and raise it if it doesn't (SC-003).
 3. **`KwhPerLitre`.**
    - At three moments, read `GET /api/locations/{id}/water-heater` and note `storedEnergyKwh ÷ availableLitres40`.
    - For each of the days, compare `totalLitres` with the OSO app's "Total v40 used" (Day view).
@@ -109,8 +107,8 @@ Do this once story 1 has been deployed and stored litres for 3–5 days (researc
 4. **The power correction.** Take a shower while the heater is heating (`isHeating` true on the state endpoint). Note
    its length and the shower's flow (about 8–10 L a minute of 40 °C water).
    - The hour's `litres` should be within 20 % of length × flow (SC-002).
-   - Recount the same pairs without the `heated` term, by hand from the samples listed as in step 1. That figure
-     should be at least 10 % lower.
+   - Recount the hour without the `heated` term (start − end only), from the samples listed as in step 1. That
+     figure should be at least 10 % lower.
 
 ## 5. Production
 

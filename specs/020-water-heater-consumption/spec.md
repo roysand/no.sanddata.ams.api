@@ -103,23 +103,20 @@ answer is the same as for a location that does not exist.
 
 ### Edge Cases
 
-- **Gaps in sampling**: a minute is counted only between two samples that both have litres and are at most 2 minutes
-  apart, the same limit as spec 012's hold. Litres that fell across a longer gap are not counted, as water used or as
-  0; that time is simply not sampled.
-- **A pair of samples across an hour or day boundary**: the minute counts in the part its later sample falls in. At
-  about one sample a minute this moves at most a minute's water across the boundary.
-- **Heating with no water drawn**: the litres rise, so the minute counts 0. The power correction never adds water on
-  its own.
-- **Water drawn while heating**: the litres fall less than the water used, or rise. A fall is corrected with the
-  litres the heater made; a rise counts 0, so a small draw (less than the heater makes in a minute, about 1–1,5 L at
-  3 kW) is missed while heating.
-- **Standby losses**: the tank cools slowly and the litres drop by about a litre now and then without any water drawn.
-  How such small falls are counted is settled against real data (see Assumptions).
-- **The tank full at its maximum**: the litres cannot rise above the tank's maximum, so heating then does not show in
-  them. The minute counts only if the litres fell.
-- **OSO reports the same litres for several samples**: OSO may update its figure less often than we sample. The fall
-  then comes in one step, and the power correction covers the heating since the last change. How this is handled is
-  settled against real data (see Assumptions).
+- **Gaps in sampling**: an hour is counted from its litres at the start and end and the heating in its sampled
+  time. An hour without litres is not sampled and has no litres. When the hour before has no litres, the hour starts
+  from its own first litres, so water drawn before that first sample is not counted.
+- **OSO reports the same litres for several samples**: OSO updates its power and litres in steps every few minutes,
+  not every minute (seen on 2026-11-25). Counting whole hours lets the steps cancel out. A step can still move a few
+  litres across an hour's edge, but never out of the day.
+- **Heating with no water drawn**: the litres rise by about what the heating makes, so the hour counts about 0. A
+  small surplus or shortfall is covered by the floor (FR-004).
+- **Water drawn while heating**: the litres fall less than the water used, or rise. The hour's heating, turned into
+  litres, is added back, so the water is counted in both cases.
+- **Standby losses**: the tank cools slowly and loses about 2–3 L of 40 °C water an hour with no water drawn. An hour
+  under the floor counts 0.
+- **The tank full at its maximum**: the litres cannot rise above the tank's maximum, so heating then doesn't show in
+  them, and the balance can count water that wasn't drawn. The heater normally stops at its set point before that.
 - **Heater removed or replaced**: samples belong to the location and are kept (spec 011), so past periods still
   answer. Reconnecting takes longer than 2 minutes in practice, so the two heaters' litres are not compared.
 - **Inactive location**: no new samples; past periods still answer to those who may see it.
@@ -137,14 +134,15 @@ answer is the same as for a location that does not exist.
 - **FR-003**: The system MUST answer, for one location, a period kind (day, week, month or year) and a date, the
   litres of 40 °C water used in each part of the period: per Oslo hour for a day, per Oslo day for a week (Monday to
   Sunday) or a month, per calendar month for a year.
-- **FR-004**: Water used MUST be counted per pair of consecutive samples that both have litres and are at most
-  2 minutes apart. When the litres fell, the pair counts the fall plus the litres the heater made between them: the
-  heater's kWh over that time (from the stored power, as spec 012 holds it) divided by the kWh it takes to make one
-  litre of 40 °C water. When the litres rose or stayed the same, the pair counts 0.
+- **FR-004**: Water used MUST be counted per Oslo hour (whole UTC hours) as an energy balance: the litres at the
+  hour's start minus the litres at its end, plus the litres the heater made in the hour. Those are the heater's kWh in
+  the hour (from the stored power, as spec 012 holds it) divided by the kWh it takes to make one litre of 40 °C water.
+  An hour under a documented floor, negative ones included, counts 0. (Changed on 2026-11-25 from pairs of samples;
+  see research R10.)
 - **FR-005**: The kWh per litre of 40 °C water MUST be one documented figure, chosen in the plan and checked against
   real data (see Assumptions).
 - **FR-006**: Each part MUST give its start, its litres (rounded to whole litres), and its sampled minutes. A part
-  without any counted pair MUST have its litres missing, never 0. Parts after now MUST be left out.
+  without any sample that has litres MUST have its litres missing, never 0. Parts after now MUST be left out.
 - **FR-007**: The answer MUST give the period's total litres: the sum of its parts with litres, missing only when every
   part is missing.
 - **FR-008**: Without a date the period MUST be the one that holds today in Oslo. A period kind other than day, week,

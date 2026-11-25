@@ -65,6 +65,9 @@ instance costs nothing new.
 
 ## R4. Counting the water used, in SQL per UTC hour
 
+> **Replaced on 2026-11-25 by [R10](#r10-counting-each-hour-as-an-energy-balance).** Production showed that OSO's
+> figures change in steps, so pairs of samples lost most of the water drawn while the heater ran.
+
 **Decision**: One new raw SQL query, `GetHourlyHotWaterAsync(locationId, fromUtc, toUtc, nowUtc, rule)`, in
 `WaterHeaterPowerSampleEfRepository`. It returns one row per UTC hour that has any counted pair:
 `(HourStartUtc, Litres, SampledSeconds)`.
@@ -101,6 +104,9 @@ The handler then adds the UTC hours up to Oslo days or months in C# (R7).
 
 ## R5. The rule's starting values
 
+> **Changed on 2026-11-25 by [R10](#r10-counting-each-hour-as-an-energy-balance):** `KwhPerLitre` is 0.04, and
+> `MinFallLitres` became `MinHourLitres` 3.
+
 **Decision**: One static class in the feature, `HotWaterRule`, holds the values the handler passes to the query:
 
 | Value | Start | Why |
@@ -123,6 +129,10 @@ The pairing rule is FR-004 as written: consecutive samples, at most 2 minutes ap
 - *A minimum fall of 1 L.* It catches more small draws but counts standby losses. R6 decides between 1 and 2.
 
 ## R6. Checking the rule against the OSO app
+
+> **Changed on 2026-11-25:** the endpoint shipped before the calibration (PR #74), and point 1's check led to
+> [R10](#r10-counting-each-hour-as-an-energy-balance). Points 2 and 3 still apply, to `MinHourLitres` and
+> `KwhPerLitre`.
 
 **Decision**: Ship story 1 (storing the litres) on its own first. After 3–5 days of samples, run the check in
 [quickstart.md §4](quickstart.md#4-calibration-against-the-oso-app) and write the results at the end of this file
@@ -207,6 +217,40 @@ untested.
   covering index `(LocationId, SampledAtUtc) INCLUDE (PowerKw, AvailableLitres40)`. A stored daily rollup comes after
   that.
 
+## R10. Counting each hour as an energy balance
+
+**Decision** (2026-11-25, with Roy): count each UTC hour as a whole, with no pairs of samples:
+
+> `used = litres at the start − litres at the end + heated kWh ÷ KwhPerLitre`
+
+- **Start:** the last litres of the hour before. When the hour before has no litres, the hour's own first litres.
+- **End:** the hour's last litres.
+- **Heated kWh and sampled time:** the hour's power over time by spec 012's hold rule, the same figures as the heater's
+  kWh view (`GetHourlyEnergyAsync`).
+- **Floor:** an hour under `MinHourLitres` counts 0. That covers standby cooling and a negative result.
+- **Values:** `KwhPerLitre` 0.04 and `MinHourLitres` 3, from the first calibration results below.
+
+The SQL only groups the samples with litres into first and last litres per UTC hour, starting one hour before `from`.
+`HotWaterBalance` in the Application layer does the counting, so it is unit-tested with Roy's real hours.
+
+**Rationale**:
+- OSO's power and litres change in steps every 2–10 minutes (calibration results, point 1). Within an hour the steps
+  cancel out: the balance needs only the litres at the hour's edges and the energy put in.
+- Water drawn while the heater runs is counted even when the litres rise. The pairing rule dropped such minutes, so the
+  first day counted 54 L against OSO's 106 L, and 3 L against OSO's 22 L in the hour after a shower.
+- With 0.04, the balance gives OSO's figures for the four hours checked. OSO most likely counts the same way.
+
+**Alternatives considered**:
+- *Pairs from one change to the next (R6, point 1).* It still needs a minimum fall per run, and a run while heating
+  can rise. The hour's balance has neither problem.
+- *The balance per minute or per 5 minutes.* The steps don't cancel out in so short a time, and the chart shows hours
+  at the finest.
+- *The balance over the whole period at once.* It's simplest, but standby cooling over a day would then add up to
+  litres used.
+
+**Speed (SC-004):** a year is now two queries. One is spec 012's power query. The other is a `GROUP BY` hour with
+`array_agg` over the same index range, at most 8,784 rows. R9's fallback still applies.
+
 ## Calibration results
 
 _Filled in after R6's check, with the dates of the samples used, the values chosen and the day totals compared._
@@ -214,6 +258,29 @@ _Filled in after R6's check, with the dates of the samples used, the values chos
 **1. How often OSO's litres change (T029), 2026-11-24.** Production samples taken while a hot tap was running: the
 litres drop every minute. So the pairing stays as R4 describes: each sample with the one just before it. There is no
 switch to runs.
+
+**1, corrected on 2026-11-25.** A longer look shows steps. Roy listed the samples for 09:00–11:00 and 17:00–19:00
+Oslo time on 2026-11-25. Power and litres both stay the same for 2–10 minutes and then jump. For example, 324 L lasted
+from 09:49 to 09:57, and while heating the litres rose 4–6 L at a time. The tap of 2026-11-24 was strong enough to
+make the steps look like minutes. This led to R10.
+
+**First day against the OSO app, 2026-11-25** (Hjemme, `KwhPerLitre` 0.04; the kWh are the hours' mean power):
+
+| Oslo hour | Litres start → end | Heated | Balance | OSO app | Pairing rule (PR #74) |
+|---|---|---|---|---|---|
+| 09 | 358 → 320 | 0.48 kWh | 50 L | ~50 L | 40 L |
+| 10 | 320 → 348 | 2.00 kWh | 22 L | ~22 L | 3 L |
+| 17 | 344 → 339 | 0.97 kWh | 29 L | ~26 L | 9 L |
+| 18 | 339 → 361 | 1.16 kWh | 7 L | ~8 L | 0 L |
+| **Day** | | | **108 L** | **106 L** | **54 L** (with 2 L at 00) |
+
+- With `KwhPerLitre` 0.035 the four hours give 123 L, so 0.04 is used.
+- The 17 o'clock shower shows why the heating counts: the litres fell only 5 L, but about 29 L were drawn.
+- About 2 L move between hours 17 and 18. OSO's steps blur the hour's edges, but the day total is unaffected.
+- Idle cooling: 358 → 356 in 36 minutes in the morning, 361 flat for 25 minutes in the evening. That's at most
+  2–3 L an hour, so `MinHourLitres` is 3.
+- One day is not five. SC-001 (4 of 5 days within 15 %), SC-003 (quiet nights, T030) and OSO's own ratio (T031) are
+  still to be checked with the new rule.
 
 **T012, 2026-11-24.** Checked in production, not locally. After PR #66 was deployed, new samples have
 `AvailableLitres40`, and the litres fall while a hot tap runs.

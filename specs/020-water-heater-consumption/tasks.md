@@ -386,9 +386,16 @@ research.md.
 - [X] T029 Follow quickstart §4.1: list the samples around a known shower in production. Decide whether OSO's litres
   change about every minute (keep the pairing) or in steps (switch to runs). If it's runs, add a task to rework the
   `pairs` CTE of T017 as research R6 point 1 describes, before going on.
-- [ ] T030 Follow quickstart §4.2: count three quiet nights with `MinFallLitres` 1 and 2. Set
-  `HotWaterRule.Current.MinFallLitres` in `src/Features/WaterHeaters/Services/HotWaterRule.cs` to the smallest value
-  that keeps every quiet hour at 2 L or less (SC-003).
+- [X] T029a Rework the counting as an hourly energy balance (research R10), after the samples of 2026-11-25 showed
+  steps and PR #74's first day counted 54 L against OSO's 106 L:
+  - `HotWaterBalance` in `src/Application/WaterHeaters/HotWaterBalance.cs`, tested with Roy's four hours in
+    `tests/Features.Tests/WaterHeaters/HotWaterBalanceTests.cs`;
+  - the litres query in `WaterHeaterPowerSampleEfRepository.GetHourlyHotWaterAsync`, with the heating from
+    `GetHourlyEnergyAsync`;
+  - `HotWaterRule.Current` set to `KwhPerLitre` 0.04 and `MinHourLitres` 3 (it was `MinFallLitres` 2);
+  - spec FR-004 and Edge Cases, data-model, plan, quickstart §3–§4 and research R4–R6 and R10 updated.
+- [ ] T030 Follow quickstart §4.2: check three quiet nights' idle loss against `MinHourLitres` 3 in
+  `src/Features/WaterHeaters/Services/HotWaterRule.cs`. Raise it only if a quiet hour reaches it (SC-003).
 - [ ] T031 Follow quickstart §4.3: note OSO's `storedEnergyKwh ÷ availableLitres40` at three moments.
   - Compare 5 days' `totalLitres` with the OSO app's "Total v40 used" (SC-001).
   - Adjust `KwhPerLitre` in `src/Features/WaterHeaters/Services/HotWaterRule.cs` only if most days miss in the same
