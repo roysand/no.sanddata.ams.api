@@ -6,9 +6,10 @@ using Microsoft.EntityFrameworkCore;
 namespace Infrastructure.Database.Repositories;
 
 /// <remarks>
-/// One raw SQL query, <see cref="QueryStepsAsync"/>, serves both the hourly view (spec 012) and the 5-minute view
-/// (spec 017). Sharing it keeps one copy of the hold rule, so the 5-minute steps add up to the hour (spec 017,
-/// research R1).
+/// Two raw SQL queries. <see cref="QueryStepsAsync"/> serves both the hourly view (spec 012) and the 5-minute view
+/// (spec 017); sharing it keeps one copy of the hold rule, so the 5-minute steps add up to the hour (spec 017,
+/// research R1). <see cref="GetHourlyHotWaterAsync"/> counts the hot water used (spec 020, plan "Complexity
+/// Tracking"): it asks about the change between two samples, not power over time, so it is kept apart.
 /// </remarks>
 public class WaterHeaterPowerSampleEfRepository
     : GenericEfRepository<WaterHeaterPowerSample>, IWaterHeaterPowerSampleRepository<WaterHeaterPowerSample>
@@ -41,7 +42,65 @@ public class WaterHeaterPowerSampleEfRepository
     }
 
     /// <remarks>
-    /// The repo's one raw SQL query (spec 012, plan "Complexity Tracking", research R1/R2; made step-sized in spec 017,
+    /// Spec 020, research R4. Pairing each sample with the one before it needs <c>LAG</c>, which LINQ to EF can't
+    /// express, and a year is about 525,000 samples that must not be loaded into memory. Every value is a parameter
+    /// of the interpolated query, the rule's numbers too, so calibration changes only a C# constant.
+    /// <list type="bullet">
+    /// <item><c>s</c>: each sample with the time, power and litres of the sample before it. Samples from 2 minutes
+    /// before <c>from</c> are read so the first pair has its earlier sample; none from now or <c>to</c> on.</item>
+    /// <item><c>pairs</c>: the pairs whose later sample is from <c>from</c> on, both with litres, at most 2 minutes
+    /// apart (and not in the same instant). The fall counts, with the heating of the earlier sample's power over the
+    /// pair turned back into litres, only when it is at least the rule's minimum; otherwise the pair is sampled time
+    /// with nothing used. A pair goes to the UTC hour of its later sample.</item>
+    /// </list>
+    /// </remarks>
+    public async Task<IReadOnlyList<WaterHeaterHotWaterHour>> GetHourlyHotWaterAsync(
+        Guid locationId, DateTime fromUtc, DateTime toUtc, DateTime nowUtc, HotWaterRuleValues rule,
+        CancellationToken ct)
+    {
+        List<WaterHeaterHotWaterHour> rows = await _context.Database
+            .SqlQuery<WaterHeaterHotWaterHour>(
+                $"""
+                WITH s AS (
+                    SELECT "SampledAtUtc" AS t,
+                           "AvailableLitres40" AS l,
+                           LAG("SampledAtUtc") OVER (ORDER BY "SampledAtUtc") AS pt,
+                           LAG("PowerKw") OVER (ORDER BY "SampledAtUtc") AS pp,
+                           LAG("AvailableLitres40") OVER (ORDER BY "SampledAtUtc") AS pl
+                    FROM public."WaterHeaterPowerSample"
+                    WHERE "LocationId" = {locationId}
+                      AND "SampledAtUtc" >= {fromUtc} - interval '2 minutes'
+                      AND "SampledAtUtc" < LEAST({toUtc}, {nowUtc})
+                ),
+                pairs AS (
+                    SELECT date_trunc('hour', t, 'UTC') AS h,
+                           EXTRACT(EPOCH FROM t - pt) AS secs,
+                           CASE WHEN pl - l >= {rule.MinFallLitres}
+                                THEN (pl - l) + pp * EXTRACT(EPOCH FROM t - pt) / 3600 / {rule.KwhPerLitre}
+                                ELSE 0 END AS used
+                    FROM s
+                    WHERE t >= {fromUtc}
+                      AND l IS NOT NULL
+                      AND pl IS NOT NULL
+                      AND t > pt
+                      AND t - pt <= interval '2 minutes'
+                )
+                SELECT h AS "HourStartUtc",
+                       SUM(used) AS "Litres",
+                       SUM(secs) AS "SampledSeconds"
+                FROM pairs
+                GROUP BY h
+                ORDER BY h
+                """)
+            .ToListAsync(ct);
+
+        return rows
+            .Select(r => r with { HourStartUtc = DateTime.SpecifyKind(r.HourStartUtc, DateTimeKind.Utc) })
+            .ToList();
+    }
+
+    /// <remarks>
+    /// The power query (spec 012, plan "Complexity Tracking", research R1/R2; made step-sized in spec 017,
     /// research R1). The hold rule needs each sample's next sample (<c>LEAD</c>), which LINQ to EF can't express, and a
     /// year view must not load about a million samples into memory. Every value is a parameter of the interpolated
     /// query; Npgsql sends <paramref name="step"/> as an <c>interval</c>.
