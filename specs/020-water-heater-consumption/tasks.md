@@ -422,13 +422,23 @@ research.md.
   `specs/020-water-heater-consumption/contracts/endpoints.md`. Skip it if none does.
 - [X] T035 Run `dotnet build` (no new warnings), `dotnet format --verify-no-changes` and `dotnet test`. Everything must
   pass. Then commit and open PR 2 (US2 + US3; the calibration follows, see Phase 6).
-- [ ] T036 After deploying PR 2, follow quickstart §5 in production:
+- [X] T036 After deploying PR 2, follow quickstart §5 in production:
   - SC-004: under 0.3 s for a day and under 1 s for a year;
   - SC-005: 95 % of a day's samples have litres;
   - no 1834–1836 log lines on a normal day;
   - today's items look like the OSO app's Day view.
 
   Record the results in a short PR note. If a year is slow, apply research R9's covering index as a follow-up.
+
+  **Done by Roy on 2026-11-25**, after PRs #74–#76 were deployed. The times were taken from his Mac, so they include
+  the trip over the internet:
+  - **SC-004:** a day took 0.31, 0.10 and 0.10 s. The first call was the first after the deploy, which compiles the
+    query. A year took 0.15, 0.12 and 0.14 s, but holds only about 2 days of litres so far: time it again once there
+    is more data.
+  - **SC-005:** all 1441 samples of the last 24 hours have litres (share 1.0), one a minute with no gaps.
+  - **Logs:** no 1834–1836 lines in the last day in appi-ams-api-prod.
+  - **OSO's Day view:** the hours it shows (Oslo 09, 10, 17 and 18) gave 50, 22, 28 and 7 L here, against 50, 22, 26
+    and 8 L. These are the checks that led to research R10 (PR #75) and the floor of 5 (PR #76).
 - [X] T037 Create `specs/_backlog/water-heater-hot-water-frontend.md`, in the style of
   `specs/_backlog/norgespris-limit-warnings.md`. It is the handover for the frontend's heater tab chart in
   `no.sanddata.ams.frontend`. It says:
