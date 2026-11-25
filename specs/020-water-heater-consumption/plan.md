@@ -15,15 +15,16 @@ The feature has two parts. The first starts collecting the data; the second answ
    - One migration, with no backfill.
 2. **Answer the water used (stories 2 and 3).** A new read-only endpoint:
    `GET /api/locations/{locationId}/water-heater/hot-water?period=day|week|month|year&date=yyyy-MM-dd`.
-   - **SQL:** one new raw SQL query pairs consecutive samples (`LAG`, at most 2 minutes apart, both with litres). Each
-     pair counts `fall + heated` when the litres fell by at least `MinFallLitres`, and 0 otherwise. `heated` is the
-     heater's kWh in the pair ÷ `KwhPerLitre`: the power correction. It sums per UTC hour of the later sample
-     (research R4).
+   - **Counting** (changed on 2026-11-25, research R10): each UTC hour is an energy balance, `start − end + heated`.
+     `start` and `end` are the litres at the hour's edges, from one SQL query grouped per hour. `heated` is the
+     hour's kWh from spec 012's power query ÷ `KwhPerLitre`: the power correction. An hour under `MinHourLitres`
+     counts 0. `HotWaterBalance` in the Application layer does the arithmetic. The first plan paired consecutive
+     samples (research R4), but OSO's figures change in steps, and the pairs missed most water drawn while heating.
    - **Handler:** it rolls the hours up into the period's parts (hours, Oslo days or Oslo months). It gives `null` for
      parts without sampled time, rounds each part to whole litres, and totals the rounded parts (research R7).
    - **Access:** the same rule as spec 017 (research R8).
-3. **Calibration between the two.** With 3–5 days of stored litres, the starting values (0.035 kWh/L and a minimum
-   fall of 2 L) and the pairing are checked against the OSO app's day totals. The results go into research.md
+3. **Calibration between the two.** With 3–5 days of stored litres, the values (now 0.04 kWh/L and a floor of 3 L
+   an hour, research R10) are checked against the OSO app's day totals. The results go into research.md
    (research R5–R6, quickstart §4).
 
 ## Technical Context
@@ -123,7 +124,7 @@ src/Application/
 src/Infrastructure/
 ├── External/OsoWaterHeaterClient.cs                # GetSampleAsync: ActualLoad + Status in parallel
 ├── Database/Configuration/WaterHeaterPowerSampleConfiguration.cs        # + AvailableLitres40 (optional)
-├── Database/Repositories/WaterHeaterPowerSampleEfRepository.cs          # + hot water SQL (LAG pairs, per UTC hour)
+├── Database/Repositories/WaterHeaterPowerSampleEfRepository.cs          # + hot water: litres per UTC hour + hourly energy
 └── Database/Migrations/<timestamp>_AddWaterHeaterLitres.cs              # new
 
 src/Features/WaterHeaters/
@@ -157,4 +158,4 @@ updates `HotWaterRule` and research.md, and the frontend backlog note in `specs/
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
-| A second raw SQL query in `WaterHeaterPowerSampleEfRepository` | Each sample has to be paired with the one before it (`LAG`), which LINQ to EF can't express. A year is about 525,000 samples, too many to load for SC-004 | Loading the samples and pairing them in C# is fine for a day but too slow for a year. A stored rollup adds a table, a job and a backfill. Reusing spec 017's `QueryStepsAsync` would mix "power over time" with "change between samples" in the repo's hardest query |
+| A second raw SQL query in `WaterHeaterPowerSampleEfRepository` | (Since 2026-11-25, research R10: a `GROUP BY` hour with `array_agg` for each hour's first and last litres; the heating comes from spec 012's existing query.) First plan: each sample has to be paired with the one before it (`LAG`), which LINQ to EF can't express. A year is about 525,000 samples, too many to load for SC-004 | Loading the samples and pairing them in C# is fine for a day but too slow for a year. A stored rollup adds a table, a job and a backfill. Reusing spec 017's `QueryStepsAsync` would mix "power over time" with "change between samples" in the repo's hardest query |

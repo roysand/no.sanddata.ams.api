@@ -8,8 +8,8 @@ namespace Infrastructure.Database.Repositories;
 /// <remarks>
 /// Two raw SQL queries. <see cref="QueryStepsAsync"/> serves both the hourly view (spec 012) and the 5-minute view
 /// (spec 017); sharing it keeps one copy of the hold rule, so the 5-minute steps add up to the hour (spec 017,
-/// research R1). <see cref="GetHourlyHotWaterAsync"/> counts the hot water used (spec 020, plan "Complexity
-/// Tracking"): it asks about the change between two samples, not power over time, so it is kept apart.
+/// research R1). <see cref="GetHourlyHotWaterAsync"/> counts the hot water used (spec 020) from that hourly power and
+/// a second query for the litres at each hour's start and end.
 /// </remarks>
 public class WaterHeaterPowerSampleEfRepository
     : GenericEfRepository<WaterHeaterPowerSample>, IWaterHeaterPowerSampleRepository<WaterHeaterPowerSample>
@@ -42,61 +42,43 @@ public class WaterHeaterPowerSampleEfRepository
     }
 
     /// <remarks>
-    /// Spec 020, research R4. Pairing each sample with the one before it needs <c>LAG</c>, which LINQ to EF can't
-    /// express, and a year is about 525,000 samples that must not be loaded into memory. Every value is a parameter
-    /// of the interpolated query, the rule's numbers too, so calibration changes only a C# constant.
+    /// Spec 020, research R6. Two reads, then <see cref="HotWaterBalance"/> counts each hour:
     /// <list type="bullet">
-    /// <item><c>s</c>: each sample with the time, power and litres of the sample before it. Samples from 2 minutes
-    /// before <c>from</c> are read so the first pair has its earlier sample; none from now or <c>to</c> on.</item>
-    /// <item><c>pairs</c>: the pairs whose later sample is from <c>from</c> on, both with litres, at most 2 minutes
-    /// apart (and not in the same instant). The fall counts, with the heating of the earlier sample's power over the
-    /// pair turned back into litres, only when it is at least the rule's minimum; otherwise the pair is sampled time
-    /// with nothing used. A pair goes to the UTC hour of its later sample.</item>
+    /// <item>The heated kWh and sampled time per hour come from the power query's hold rule (spec 012).</item>
+    /// <item>The first and last litres per UTC hour come from one grouped query over the samples that have litres.
+    /// It starts one hour before <c>from</c>, so the first hour has the litres it starts from, and reads nothing from
+    /// now or <c>to</c> on. A year is about 525,000 samples, so the grouping runs in the database and returns about
+    /// 8,800 rows.</item>
     /// </list>
     /// </remarks>
     public async Task<IReadOnlyList<WaterHeaterHotWaterHour>> GetHourlyHotWaterAsync(
         Guid locationId, DateTime fromUtc, DateTime toUtc, DateTime nowUtc, HotWaterRuleValues rule,
         CancellationToken ct)
     {
-        List<WaterHeaterHotWaterHour> rows = await _context.Database
-            .SqlQuery<WaterHeaterHotWaterHour>(
+        IReadOnlyList<WaterHeaterHourEnergy> energy =
+            await GetHourlyEnergyAsync(locationId, fromUtc, toUtc, nowUtc, ct);
+
+        List<WaterHeaterLitresHour> rows = await _context.Database
+            .SqlQuery<WaterHeaterLitresHour>(
                 $"""
-                WITH s AS (
-                    SELECT "SampledAtUtc" AS t,
-                           "AvailableLitres40" AS l,
-                           LAG("SampledAtUtc") OVER (ORDER BY "SampledAtUtc") AS pt,
-                           LAG("PowerKw") OVER (ORDER BY "SampledAtUtc") AS pp,
-                           LAG("AvailableLitres40") OVER (ORDER BY "SampledAtUtc") AS pl
-                    FROM public."WaterHeaterPowerSample"
-                    WHERE "LocationId" = {locationId}
-                      AND "SampledAtUtc" >= {fromUtc} - interval '2 minutes'
-                      AND "SampledAtUtc" < LEAST({toUtc}, {nowUtc})
-                ),
-                pairs AS (
-                    SELECT date_trunc('hour', t, 'UTC') AS h,
-                           EXTRACT(EPOCH FROM t - pt) AS secs,
-                           CASE WHEN pl - l >= {rule.MinFallLitres}
-                                THEN (pl - l) + pp * EXTRACT(EPOCH FROM t - pt) / 3600 / {rule.KwhPerLitre}
-                                ELSE 0 END AS used
-                    FROM s
-                    WHERE t >= {fromUtc}
-                      AND l IS NOT NULL
-                      AND pl IS NOT NULL
-                      AND t > pt
-                      AND t - pt <= interval '2 minutes'
-                )
-                SELECT h AS "HourStartUtc",
-                       SUM(used) AS "Litres",
-                       SUM(secs) AS "SampledSeconds"
-                FROM pairs
-                GROUP BY h
-                ORDER BY h
+                SELECT date_trunc('hour', "SampledAtUtc", 'UTC') AS "HourStartUtc",
+                       (array_agg("AvailableLitres40" ORDER BY "SampledAtUtc"))[1] AS "FirstLitres",
+                       (array_agg("AvailableLitres40" ORDER BY "SampledAtUtc" DESC))[1] AS "LastLitres"
+                FROM public."WaterHeaterPowerSample"
+                WHERE "LocationId" = {locationId}
+                  AND "AvailableLitres40" IS NOT NULL
+                  AND "SampledAtUtc" >= {fromUtc} - interval '1 hour'
+                  AND "SampledAtUtc" < LEAST({toUtc}, {nowUtc})
+                GROUP BY 1
+                ORDER BY 1
                 """)
             .ToListAsync(ct);
 
-        return rows
+        var litres = rows
             .Select(r => r with { HourStartUtc = DateTime.SpecifyKind(r.HourStartUtc, DateTimeKind.Utc) })
             .ToList();
+
+        return HotWaterBalance.Count(litres, energy, fromUtc, rule);
     }
 
     /// <remarks>

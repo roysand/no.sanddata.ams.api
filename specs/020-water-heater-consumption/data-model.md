@@ -35,35 +35,46 @@ What one sampler call reads from OSO (research R2).
 
 ### `HotWaterRuleValues` (Application/WaterHeaters)
 
-The counting rule's numbers, passed to the query (research R4, R5).
+The counting rule's numbers (research R10; first values in R5, changed on 2026-11-25).
 
-| Field | Type | Starting value |
+| Field | Type | Value |
 |---|---|---|
-| `KwhPerLitre` | `decimal` | 0.035 |
-| `MinFallLitres` | `int` | 2 |
+| `KwhPerLitre` | `decimal` | 0.04 |
+| `MinHourLitres` | `int` | 3 |
 
 The values live in `Features/WaterHeaters/Services/HotWaterRule.cs` as `HotWaterRule.Current`. Calibration (research
 R6) changes them there.
 
-### `WaterHeaterHotWaterHour` (Application/WaterHeaters)
+### `WaterHeaterLitresHour` (Application/WaterHeaters)
 
-One row of the new SQL query (research R4).
+One row of the litres query (research R10): the first and last litres of a UTC hour, from its samples that have
+litres.
 
 | Field | Type | Notes |
 |---|---|---|
-| `HourStartUtc` | `DateTime` (UTC) | Whole UTC hour holding the later sample of each counted pair |
-| `Litres` | `decimal` | Σ used litres of the hour's counted pairs, unrounded, ≥ 0 |
-| `SampledSeconds` | `decimal` | Σ seconds of the hour's counted pairs (0 < s ≤ 3600 + one pair's spill, see note) |
+| `HourStartUtc` | `DateTime` (UTC) | Whole UTC hour |
+| `FirstLitres` | `int` | Litres of the hour's earliest sample with litres |
+| `LastLitres` | `int` | Litres of the hour's latest sample with litres |
 
-**Note on the bucket:** a pair is put in its later sample's hour in full, so an hour can hold up to about
-2 minutes that started in the hour before. The mapper caps `sampledMinutes` at the part's length in minutes.
+### `WaterHeaterHotWaterHour` (Application/WaterHeaters)
+
+One counted hour, made by `HotWaterBalance.Count` (research R10).
+
+| Field | Type | Notes |
+|---|---|---|
+| `HourStartUtc` | `DateTime` (UTC) | Whole UTC hour |
+| `Litres` | `decimal` | start − end + heated kWh ÷ `KwhPerLitre`, unrounded; 0 when under `MinHourLitres` |
+| `SampledSeconds` | `decimal` | The hour's sampled time by the hold rule (spec 012), at most 3600 |
 
 ### Repository method (Application, `IWaterHeaterPowerSampleRepository<T>`)
 
 ```text
 GetHourlyHotWaterAsync(locationId, fromUtc, toUtc, nowUtc, HotWaterRuleValues rule, ct)
-    → IReadOnlyList<WaterHeaterHotWaterHour>   // ordered by hour, only hours with counted pairs
+    → IReadOnlyList<WaterHeaterHotWaterHour>   // ordered by hour, only hours with litres
 ```
+
+It reads the hourly energy (`GetHourlyEnergyAsync`) and the hourly litres (from one hour before `fromUtc`), then
+calls `HotWaterBalance.Count`.
 
 ## Features (query and response, not stored)
 
@@ -105,12 +116,12 @@ GetHourlyHotWaterAsync(locationId, fromUtc, toUtc, nowUtc, HotWaterRuleValues ru
 
 ```text
 period (kind, date) ──► [from, to) in UTC ──► parts (hours | Oslo days | Oslo months), starting before now
-samples ──LAG──► pairs (≤ 2 min apart, both with litres)
-        ──► used = fall + heated  if fall ≥ MinFallLitres, else 0
-        ──► Σ per UTC hour of the later sample          (SQL)
-        ──► Σ per part, round litres, total of rounded  (C#)
+samples with litres ──► first and last litres per UTC hour     (SQL)
+samples ──► heated kWh and sampled seconds per UTC hour         (SQL, spec 012's hold rule)
+        ──► used = start − end + kWh ÷ KwhPerLitre, 0 if < MinHourLitres   (C#, HotWaterBalance)
+        ──► Σ per part, round litres, total of rounded           (C#)
 ```
 
-- **Parts in the future:** left out. The part holding now counts the pairs up to now.
-- **No pairs in a part:** `litres = null`, `sampledMinutes = 0`.
+- **Parts in the future:** left out. The part holding now counts up to now.
+- **No samples with litres in a part:** `litres = null`, `sampledMinutes = 0`.
 - **The rounding:** per part. The total is the sum of the rounded parts (research R7).
