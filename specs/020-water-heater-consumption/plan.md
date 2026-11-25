@@ -23,7 +23,7 @@ The feature has two parts. The first starts collecting the data; the second answ
    - **Handler:** it rolls the hours up into the period's parts (hours, Oslo days or Oslo months). It gives `null` for
      parts without sampled time, rounds each part to whole litres, and totals the rounded parts (research R7).
    - **Access:** the same rule as spec 017 (research R8).
-3. **Calibration between the two.** With 3–5 days of stored litres, the values (now 0.04 kWh/L and a floor of 3 L
+3. **Calibration between the two.** With 3–5 days of stored litres, the values (now 0.04 kWh/L and a floor of 5 L
    an hour, research R10) are checked against the OSO app's day totals. The results go into research.md
    (research R5–R6, quickstart §4).
 

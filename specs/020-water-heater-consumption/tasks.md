@@ -394,7 +394,10 @@ research.md.
     `GetHourlyEnergyAsync`;
   - `HotWaterRule.Current` set to `KwhPerLitre` 0.04 and `MinHourLitres` 3 (it was `MinFallLitres` 2);
   - spec FR-004 and Edge Cases, data-model, plan, quickstart §3–§4 and research R4–R6 and R10 updated.
-- [ ] T030 Follow quickstart §4.2: check three quiet nights' idle loss against `MinHourLitres` 3 in
+- [X] T029b Raise `MinHourLitres` to 5 after the whole day of 2026-11-25: idle hours lost 3–4 L each, which a floor
+  of 3 counted (162 L for the day). SC-001 now compares the hours the OSO app shows, since OSO leaves out small draws
+  such as a morning wash. Results in research.md, "Calibration results".
+- [ ] T030 Follow quickstart §4.2: check three quiet nights' idle loss against `MinHourLitres` 5 in
   `src/Features/WaterHeaters/Services/HotWaterRule.cs`. Raise it only if a quiet hour reaches it (SC-003).
 - [ ] T031 Follow quickstart §4.3: note OSO's `storedEnergyKwh ÷ availableLitres40` at three moments.
   - Compare 5 days' `totalLitres` with the OSO app's "Total v40 used" (SC-001).

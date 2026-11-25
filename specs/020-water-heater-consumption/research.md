@@ -105,7 +105,7 @@ The handler then adds the UTC hours up to Oslo days or months in C# (R7).
 ## R5. The rule's starting values
 
 > **Changed on 2026-11-25 by [R10](#r10-counting-each-hour-as-an-energy-balance):** `KwhPerLitre` is 0.04, and
-> `MinFallLitres` became `MinHourLitres` 3.
+> `MinFallLitres` became `MinHourLitres` (3, then 5 after the whole-day check).
 
 **Decision**: One static class in the feature, `HotWaterRule`, holds the values the handler passes to the query:
 
@@ -228,7 +228,8 @@ untested.
 - **Heated kWh and sampled time:** the hour's power over time by spec 012's hold rule, the same figures as the heater's
   kWh view (`GetHourlyEnergyAsync`).
 - **Floor:** an hour under `MinHourLitres` counts 0. That covers standby cooling and a negative result.
-- **Values:** `KwhPerLitre` 0.04 and `MinHourLitres` 3, from the first calibration results below.
+- **Values:** `KwhPerLitre` 0.04 and `MinHourLitres` 5, from the calibration results below. (`MinHourLitres` was 3
+  until the whole day was checked.)
 
 The SQL only groups the samples with litres into first and last litres per UTC hour, starting one hour before `from`.
 `HotWaterBalance` in the Application layer does the counting, so it is unit-tested with Roy's real hours.
@@ -278,9 +279,32 @@ make the steps look like minutes. This led to R10.
 - The 17 o'clock shower shows why the heating counts: the litres fell only 5 L, but about 29 L were drawn.
 - About 2 L move between hours 17 and 18. OSO's steps blur the hour's edges, but the day total is unaffected.
 - Idle cooling: 358 → 356 in 36 minutes in the morning, 361 flat for 25 minutes in the evening. That's at most
-  2–3 L an hour, so `MinHourLitres` is 3.
+  2–3 L an hour, so `MinHourLitres` was set to 3. The whole day showed more; see below.
 - One day is not five. SC-001 (4 of 5 days within 15 %), SC-003 (quiet nights, T030) and OSO's own ratio (T031) are
   still to be checked with the new rule.
 
 **T012, 2026-11-24.** Checked in production, not locally. After PR #66 was deployed, new samples have
 `AvailableLitres40`, and the litres fall while a hot tap runs.
+
+**The whole day with the balance, 2026-11-25** (after PR #75 was deployed; Roy's hourly summary, Oslo hours):
+
+| Oslo | Mean power | Litres start → end | Balance | OSO app |
+|---|---|---|---|---|
+| 00–05, 08, 12–16, 19 | 0.012 kW (idle) | falling 3–4 L an hour | 3–4 L each | 0 |
+| 06 | 0.481 kW | 341 → 337 | 15–16 L | 0 |
+| 07 | 1.129 kW | 337 → 361 | 4–5 L | 0 |
+| 09, 10, 17, 18 | | (as above) | 50, 22, 28, 7 | 50, 22, 26, 8 |
+| 11 | 0.484 kW | 348 → 360 | 0 | 0 |
+| **Day** | | | **162 L** | **106 L** |
+
+- **Idle loss is 3–4 L an hour,** more than the morning's first look showed. A floor of 3 let almost every quiet hour
+  through, about 40 L in all. `MinHourLitres` is now 5, which makes every quiet hour 0 and leaves the four hours OSO
+  shows unchanged.
+- **Hour 11 confirms `KwhPerLitre`.** Reheating after the shower, with nothing drawn: 0.484 kWh is 12 L at 0.04, and
+  the tank rose exactly 12 L (348 → 360).
+- **06–07 is a morning wash that OSO doesn't show.** Roy was getting up then. Over the heating from 06 to 08, 1.61 kWh
+  made about 40 L, the tank rose 20 L, and idle loss took about 6 L, so about 14 L were drawn. OSO's chart shows only
+  the larger draws, so its day total can be lower than ours. SC-001 now compares the hours OSO shows (spec, changed
+  2026-11-25). For this day that's 107 L against 106 L.
+- **With the floor of 5** the day is about 122–127 L: 50, 22, 28 and 7 L, plus 15 L at 06 and 0–5 L at 07. Hour 07
+  is right at the floor.
