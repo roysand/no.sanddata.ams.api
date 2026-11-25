@@ -1,10 +1,14 @@
 # Backlog: Hot water used, for the Heater tab (frontend)
 
-Status: the API side is built (spec `specs/020-water-heater-consumption`). Storing the litres (US1, PR #66) was
-merged and deployed on 2026-11-24. The endpoint itself (US2 and US3) is built on the branch
-`feature/020-water-heater-consumption-build` and ships in PR 2, before the calibration (T030–T033 in
-`specs/020-water-heater-consumption/tasks.md`). The calibration checks the counting rule against the OSO app from about
-2026-11-27, in a small follow-up PR. Update this note with PR 2's number when it is merged.
+Status: the API side is built and deployed (spec `specs/020-water-heater-consumption`).
+- **Storing the litres** (US1, PR #66): merged and deployed on 2026-11-24.
+- **The endpoint** (US2 and US3, PR #74): deployed on 2026-11-25.
+- **The counting rule:** reworked the same day after checks against the OSO app: an hourly energy balance (PR #75)
+  and a floor of 5 L an hour (PR #76).
+- **Production checks** (T036): passed on 2026-11-25.
+
+The remaining calibration over more days (T030–T033 in `specs/020-water-heater-consumption/tasks.md`) may still tune
+the rule's two numbers, but not the response.
 
 This note is the handover for a chart of the hot water used on the Heater tab in `no.sanddata.ams.frontend` (frontend
 spec 009). It should look like the OSO app's "Total v40 used" view. Remove this note once the frontend's spec has
@@ -33,12 +37,15 @@ and [`data-model.md`](../020-water-heater-consumption/data-model.md).
 - **Gaps:** `litres: null` means the part has no sampled time. Draw a gap, never 0. `0` means it was sampled and no
   water was used.
 - **How much to trust a bar:** `sampledMinutes` says how much of the part was sampled (up to 60 for an hour, 1,440
-  for a day, 1,500 on the day with 25 hours). A bar with few sampled minutes is too low; consider marking it. The top-level `sampledMinutes` is
-  the sum over the bars.
+  for a day, 1,500 on the day with 25 hours). A bar with few sampled minutes is too low; consider marking it. The
+  top-level `sampledMinutes` is the sum over the bars.
 - **History begins on 2026-11-24**, when US1 was deployed. Earlier periods answer with null litres and a null total,
   as does a location without a heater. That is not an error.
-- **The numbers can still move a little:** the calibration's follow-up PR may adjust the counting rule after PR 2 is
-  deployed. The response shape stays the same, but check the figures against the OSO app after that PR, not before.
+- **The numbers can still move a little:** calibration over more days may adjust the rule's two numbers. The
+  response shape stays the same.
+- **The total can be higher than the OSO app's:** the hours with showers match OSO's bars closely. But OSO's chart
+  leaves out small draws, such as a morning wash, and this endpoint counts them. On 2026-11-25, OSO showed 106 L and
+  this endpoint about 125 L, the difference being one morning wash. Don't present the two as having to match.
 - **Who may see it:** owners and viewers of the location, and Admins. Everyone else gets `404 Location.NotFound`, the
   same as for a location that does not exist. No connected heater is needed: the samples belong to the location.
 - **Errors:** 400 for a `period` that isn't one of the four or a `date` that isn't a real `yyyy-MM-dd` date, 401
