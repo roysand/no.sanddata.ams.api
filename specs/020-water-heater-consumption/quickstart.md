@@ -98,12 +98,12 @@ Do this once story 1 has been deployed and stored litres for 3–5 days (researc
    - Done on 2026-11-25: they change in steps every 2–10 minutes, which led to the hourly balance (research R10).
 2. **`MinHourLitres`.** For three nights, 01:00–05:00 Oslo time, with no water drawn, list each hour's litres at
    its start and end and its kWh (the query in step 1, or the power view). The quiet hours' balance before the floor
-   shows the idle loss. Keep `MinHourLitres` (3) if the loss stays under it, and raise it if it doesn't (SC-003).
+   shows the idle loss. Keep `MinHourLitres` (5) if the loss stays under it, and raise it if it doesn't (SC-003).
 3. **`KwhPerLitre`.**
    - At three moments, read `GET /api/locations/{id}/water-heater` and note `storedEnergyKwh ÷ availableLitres40`.
-   - For each of the days, compare `totalLitres` with the OSO app's "Total v40 used" (Day view).
-   - SC-001 is met if at least 4 of 5 days are within 15 %. If most days miss in the same direction, adjust
-     `KwhPerLitre` toward OSO's ratio and check again.
+   - For each of the days, compare the hours that have a bar in the OSO app's Day view with the same hours here.
+   - SC-001 is met if those hours are within 15 % on at least 4 of 5 days. If most days miss in the same direction,
+     adjust `KwhPerLitre` toward OSO's ratio and check again.
 4. **The power correction.** Take a shower while the heater is heating (`isHeating` true on the state endpoint). Note
    its length and the shower's flow (about 8–10 L a minute of 40 °C water).
    - The hour's `litres` should be within 20 % of length × flow (SC-002).

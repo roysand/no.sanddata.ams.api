@@ -113,7 +113,7 @@ answer is the same as for a location that does not exist.
   small surplus or shortfall is covered by the floor (FR-004).
 - **Water drawn while heating**: the litres fall less than the water used, or rise. The hour's heating, turned into
   litres, is added back, so the water is counted in both cases.
-- **Standby losses**: the tank cools slowly and loses about 2–3 L of 40 °C water an hour with no water drawn. An hour
+- **Standby losses**: the tank cools slowly and loses about 3–4 L of 40 °C water an hour with no water drawn. An hour
   under the floor counts 0.
 - **The tank full at its maximum**: the litres cannot rise above the tank's maximum, so heating then doesn't show in
   them, and the balance can count water that wasn't drawn. The heater normally stops at its set point before that.
@@ -164,8 +164,10 @@ answer is the same as for a location that does not exist.
 
 ### Measurable Outcomes
 
-- **SC-001**: For a fully sampled day, the day's total is within 15 % of the OSO app's "Total v40 used" for the same
-  day, on at least 4 of 5 days checked.
+- **SC-001**: For a fully sampled day, the hours the OSO app's Day view shows with water add up to within 15 % of the
+  same hours here, on at least 4 of 5 days checked. The day totals may differ by more: OSO's chart leaves out small
+  draws, such as a morning wash, which are counted here (seen on 2026-11-25, research "Calibration results"). (Changed
+  on 2026-11-25 from "the day's total is within 15 %".)
 - **SC-002**: A shower of known length and flow, taken while the heater is heating, is counted within 20 % of its
   litres. Without the power correction it would be counted at least 10 % short.
 - **SC-003**: An hour with no hot water drawn and no gap counts at most 2 litres.

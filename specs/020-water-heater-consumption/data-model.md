@@ -40,7 +40,7 @@ The counting rule's numbers (research R10; first values in R5, changed on 2026-1
 | Field | Type | Value |
 |---|---|---|
 | `KwhPerLitre` | `decimal` | 0.04 |
-| `MinHourLitres` | `int` | 3 |
+| `MinHourLitres` | `int` | 5 |
 
 The values live in `Features/WaterHeaters/Services/HotWaterRule.cs` as `HotWaterRule.Current`. Calibration (research
 R6) changes them there.

@@ -123,5 +123,24 @@ public class HotWaterBalanceTests
 
     [Fact]
     public void TheCurrentRule_IsTheCalibratedOne() =>
-        Assert.Equal(new HotWaterRuleValues(0.04m, 3), HotWaterRule.Current);
+        Assert.Equal(new HotWaterRuleValues(0.04m, 5), HotWaterRule.Current);
+
+    /// <summary>
+    /// Roy's hourly summary of 2026-11-25 with the current rule: a quiet hour's idle loss of 4 L counts 0, the morning
+    /// wash with the heater running counts (Oslo 00 and 06).
+    /// </summary>
+    [Fact]
+    public void TheCurrentRule_DropsIdleLossButKeepsTheMorningWash()
+    {
+        DateTime h23 = H8.AddHours(-9);
+        DateTime h05 = H8.AddHours(-3);
+
+        IReadOnlyList<WaterHeaterHotWaterHour> quiet = HotWaterBalance.Count(
+            [L(h23.AddHours(-1), 359, 359), L(h23, 359, 355)], [E(h23, 0.012m)], h23, HotWaterRule.Current);
+        IReadOnlyList<WaterHeaterHotWaterHour> wash = HotWaterBalance.Count(
+            [L(h05.AddHours(-1), 344, 341), L(h05, 341, 337)], [E(h05, 0.481m)], h05, HotWaterRule.Current);
+
+        Assert.Equal(0m, Assert.Single(quiet).Litres);
+        Assert.Equal(16, (int)Math.Round(Assert.Single(wash).Litres));
+    }
 }
