@@ -10,7 +10,8 @@ using Microsoft.Extensions.Logging;
 namespace Infrastructure.External;
 
 /// <summary>
-/// Read-only client for OSO's inCharge API (https://api.osoenergy.no/water-heater-api-swagger/, spec 011).
+/// Read-only client for OSO's inCharge API (https://api.osoenergy.no/water-heater-api-swagger/, spec 011), except High
+/// Demand (spec 022): <see cref="SetHighDemandAsync"/> uses OSO's undocumented switch.
 /// What the parsing relies on, checked against the real heater on 2026-11-19:
 /// - Some fields are misspelt (<c>holidyModeStartTime</c>), and casing differs between calls (<c>timeStamp</c> /
 ///   <c>timestamp</c>), so the DTOs keep OSO's spelling and matching is case-insensitive.
@@ -79,6 +80,46 @@ public class OsoWaterHeaterClient(HttpClient httpClient, ILogger<OsoWaterHeaterC
         return status.Result.Value.AvailableMix40Volume is >= 0 and int litres
             ? Result.Success(new WaterHeaterSample(power, litres, null))
             : Result.Success(new WaterHeaterSample(power, null, WaterHeaterErrors.InvalidResponse));
+    }
+
+    /// <remarks>
+    /// Spec 022, research R1–R3. The calls are OSO's own, from its Homey app, but undocumented: <c>POST</c> turns
+    /// High Demand on and <c>DELETE</c> turns it off, on <c>1/Device/{id}/HighDemand/</c> with the trailing slash and
+    /// no body. Sent once: a retried <c>POST</c> could restart OSO's 24 hours. A 404 here means OSO no longer offers
+    /// the call, not a wrong device, since the device was readable.
+    /// </remarks>
+    public async Task<Result> SetHighDemandAsync(
+        WaterHeaterCredentials credentials, bool on, CancellationToken cancellationToken)
+    {
+        const string call = "HighDemand";
+        using var request = new HttpRequestMessage(
+            on ? HttpMethod.Post : HttpMethod.Delete,
+            $"1/Device/{Uri.EscapeDataString(credentials.DeviceId)}/{call}/");
+        request.Headers.Add(KeyHeader, credentials.SubscriptionKey);
+        if (on)
+        {
+            request.Content = new ByteArrayContent([]);
+        }
+
+        try
+        {
+            using HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                return Result.Success();
+            }
+
+            OsoLogMessages.RequestFailed(logger, credentials.LocationId, call, (int)response.StatusCode);
+            return Result.Failure(response.StatusCode == HttpStatusCode.NotFound
+                ? WaterHeaterErrors.HighDemandNotOffered
+                : ErrorFor(response.StatusCode));
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException
+                                   && !cancellationToken.IsCancellationRequested)
+        {
+            OsoLogMessages.Unavailable(logger, credentials.LocationId, call);
+            return Result.Failure(WaterHeaterErrors.Unavailable);
+        }
     }
 
     private async Task<Result<T>> GetAsync<T>(WaterHeaterCredentials credentials, string call, CancellationToken ct)

@@ -64,4 +64,11 @@ public static class WaterHeaterErrors
         "WaterHeater.KeyExpiryOutOfRange", "The key's expiry date must be after today and at most five years ahead");
     public static readonly Error DeviceInUse = Error.Conflict(
         "WaterHeater.DeviceInUse", "This water heater is already connected to another location");
+
+    /// <summary>
+    /// OSO answered 404 to the undocumented High Demand call (spec 022, research R2). The device was readable, so this
+    /// most likely means OSO no longer offers the call.
+    /// </summary>
+    public static readonly Error HighDemandNotOffered = Error.Problem(
+        "WaterHeater.HighDemandNotOffered", "OSO no longer offers High Demand for this heater");
 }

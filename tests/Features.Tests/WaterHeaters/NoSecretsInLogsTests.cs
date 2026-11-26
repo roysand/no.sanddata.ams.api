@@ -180,6 +180,45 @@ public class NoSecretsInLogsTests
         }
     }
 
+    /// <summary>
+    /// Spec 022, SC-005: a High Demand switch, on and off, through the real client and handler, logs neither the key
+    /// nor the device id, whatever OSO answers. A thrown <see cref="TaskCanceledException"/> stands in for a timeout.
+    /// </summary>
+    [Theory]
+    [InlineData(true, HttpStatusCode.OK, false)]
+    [InlineData(false, HttpStatusCode.OK, false)]
+    [InlineData(true, HttpStatusCode.Unauthorized, false)]
+    [InlineData(false, HttpStatusCode.NotFound, false)]
+    [InlineData(true, HttpStatusCode.ServiceUnavailable, false)]
+    [InlineData(true, HttpStatusCode.OK, true)]
+    public async Task HighDemandSwitch_LogsNoSecrets(bool on, HttpStatusCode osoAnswer, bool timesOut)
+    {
+        _oso.Answer("HighDemand/", osoAnswer, $$"""{"error":"{{OsoSamples.DeviceId}}"}""");
+        if (timesOut)
+        {
+            _oso.Throw = new TaskCanceledException($"timed out for {OsoSamples.DeviceId}");
+        }
+
+        await using ServiceProvider sp = Build();
+        ISecretProtector protector = sp.GetRequiredService<ISecretProtector>();
+        ILocationRepository<Location> locations = Substitute.For<ILocationRepository<Location>>();
+        locations.GetByIdAsync(LocationId, Arg.Any<CancellationToken>()).Returns(Location());
+        IWaterHeaterRepository<WaterHeater> heaters = Substitute.For<IWaterHeaterRepository<WaterHeater>>();
+        heaters.GetByLocationAsync(LocationId, Arg.Any<CancellationToken>()).Returns(
+            new WaterHeater(Guid.NewGuid(), LocationId, OsoSamples.DeviceId,
+                protector.Protect(OsoSamples.Key, LocationId), WaterHeaterTestData.KeyExpiresOn));
+
+        Result<WaterHeaterHighDemandResponse> result = await new SetWaterHeaterHighDemandCommandHandler(
+                locations, heaters, sp.GetRequiredService<IWaterHeaterClient>(), protector,
+                new FixedTimeProvider("2026-11-26T05:21:20Z"),
+                sp.GetRequiredService<ILoggerFactory>().CreateLogger<SetWaterHeaterHighDemandCommandHandler>())
+            .Handle(new SetWaterHeaterHighDemandCommand(UserId, LocationId, on), default);
+
+        Assert.Equal(osoAnswer == HttpStatusCode.OK && !timesOut, result.IsSuccess);
+        AssertNoSecrets(result.IsSuccess ? result.Value : result.Error);
+        Assert.Contains(_logs.Lines, l => l.Contains("High Demand of location", StringComparison.Ordinal));
+    }
+
     private sealed class CapturingLoggerProvider : ILoggerProvider
     {
         public List<string> Lines { get; } = [];

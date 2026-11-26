@@ -3,7 +3,10 @@ using System.Text;
 
 namespace Features.Tests.WaterHeaters;
 
-/// <summary>Answers OSO calls by the last path segment, and records what was asked.</summary>
+/// <summary>
+/// Answers OSO calls by the last path segment, and records what was asked. The High Demand switch (spec 022) is
+/// keyed "HighDemand/": its path ends with a slash, and <c>Segments[^1]</c> keeps it.
+/// </summary>
 internal sealed class OsoStubHandler : HttpMessageHandler
 {
     private readonly Dictionary<string, (HttpStatusCode Status, string Body)> _answers = new(StringComparer.Ordinal)
@@ -12,9 +15,10 @@ internal sealed class OsoStubHandler : HttpMessageHandler
         ["CurrentTemperature"] = (HttpStatusCode.OK, OsoSamples.CurrentTemperature),
         ["ActualLoad"] = (HttpStatusCode.OK, OsoSamples.ActualLoad),
         ["TappingCapacityKwh"] = (HttpStatusCode.OK, OsoSamples.TappingCapacityKwh),
+        ["HighDemand/"] = (HttpStatusCode.OK, ""),
     };
 
-    public List<(string Path, string? Key)> Requests { get; } = [];
+    public List<(string Path, string? Key, HttpMethod Method, long? ContentLength)> Requests { get; } = [];
     public Exception? Throw { get; set; }
     public TimeSpan Delay { get; set; } = TimeSpan.Zero;
 
@@ -37,7 +41,8 @@ internal sealed class OsoStubHandler : HttpMessageHandler
             : null;
         lock (Requests)
         {
-            Requests.Add((request.RequestUri!.AbsolutePath, key));
+            Requests.Add((request.RequestUri!.AbsolutePath, key, request.Method,
+                request.Content?.Headers.ContentLength));
         }
 
         if (Delay > TimeSpan.Zero)

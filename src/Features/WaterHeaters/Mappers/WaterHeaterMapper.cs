@@ -1,5 +1,6 @@
 using Application.WaterHeaters;
 using Domain.Common.Entities;
+using Features.WaterHeaters.Commands;
 using Features.WaterHeaters.Queries;
 
 namespace Features.WaterHeaters.Mappers;
@@ -69,6 +70,14 @@ public static class WaterHeaterMapper
 
     /// <summary>The period as the response names it: <c>day</c>, <c>week</c>, <c>month</c> or <c>year</c>.</summary>
     public static string ToWire(HotWaterPeriod p) => p.ToString().ToLowerInvariant();
+
+    /// <summary>
+    /// The answer to a High Demand switch (spec 022): the state read back, mapped as the state endpoint maps it, or
+    /// null when the read-back failed.
+    /// </summary>
+    public static WaterHeaterHighDemandResponse ToHighDemandResponse(
+        Guid locationId, bool on, WaterHeaterReading? reading, DateTime nowUtc) =>
+        new(locationId, on, reading is null ? null : ToState(locationId, reading, nowUtc));
 
     public static WaterHeaterStateResponse ToState(Guid locationId, WaterHeaterReading reading, DateTime nowUtc)
     {
