@@ -166,12 +166,12 @@ end time about 24 hours ahead (quickstart §2).
 - [X] T021 [P] In `DevelopmentGuide.md`, "## Water heater (OSO)", add one line for
   `PUT`/`DELETE /api/admin/locations/{id}/water-heater/high-demand`. It says the switch is Admin only and uses
   undocumented OSO calls, and links `specs/022-oso-high-demand/contracts/endpoints.md`.
-- [ ] T022 Run `dotnet build` (no new warnings), `dotnet format --verify-no-changes` and `dotnet test`. Everything must
+- [X] T022 Run `dotnet build` (no new warnings), `dotnet format --verify-no-changes` and `dotnet test`. Everything must
   pass. Then commit and open the PR.
   - **Checks done (2026-11-26):** build with no new warnings, format clean, 1224 tests pass (46 new). The API started
-    locally lists `PUT` and `DELETE …/high-demand` in OpenAPI and answers 401 without a token. Commit and PR wait
-    for Roy's word.
-- [ ] T023 After the deploy, Roy runs quickstart §3 against the real heater (FR-009, SC-001, SC-002, SC-003) and §4's
+    locally lists `PUT` and `DELETE …/high-demand` in OpenAPI and answers 401 without a token. PR #79, merged and
+    deployed on 2026-11-26 at 17:16 UTC. In production the route answers 401 without a token.
+- [X] T023 After the deploy, Roy runs quickstart §3 against the real heater (FR-009, SC-001, SC-002, SC-003) and §4's
   log query. On and off are each done 3 times, timed, and `PUT` is run once more while on. Record per try the answer
   time and how long the state took to change, whether `end` moved on the second `PUT`, the set points, when the
   heating stopped and what the OSO app showed:
@@ -180,7 +180,11 @@ end time about 24 hours ahead (quickstart §2).
 
   If the heater doesn't follow the off call, write that down. The frontend handover (T024) then says to hide the
   switch.
-- [ ] T024 Create `specs/_backlog/oso-high-demand-frontend.md`, in the style of earlier handover notes, for the
+  - **Replaced on 2026-11-26, on Roy's word:** "Assume it works until I tell opposite." The formal test was not run.
+    Roy tests the switch in daily use and reports a problem if he finds one. The hand test of the OSO calls
+    (research R1) stays the evidence that they work. The open question (does the heater follow the off call, and
+    why didn't the OSO app?) is noted in research R8 and the spec.
+- [X] T024 Create `specs/_backlog/oso-high-demand-frontend.md`, in the style of earlier handover notes, for the
   frontend's switch on the Heater tab. It covers:
   - the two endpoints and the answer, with a link to contracts/endpoints.md;
   - Admin only, so show the switch only to Admins;

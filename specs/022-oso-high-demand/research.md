@@ -172,6 +172,12 @@ with the Heater tab or `curl`:
 If step 2 fails, the frontend hides the switch (spec Assumptions) and the outcome is written down here and in the
 spec.
 
+**Outcome, 2026-11-26:** not run. After the deploy (PR #79), Roy decided to assume the switch works until he finds
+otherwise in daily use. The hand test of R1 stays the evidence. Still open, and the first things to check if he
+reports a problem:
+- does the heater follow the API's off call (set point back to 60, heating stops)?
+- why did the OSO app keep showing High Demand after the API's off call?
+
 ## R9. Spec 011's read-only rule
 
 **Decision**: Spec 011's FR-015 stays as it is: it describes spec 011's version. This spec's FR-008 lifts it for High
