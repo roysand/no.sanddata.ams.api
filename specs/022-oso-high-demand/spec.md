@@ -126,6 +126,8 @@ heater's mode doesn't change.
   the API's off call: after turning High Demand off while the tank is below the High Demand temperature, the heater's
   set point returns to normal and the heater stops heating towards it. If it doesn't, the frontend hides the switch,
   and the result is written down in this spec.
+  - _2026-11-26:_ the formal test was not run. Roy assumes the switch works and tests it in daily use (research
+    R8, tasks T023).
 - **FR-010**: Nothing about the switch is stored by our app. The mode lives at OSO, and the heater's state keeps
   reading it from there.
 
