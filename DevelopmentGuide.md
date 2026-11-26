@@ -492,8 +492,12 @@ Keep this mapping in sync as new features are added, to avoid EventId collisions
 `src/Features/WaterHeaters/` connects one OSO water heater per location, reads its state from OSO's inCharge API and
 samples its power once a minute (spec 011; endpoints in `specs/011-oso-water-heater/contracts/endpoints.md`).
 
-- `IWaterHeaterClient` is **read only on purpose**. Controlling the heater (profiles, turning it on and off) is a
-  later spec with its own safety rules; do not add a write call here.
+- `IWaterHeaterClient` is **read only on purpose**, with one exception: `SetHighDemandAsync` (spec 022). Don't add
+  other write calls (profiles, turning the heater on and off, holiday mode) without a spec of their own.
+- `PUT` and `DELETE /api/admin/locations/{id}/water-heater/high-demand` turn High Demand on and off, Admin only
+  (spec 022; [contract](specs/022-oso-high-demand/contracts/endpoints.md)). They use OSO's **undocumented**
+  `POST`/`DELETE …/HighDemand/`, sent once and never retried, then read the state back. If OSO removes the call, its
+  404 becomes `WaterHeater.HighDemandNotOffered`.
 - The OSO subscription key is stored encrypted by `AesGcmSecretProtector` with `WaterHeater:KeyEncryptionKey` (set in
   the server's `.env`, see `DockerDeployment.md`). Without that key the API starts, but a heater cannot be connected.
 - The device id is in every OSO URL path. The OSO `HttpClient` is registered with `.RemoveAllLoggers()`, because the
@@ -510,4 +514,5 @@ samples its power once a minute (spec 011; endpoints in `specs/011-oso-water-hea
   as a parameter. Change the hold rule there only, and check that the hourly figures stay the same.
 - `GET /api/locations/{id}/water-heater/hot-water?period=&date=` gives the 40 °C litres used per hour, day or month
   of an Oslo day, week, month or year (spec 020; [contract](specs/020-water-heater-consumption/contracts/endpoints.md)).
-  It has its own SQL query, `GetHourlyHotWaterAsync`, and the rule's numbers live in `HotWaterRule`.
+  `GetHourlyHotWaterAsync` reads each hour's first and last litres and its heated kWh, and `HotWaterBalance` counts
+  the hour as an energy balance (spec 020, research R10). The rule's numbers live in `HotWaterRule`.

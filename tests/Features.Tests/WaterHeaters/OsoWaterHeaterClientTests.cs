@@ -203,4 +203,82 @@ public class OsoWaterHeaterClientTests
         Assert.DoesNotContain(OsoSamples.Key, Credentials.ToString());
         Assert.DoesNotContain(OsoSamples.DeviceId, Credentials.ToString());
     }
+
+    // High Demand (spec 022, research R1–R3)
+
+    private static readonly string HighDemandPath = $"/water-heater-api/1/Device/{OsoSamples.DeviceId}/HighDemand/";
+
+    [Theory]
+    [InlineData(HttpStatusCode.OK)]
+    [InlineData(HttpStatusCode.NoContent)]
+    public async Task SetHighDemand_On_SendsOnePostWithTheKeyAndNoBody(HttpStatusCode status)
+    {
+        OsoStubHandler handler = new OsoStubHandler().Answer("HighDemand/", status, "");
+
+        Result result = await Client(handler).SetHighDemandAsync(Credentials, on: true, default);
+
+        Assert.True(result.IsSuccess);
+        (string path, string? key, HttpMethod method, long? length) = Assert.Single(handler.Requests);
+        Assert.Equal(HighDemandPath, path);
+        Assert.Equal(OsoSamples.Key, key);
+        Assert.Equal(HttpMethod.Post, method);
+        Assert.Equal(0, length ?? 0);
+    }
+
+    [Fact]
+    public async Task SetHighDemand_Off_SendsOneDelete()
+    {
+        var handler = new OsoStubHandler();
+
+        Result result = await Client(handler).SetHighDemandAsync(Credentials, on: false, default);
+
+        Assert.True(result.IsSuccess);
+        (string path, string? key, HttpMethod method, _) = Assert.Single(handler.Requests);
+        Assert.Equal(HighDemandPath, path);
+        Assert.Equal(OsoSamples.Key, key);
+        Assert.Equal(HttpMethod.Delete, method);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized, "WaterHeater.Rejected")]
+    [InlineData(HttpStatusCode.Forbidden, "WaterHeater.Rejected")]
+    [InlineData(HttpStatusCode.NotFound, "WaterHeater.HighDemandNotOffered")]
+    [InlineData(HttpStatusCode.InternalServerError, "WaterHeater.Unavailable")]
+    [InlineData(HttpStatusCode.ServiceUnavailable, "WaterHeater.Unavailable")]
+    [InlineData(HttpStatusCode.TooManyRequests, "WaterHeater.Unavailable")]
+    [InlineData(HttpStatusCode.RequestTimeout, "WaterHeater.Unavailable")]
+    [InlineData(HttpStatusCode.BadRequest, "WaterHeater.InvalidResponse")]
+    public async Task SetHighDemand_Errors_AreMappedAndNotRetried(HttpStatusCode status, string code)
+    {
+        OsoStubHandler handler = new OsoStubHandler().Answer("HighDemand/", status, """{"error":"x"}""");
+
+        Result on = await Client(handler).SetHighDemandAsync(Credentials, on: true, default);
+        Result off = await Client(handler).SetHighDemandAsync(Credentials, on: false, default);
+
+        Assert.Equal(code, on.Error.Code);
+        Assert.Equal(code, off.Error.Code);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task SetHighDemand_Timeout_IsUnavailableAndSentOnce()
+    {
+        var handler = new OsoStubHandler { Delay = TimeSpan.FromSeconds(5) };
+
+        Result result = await Client(handler, TimeSpan.FromMilliseconds(50))
+            .SetHighDemandAsync(Credentials, on: true, default);
+
+        Assert.Equal("WaterHeater.Unavailable", result.Error.Code);
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public async Task SetHighDemand_ConnectionFailure_IsUnavailable()
+    {
+        var handler = new OsoStubHandler { Throw = new HttpRequestException("boom") };
+
+        Result result = await Client(handler).SetHighDemandAsync(Credentials, on: false, default);
+
+        Assert.Equal("WaterHeater.Unavailable", result.Error.Code);
+    }
 }

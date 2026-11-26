@@ -21,7 +21,7 @@ public static class WaterHeaterErrorStatus
     public static int Of(Error error, bool onConnect) => error.Code switch
     {
         "WaterHeater.Rejected" => onConnect ? 400 : 502,
-        "WaterHeater.InvalidResponse" or "WaterHeater.KeyUnreadable" => 502,
+        "WaterHeater.InvalidResponse" or "WaterHeater.KeyUnreadable" or "WaterHeater.HighDemandNotOffered" => 502,
         "WaterHeater.Unavailable" or "WaterHeater.EncryptionNotConfigured" => 503,
         _ => error.Type switch
         {

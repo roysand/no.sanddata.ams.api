@@ -6,7 +6,7 @@ namespace Features.WaterHeaters.Logging;
 /// Water heater (OSO): event ids 1800 - 1899 (1800 - 1819 here, the OSO client 1820 - 1829, the sampler 1830 - 1849).
 /// Ids and reason codes only: the OSO subscription key and the device id are never logged. Reason codes are the
 /// error codes without the prefix: Rejected, Unavailable, InvalidResponse, KeyUnreadable, EncryptionNotConfigured,
-/// DeviceInUse, KeyExpiryOutOfRange, NotFound, Unexpected.
+/// DeviceInUse, KeyExpiryOutOfRange, HighDemandNotOffered, NotFound, Unexpected.
 /// </summary>
 internal static class LogMessages
 {
@@ -51,6 +51,20 @@ internal static class LogMessages
             LogLevel.Information,
             new EventId(1806, nameof(WaterHeaterKeyExpiryChanged)),
             "Water heater key expiry of location {LocationId} set to {ExpiresOn} by {ActingUserId}");
+
+    private static readonly Action<ILogger, Guid, Guid, bool, bool, Exception?> _highDemandSwitched =
+        LoggerMessage.Define<Guid, Guid, bool, bool>(
+            LogLevel.Information,
+            new EventId(1807, nameof(WaterHeaterHighDemandSwitched)),
+            "Water heater High Demand of location {LocationId} switched by {ActingUserId} " +
+            "(on: {On}, state read: {StateRead})");
+
+    private static readonly Action<ILogger, Guid, Guid, bool, string, Exception?> _highDemandFailed =
+        LoggerMessage.Define<Guid, Guid, bool, string>(
+            LogLevel.Warning,
+            new EventId(1808, nameof(WaterHeaterHighDemandFailed)),
+            "Water heater High Demand of location {LocationId} not switched by {ActingUserId} " +
+            "(on: {On}, reason: {Reason})");
 
     private static readonly Action<ILogger, Guid, string, Exception?> _sampleFailing =
         LoggerMessage.Define<Guid, string>(
@@ -114,6 +128,14 @@ internal static class LogMessages
 
     public static void WaterHeaterKeyExpiryChanged(ILogger logger, Guid actingUserId, Guid locationId, DateOnly expiresOn)
         => _keyExpiryChanged(logger, locationId, actingUserId, expiresOn, null);
+
+    public static void WaterHeaterHighDemandSwitched(
+        ILogger logger, Guid actingUserId, Guid locationId, bool on, bool stateRead)
+        => _highDemandSwitched(logger, locationId, actingUserId, on, stateRead, null);
+
+    public static void WaterHeaterHighDemandFailed(
+        ILogger logger, Guid actingUserId, Guid locationId, bool on, string reason)
+        => _highDemandFailed(logger, locationId, actingUserId, on, reason, null);
 
     public static void WaterHeaterSampleFailing(ILogger logger, Guid locationId, string reason)
         => _sampleFailing(logger, locationId, reason, null);
